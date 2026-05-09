@@ -13,8 +13,8 @@ ActiveRecord::Base.transaction do
   Project.destroy_all
 
   user = User.create!(
-    email_address: "admin@director.ai",
-    password: "password123"
+    email_address: "admin@test.com",
+    password: "111111111"
   )
 
   project = Project.create!(name: "Director AI")
