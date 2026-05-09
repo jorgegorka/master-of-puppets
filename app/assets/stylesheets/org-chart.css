@@ -31,6 +31,7 @@
 
   .org-chart-container {
     position: relative;
+    flex: 1;
     overflow: hidden;
     background-color: var(--bg-body);
     background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);

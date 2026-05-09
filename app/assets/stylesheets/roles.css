@@ -23,6 +23,9 @@
 
   .roles-page--chart {
     max-inline-size: none;
+    display: flex;
+    flex-direction: column;
+    block-size: 100%;
   }
 
   .roles-page__actions {
