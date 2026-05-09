@@ -104,7 +104,7 @@ class RoleTemplates::RegistryTest < ActiveSupport::TestCase
   end
 
   test "all template roles have a valid category" do
-    valid_categories = %w[Orchestrator Planner Worker]
+    valid_categories = %w[Orchestrator Executor]
     RoleTemplates::Registry.all.each do |template|
       template.roles.each do |role|
         assert_includes valid_categories, role.category,

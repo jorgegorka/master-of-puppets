@@ -23,7 +23,7 @@ class HeartbeatsControllerTest < ActionDispatch::IntegrationTest
     role = Role.create!(
       title: "Empty Role",
       project: @project,
-      role_category: role_categories(:worker),
+      role_category: role_categories(:executor),
       adapter_type: :http,
       adapter_config: { "url" => "https://example.com" }
     )

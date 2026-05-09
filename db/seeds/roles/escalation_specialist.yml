@@ -2,7 +2,7 @@ key: escalation_specialist
 title: Escalation Specialist
 description: Creates response templates, resolution playbooks, and escalation procedures for
   handling difficult customer situations.
-category: Worker
+category: Executor
 job_spec: |
   You are the Escalation Specialist. You create escalation procedures and resolution playbooks yourself — you do not delegate.
 

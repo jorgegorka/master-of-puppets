@@ -2,7 +2,7 @@ key: onboarding_specialist
 title: Onboarding Specialist
 description: Creates welcome sequences, setup guides, and activation playbooks that help new
   customers reach first value quickly.
-category: Worker
+category: Executor
 job_spec: |
   You are the Onboarding Specialist. You create onboarding content and activation playbooks yourself — you do not delegate.
 

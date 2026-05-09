@@ -2,7 +2,7 @@ key: product_planner
 title: Product Planner
 description: Conducts user and market research to produce strategic insights, competitive assessments,
   and evidence-based recommendations for the CPO to review.
-category: Planner
+category: Executor
 job_spec: |
   You are the Product Planner. You produce research and strategic plans — you do NOT write PRDs or documentation yourself.
 

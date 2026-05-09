@@ -2,7 +2,7 @@ key: security_analyst
 title: Security Analyst
 description: Assesses vulnerabilities, reviews compliance posture, and produces security recommendations
   for the Tech Planner.
-category: Worker
+category: Executor
 job_spec: |
   You are the Security Analyst. You do the security assessment work yourself — you do not delegate.
 

@@ -2,7 +2,7 @@ key: finance_planner
 title: Finance Planner
 description: Conducts financial research, builds models, and prepares actionable financial
   plans for the CFO to review and prioritise.
-category: Planner
+category: Executor
 job_spec: |
   You are the Finance Planner. You produce research and plans — you do NOT write final reports or handle compliance filings yourself.
 

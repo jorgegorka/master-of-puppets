@@ -31,7 +31,7 @@ class Roles::HiringTest < ActiveSupport::TestCase
   end
 
   test "hirable_roles excludes roles that already exist in the project" do
-    @project.roles.create!(title: "Marketing Planner", description: "Planner", parent: @cmo, role_category: role_categories(:planner))
+    @project.roles.create!(title: "Marketing Planner", description: "Planner", parent: @cmo, role_category: role_categories(:executor))
 
     hirable = @cmo.hirable_roles
     hirable_titles = hirable.map(&:title)

@@ -30,11 +30,10 @@ If something goes wrong across the board, an admin can hit the **emergency stop*
 
 Inside each project you define roles — CEO, lead engineer, content writer, support representative, whatever fits your operation. Roles are arranged in a hierarchy, just like a real org chart, with parent-child relationships that determine who reports to whom. Each role has a job specification describing what it's responsible for.
 
-Every role belongs to one of three **categories** that determine how it behaves:
+Every role belongs to one of two **categories** that determine how it behaves:
 
 - **Orchestrator** — delegates work to direct reports, reviews results, and coordinates execution. Does not produce deliverables directly. Think CEO, department head, team lead.
-- **Planner** — researches, analyzes, and produces strategic plans and recommendations. May delegate data-gathering to subordinates but focuses on strategy.
-- **Worker** — does the work directly and produces deliverables. Does not delegate to others.
+- **Executor** — does the work directly and produces deliverables. May delegate parallelizable data-gathering to direct reports when warranted, but synthesis and the final output are always its own.
 
 Each category comes with a structured job spec that defines the MCP protocol the role follows — which tools to use, in what order, and what quality standards to meet. This means roles don't just have different titles, they have fundamentally different behavior patterns.
 
@@ -164,7 +163,7 @@ Director notifies you when things need your attention — when you're mentioned 
 
 Director exposes a suite of **MCP tools** to the orchestrator scope that roles use to interact with the system. These are the hands and eyes of every AI role — the only way they can read tasks, post results, delegate work, or access documents.
 
-The tools cover four areas: **task management** (create, update status, list, and inspect tasks — including root tasks as missions), **review and summarization** (review completed subtasks, summarize completed missions), **role coordination** (list available roles, hire subordinates, post messages), and **document access** (search and read reference material). Each role category's job spec defines which tools to use and in what order, so orchestrators delegate via `create_task`, workers execute and report via `add_message`, and planners do both.
+The tools cover four areas: **task management** (create, update status, list, and inspect tasks — including root tasks as missions), **review and summarization** (review completed subtasks, summarize completed missions), **role coordination** (list available roles, hire subordinates, post messages), and **document access** (search and read reference material). Each role category's job spec defines which tools to use and in what order, so orchestrators delegate via `create_task` while executors execute and report via `add_message` (and may delegate parallelizable research via `create_task` when warranted).
 
 Communication with roles uses JSON-RPC 2.0 over stdin/stdout, so any process that speaks that protocol can act as an AI backend.
 

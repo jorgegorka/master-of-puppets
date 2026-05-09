@@ -4,16 +4,10 @@ orchestrator:
   job_spec: "You are an orchestrator. You delegate — you do NOT do implementation work yourself."
   project: acme
 
-planner:
-  name: Planner
-  description: "Researches, analyzes, and produces strategic plans and recommendations."
-  job_spec: "You are a planner. You research, analyze, and produce plans."
-  project: acme
-
-worker:
-  name: Worker
-  description: "Does the work directly and produces deliverables."
-  job_spec: "You are a worker. You do the work yourself — you do not delegate."
+executor:
+  name: Executor
+  description: "Does the work directly and produces deliverables. May delegate parallelizable data-gathering when warranted."
+  job_spec: "You are an executor. You do the work yourself and produce the deliverable."
   project: acme
 
 widgets_orchestrator:

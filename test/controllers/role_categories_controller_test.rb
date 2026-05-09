@@ -7,8 +7,7 @@ class RoleCategoriesControllerTest < ActionDispatch::IntegrationTest
     sign_in_as(@user)
     post project_switch_url(@project)
     @orchestrator = role_categories(:orchestrator)
-    @planner = role_categories(:planner)
-    @worker = role_categories(:worker)
+    @executor = role_categories(:executor)
   end
 
   # --- Index ---
@@ -16,7 +15,7 @@ class RoleCategoriesControllerTest < ActionDispatch::IntegrationTest
   test "should get index" do
     get role_categories_url
     assert_response :success
-    assert_select ".role-category-card", minimum: 3
+    assert_select ".role-category-card", minimum: 2
   end
 
   test "should only show categories for current project" do
@@ -88,17 +87,17 @@ class RoleCategoriesControllerTest < ActionDispatch::IntegrationTest
   # --- Edit / Update ---
 
   test "should get edit" do
-    get edit_role_category_url(@planner)
+    get edit_role_category_url(@executor)
     assert_response :success
   end
 
   test "should update role category" do
-    patch role_category_url(@planner), params: {
+    patch role_category_url(@executor), params: {
       role_category: { description: "Updated description" }
     }
-    assert_redirected_to role_category_url(@planner)
-    @planner.reload
-    assert_equal "Updated description", @planner.description
+    assert_redirected_to role_category_url(@executor)
+    @executor.reload
+    assert_equal "Updated description", @executor.description
   end
 
   # --- Destroy ---

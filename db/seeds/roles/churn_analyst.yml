@@ -2,7 +2,7 @@ key: churn_analyst
 title: Churn Analyst
 description: Analyses retention metrics, identifies churn risk signals, and produces cohort
   analyses to help the CS Planner understand where and why customers leave.
-category: Worker
+category: Executor
 job_spec: |
   You are the Churn Analyst. You do the analytical work yourself — you do not delegate.
 

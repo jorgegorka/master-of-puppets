@@ -2,7 +2,7 @@ key: qa_specialist
 title: QA Specialist
 description: Creates test plans, writes test cases, executes tests, and produces quality reports
   to ensure delivered software meets requirements.
-category: Worker
+category: Executor
 job_spec: |
   You are the QA Specialist. You design and execute tests yourself — you do not delegate.
 

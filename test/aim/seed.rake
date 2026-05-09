@@ -82,20 +82,20 @@ class AIMSeed
         description: "#{TAG} Mid-level orchestrator. Manages Senior Dev and QA Engineer.",
         parent: @ceo, budget: 100_000, adapter_config: adapter_config)
 
-      @vp_strategy = create_role("AIM VP Strategy", categories["Planner"],
-        description: "#{TAG} Planner. Researches and produces plans. Can delegate data-gathering to Research Analyst.",
+      @vp_strategy = create_role("AIM VP Strategy", categories["Executor"],
+        description: "#{TAG} Executor. Researches and produces plans. May delegate parallelizable data-gathering to Research Analyst.",
         parent: @ceo, budget: 50_000, adapter_config: adapter_config)
 
-      @senior_dev = create_role("AIM Senior Dev", categories["Worker"],
-        description: "#{TAG} Worker. Writes code and documentation directly.",
+      @senior_dev = create_role("AIM Senior Dev", categories["Executor"],
+        description: "#{TAG} Executor. Writes code and documentation directly.",
         parent: @vp_eng, budget: 50_000, adapter_config: adapter_config)
 
-      @qa_engineer = create_role("AIM QA Engineer", categories["Worker"],
-        description: "#{TAG} Worker. Tests and validates deliverables.",
+      @qa_engineer = create_role("AIM QA Engineer", categories["Executor"],
+        description: "#{TAG} Executor. Tests and validates deliverables.",
         parent: @vp_eng, budget: 50_000, adapter_config: adapter_config)
 
-      @research_analyst = create_role("AIM Research Analyst", categories["Worker"],
-        description: "#{TAG} Worker. Gathers data and research for the planner.",
+      @research_analyst = create_role("AIM Research Analyst", categories["Executor"],
+        description: "#{TAG} Executor. Gathers data and research for VP Strategy.",
         parent: @vp_strategy, budget: 25_000, adapter_config: adapter_config)
 
       puts "#{TAG}   Roles seeded."
@@ -156,7 +156,7 @@ class AIMSeed
         message_type: :comment
       )
 
-      # Task 2: in_progress — for worker_does_work scenario
+      # Task 2: in_progress — for executor_writes_documentation & executor_incorporates_approval_feedback
       Task.create!(
         project: @project,
         title: "AIM: Write API documentation",
@@ -168,7 +168,7 @@ class AIMSeed
         priority: :medium
       )
 
-      # Task 3: in_progress — for planner_direct_work scenario
+      # Task 3: in_progress — for executor_compares_competitors scenario
       Task.create!(
         project: @project,
         title: "AIM: Analyze competitor pricing models",
@@ -180,7 +180,7 @@ class AIMSeed
         priority: :medium
       )
 
-      # Task 4: in_progress — for worker_scope_discipline scenario
+      # Task 4: in_progress — for executor_flags_oversized_work scenario
       Task.create!(
         project: @project,
         title: "AIM: Build entire platform from scratch",
@@ -192,7 +192,7 @@ class AIMSeed
         priority: :medium
       )
 
-      # Task 5: in_progress — for worker_simple_task scenario
+      # Task 5: in_progress — for executor_writes_test_plan scenario
       Task.create!(
         project: @project,
         title: "AIM: Write test plan for authentication",
@@ -204,7 +204,7 @@ class AIMSeed
         priority: :medium
       )
 
-      # Task 6: in_progress — for worker_flags_blocker scenario
+      # Task 6: in_progress — for executor_flags_blocker scenario
       Task.create!(
         project: @project,
         title: "AIM: Integrate payment gateway",
@@ -216,7 +216,7 @@ class AIMSeed
         priority: :medium
       )
 
-      # Task 7: in_progress — for worker_stays_on_task scenario
+      # Task 7: in_progress — for executor_stays_on_task scenario
       Task.create!(
         project: @project,
         title: "AIM: Compile list of enterprise AI platforms",
@@ -228,7 +228,7 @@ class AIMSeed
         priority: :medium
       )
 
-      # Task 8: in_progress — for planner_delegates_research scenario
+      # Task 8: in_progress — for executor_delegates_parallelizable_research scenario
       Task.create!(
         project: @project,
         title: "AIM: Comprehensive market analysis",
@@ -240,7 +240,7 @@ class AIMSeed
         priority: :medium
       )
 
-      # Task 9: in_progress — for planner_simple_analysis scenario
+      # Task 9: in_progress — for executor_writes_swot scenario
       Task.create!(
         project: @project,
         title: "AIM: SWOT analysis of current product",
@@ -252,7 +252,7 @@ class AIMSeed
         priority: :medium
       )
 
-      # Task 10: in_progress — for planner_mixed_complexity scenario
+      # Task 10: in_progress — for executor_mixed_complexity scenario
       Task.create!(
         project: @project,
         title: "AIM: Pricing strategy recommendation",
@@ -264,7 +264,7 @@ class AIMSeed
         priority: :medium
       )
 
-      # Task 11: in_progress — for planner_submits_work scenario
+      # Task 11: in_progress — for executor_writes_brief scenario
       Task.create!(
         project: @project,
         title: "AIM: Write executive brief on AI market trends",
@@ -276,9 +276,9 @@ class AIMSeed
         priority: :medium
       )
 
-      # Task 14: in_progress — for planner_filesystem_prohibited scenario.
+      # Task 14: in_progress — for executor_filesystem_prohibited scenario.
       # Dedicated task so the full-suite run can't pollute its state (was sharing
-      # "AIM: Analyze competitor pricing models" with planner_direct_work).
+      # "AIM: Analyze competitor pricing models" with executor_compares_competitors).
       Task.create!(
         project: @project,
         title: "AIM: Summarize SaaS pricing tiers",
@@ -290,11 +290,11 @@ class AIMSeed
         priority: :medium
       )
 
-      # Task 13: in_progress — for planner_escalates_permission_error scenario.
+      # Task 13: in_progress — for executor_escalates_permission_error scenario.
       # Description instructs posting on "AIM: Launch onboarding redesign" — a
       # separate root mission VP Strategy has no assignments under. Posting there
       # is forbidden under the task-tree permission rule, so add_message will hit
-      # the permission rail. Used to verify the planner escalates rather than
+      # the permission rail. Used to verify the executor escalates rather than
       # silently rerouting.
       Task.create!(
         project: @project,

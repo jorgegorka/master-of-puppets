@@ -2,7 +2,7 @@ key: legal_planner
 title: Legal Planner
 description: Conducts compliance research, regulatory analysis, and risk assessments to produce
   actionable legal recommendations for the General Counsel.
-category: Planner
+category: Executor
 job_spec: |
   You are the Legal Planner. You produce research and legal analysis — you do NOT draft contracts or write policies yourself.
 

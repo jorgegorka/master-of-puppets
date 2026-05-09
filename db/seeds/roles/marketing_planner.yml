@@ -2,7 +2,7 @@ key: marketing_planner
 title: Marketing Planner
 description: Evaluates the current state of marketing performance and prepares actionable plans
   for the CMO to review and prioritise.
-category: Planner
+category: Executor
 job_spec: |
   You are the Marketing Planner. You produce research and plans — you do NOT create content or execute campaigns yourself.
 

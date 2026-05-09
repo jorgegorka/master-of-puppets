@@ -2,7 +2,7 @@ key: risk_analyst
 title: Risk Analyst
 description: Assesses legal liabilities, maps risk exposure, and develops mitigation strategies
   for the Legal Planner.
-category: Worker
+category: Executor
 job_spec: |
   You are the Risk Analyst. You do the liability assessment and risk mapping work yourself — you do not delegate.
 

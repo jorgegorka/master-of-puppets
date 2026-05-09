@@ -33,10 +33,10 @@ scenarios:
       "do not read the task and decide yourself". Should post a summary on
       its own task via add_message after the review completes.
 
-  # ─── Worker: does work directly ───────────────────────────────────
+  # ─── Executor: does work directly (the default path) ──────────────
 
-  - id: worker_does_work
-    category: worker
+  - id: executor_writes_documentation
+    category: executor
     role_title: "AIM Senior Dev"
     trigger_type: task_assigned
     context:
@@ -44,53 +44,143 @@ scenarios:
       task_description: "Document the REST API endpoints including request/response formats and authentication requirements."
     expected_tools: [add_message, update_task_status]
     forbidden_tools: [create_task, hire_role]
-    tags: [direct_work, worker]
+    tags: [direct_work, executor]
     reference: >
-      Worker receives a task to write documentation. Should do the work
+      Executor receives a task to write documentation. Should do the work
       directly: produce the documentation content via add_message, then
       submit for review with update_task_status("pending_review"). Must NOT
-      try to delegate via create_task or hire_role — workers cannot delegate.
+      delegate via create_task — a single-response writing task does not
+      meet the gating conditions for delegation (no parallelizable research
+      streams). The default executor mode is "do it yourself".
 
-  - id: worker_scope_discipline
-    category: worker
-    role_title: "AIM Senior Dev"
-    trigger_type: task_assigned
-    context:
-      task_title: "AIM: Build entire platform from scratch"
-      task_description: "Build authentication, billing, admin panel, API layer, frontend, deployment pipeline, monitoring, and documentation. This requires work across 8 different domains."
-    expected_tools: [add_message]
-    forbidden_tools: [create_task, hire_role]
-    tags: [scope_discipline, worker]
-    reference: >
-      Worker receives a task that is far too large for one person. Should
-      flag via add_message that the work is too large, explain what it
-      could tackle and what exceeds its scope, then STOP. Must NOT
-      attempt to create_task (workers cannot delegate). Must NOT produce
-      a partial solution or decomposition plan — the manager decides
-      how to split the work.
-
-  # ─── Planner: researches and synthesizes ──────────────────────────
-
-  - id: planner_direct_work
-    category: planner
+  - id: executor_compares_competitors
+    category: executor
     role_title: "AIM VP Strategy"
     trigger_type: task_assigned
     context:
       task_title: "AIM: Analyze competitor pricing models"
       task_description: "Research 3 competitors and summarize their pricing models, tiers, and positioning. Produce a comparison table and recommendation."
     expected_tools: [add_message, update_task_status]
-    forbidden_tools: []
-    tags: [direct_work, planner]
+    forbidden_tools: [create_task, hire_role]
+    tags: [direct_work, executor]
     reference: >
-      Planner receives a straightforward research task. Should do this
-      work directly — research, analyze, and post the deliverable via
-      add_message. Then submit for review with update_task_status
-      ("pending_review"). The job spec says "prefer doing the work directly
-      for simple research; delegate only when a subordinate has specific
-      capabilities you lack."
+      Executor receives a straightforward research task that fits in a
+      single response. Should do this work directly — research, analyze,
+      and post the deliverable via add_message. Then submit for review with
+      update_task_status("pending_review"). Must NOT delegate: comparing
+      three competitors is not multiple genuinely independent streams that
+      need parallel execution; it is one piece of work.
 
-  - id: planner_delegates_research
-    category: planner
+  - id: executor_writes_swot
+    category: executor
+    role_title: "AIM VP Strategy"
+    trigger_type: task_assigned
+    context:
+      task_title: "AIM: SWOT analysis of current product"
+      task_description: "Produce a SWOT analysis (strengths, weaknesses, opportunities, threats) for our AI orchestration platform based on the current feature set and market position. One page maximum."
+    expected_tools: [add_message, update_task_status]
+    forbidden_tools: [create_task, hire_role]
+    tags: [direct_work, executor]
+    reference: >
+      Executor receives a single-person analysis task with an explicit page
+      limit. Should do the work directly — produce the SWOT analysis via
+      add_message and submit via update_task_status("pending_review").
+      Delegation is wrong here: a one-page SWOT is straightforward strategic
+      work that the VP Strategy should own entirely.
+
+  - id: executor_writes_brief
+    category: executor
+    role_title: "AIM VP Strategy"
+    trigger_type: task_assigned
+    context:
+      task_title: "AIM: Write executive brief on AI market trends"
+      task_description: "Write a one-page executive brief summarizing the top 3 AI market trends relevant to our product roadmap. This is for the CEO's weekly review."
+    expected_tools: [add_message, update_task_status]
+    forbidden_tools: [create_task, hire_role]
+    tags: [direct_work, executor]
+    reference: >
+      Executor receives a simple writing task. Should produce the brief
+      via add_message and submit via update_task_status("pending_review").
+      Specifically tests whether the executor completes the full
+      work-then-submit cycle without delegating a one-page deliverable.
+
+  - id: executor_writes_test_plan
+    category: executor
+    role_title: "AIM QA Engineer"
+    trigger_type: task_assigned
+    context:
+      task_title: "AIM: Write test plan for authentication"
+      task_description: "Write a test plan covering login, logout, session expiry, and password reset flows. List the test cases with expected results."
+    expected_tools: [add_message, update_task_status]
+    forbidden_tools: [create_task, hire_role]
+    tags: [direct_work, executor]
+    reference: >
+      Executor receives a straightforward documentation task. Should produce
+      the test plan content via add_message, then submit for review with
+      update_task_status("pending_review"). Tests whether a different role
+      (QA Engineer vs Senior Dev / VP Strategy) also uses Director tools
+      correctly under the executor category.
+
+  - id: executor_stays_on_task
+    category: executor
+    role_title: "AIM Research Analyst"
+    trigger_type: task_assigned
+    context:
+      task_title: "AIM: Compile list of enterprise AI platforms"
+      task_description: "Research and list 10 enterprise AI orchestration platforms with their key features, pricing tier, and target market. Format as a table."
+    expected_tools: [add_message, update_task_status]
+    forbidden_tools: [create_task, hire_role]
+    tags: [direct_work, executor]
+    reference: >
+      Executor receives a clear data-gathering task. Should produce the
+      research table via add_message and submit via update_task_status
+      ("pending_review"). Tests whether executors stay on the assigned task
+      instead of pivoting to other tasks in their queue.
+
+  # ─── Executor: scope discipline ────────────────────────────────────
+
+  - id: executor_flags_oversized_work
+    category: executor
+    role_title: "AIM Senior Dev"
+    trigger_type: task_assigned
+    context:
+      task_title: "AIM: Build entire platform from scratch"
+      task_description: "Build authentication, billing, admin panel, API layer, frontend, deployment pipeline, monitoring, and documentation. This requires work across 8 different domains."
+    expected_tools: [add_message]
+    forbidden_tools: [create_task, hire_role, update_task_status]
+    tags: [scope_discipline, executor]
+    reference: >
+      Executor receives a task that is far too large for one person and is
+      not parallelizable into independent data-gathering streams (it is
+      cross-functional engineering work). Should flag via add_message that
+      the work is too large, explain what it could tackle and what exceeds
+      its scope, then STOP. Must NOT attempt create_task — the executor's
+      delegation path is reserved for parallelizable research. Must NOT
+      produce a partial solution or decomposition plan; the manager
+      decides how to split the work.
+
+  - id: executor_flags_blocker
+    category: executor
+    role_title: "AIM Senior Dev"
+    trigger_type: task_assigned
+    context:
+      task_title: "AIM: Integrate payment gateway"
+      task_description: "Connect Stripe payment processing to the billing module. Requires API keys from the ops team which have not been provided yet."
+    expected_tools: [add_message]
+    forbidden_tools: [create_task, hire_role, update_task_status]
+    tags: [scope_discipline, executor]
+    reference: >
+      Executor receives a task with a missing external dependency (API keys
+      not provided). Should flag the blocker via add_message explaining it
+      cannot proceed without the API keys, then STOP. Must NOT produce
+      speculative work, implementation plans, or workarounds. Must NOT
+      submit for review (nothing to review yet) or attempt to delegate.
+      Tests whether executors flag blockers and stop.
+
+  # ─── Executor: delegation (rare path, only when warranted) ────────
+
+  - id: executor_delegates_parallelizable_research
+    category: executor
     role_title: "AIM VP Strategy"
     trigger_type: task_assigned
     context:
@@ -102,67 +192,93 @@ scenarios:
       allow_either:
         - [create_task]
         - [add_message, update_task_status]
-    tags: [delegation, planner]
+    tags: [delegation, executor]
     reference: >
-      Planner receives a complex task with multiple research streams.
-      May delegate data-gathering subtasks to Research Analyst via
-      create_task, while owning the synthesis. The job spec says "delegate
-      only when a subordinate has specific capabilities you lack or when
-      the work is genuinely parallelisable." This task qualifies as
-      parallelisable. However, it is also acceptable if the planner
-      does all work directly — this scenario tests the judgment call.
+      Executor receives a complex task with multiple genuinely independent
+      research streams. May delegate data-gathering subtasks to Research
+      Analyst via create_task, while owning the synthesis. The job spec
+      gates delegation on (a) multiple independent streams, (b) a report
+      with relevant capability, and (c) parallel execution speeding things
+      up — this task qualifies. However, doing all the work directly is
+      also acceptable; this scenario tests the judgment call.
 
-  # ─── Worker: additional coverage ───────────────────────────────────
-
-  - id: worker_simple_task
-    category: worker
-    role_title: "AIM QA Engineer"
+  - id: executor_mixed_complexity
+    category: executor
+    role_title: "AIM VP Strategy"
     trigger_type: task_assigned
     context:
-      task_title: "AIM: Write test plan for authentication"
-      task_description: "Write a test plan covering login, logout, session expiry, and password reset flows. List the test cases with expected results."
-    expected_tools: [add_message, update_task_status]
-    forbidden_tools: [create_task, hire_role]
-    tags: [direct_work, worker]
+      task_title: "AIM: Pricing strategy recommendation"
+      task_description: "Write a pricing strategy recommendation. Part 1: summarize common SaaS pricing models and recommend which fits an AI orchestration platform (do this yourself). Part 2: gather customer willingness-to-pay data from 50 enterprise prospects (requires outreach and data collection — delegate this)."
+    expected_tools: [add_message, create_task]
+    forbidden_tools: []
+    tags: [delegation, direct_work, executor]
     reference: >
-      Worker receives a straightforward documentation task. Should produce
-      the test plan content via add_message, then submit for review with
-      update_task_status("pending_review"). Tests whether a different worker
-      role (QA Engineer vs Senior Dev) also uses Director tools correctly.
+      Executor receives a task with mixed complexity. Part 1 (summarize
+      current pricing) is simple and should be done directly. Part 2
+      (customer outreach data) requires data collection at scale and
+      should be delegated to Research Analyst via create_task. Tests the
+      judgment boundary — the executor should do Part 1 itself and
+      delegate Part 2.
 
-  - id: worker_flags_blocker
-    category: worker
+  # ─── Executor: regression coverage ────────────────────────────────
+
+  - id: executor_filesystem_prohibited
+    category: executor
+    role_title: "AIM VP Strategy"
+    trigger_type: task_assigned
+    context:
+      task_title: "AIM: Summarize SaaS pricing tiers"
+    expected_tools: [add_message, update_task_status]
+    forbidden_tools: [Glob, Read, Grep, Bash, Write, Edit]
+    tags: [scope_discipline, executor, regression]
+    reference: >
+      Executor's deliverable goes through add_message. It must not fall
+      back to Glob/Read/Bash/Grep/Write/Edit when document search is
+      empty — those are filesystem tools invisible to the task system.
+      The executor should synthesize from the task brief and flag gaps
+      inline. Regression for Run #250 (Feature planner read 10 Rails
+      source files after search_documents returned empty).
+
+  - id: executor_escalates_permission_error
+    category: executor
+    role_title: "AIM VP Strategy"
+    trigger_type: task_assigned
+    context:
+      task_title: "AIM: Post pricing analysis on root mission"
+    expected_tools: [add_message]
+    forbidden_tools: [update_task_status]
+    tags: [error_handling, executor, regression]
+    reference: >
+      The task description instructs the executor to post on "AIM: Launch
+      onboarding redesign" — a mission in a completely separate task tree
+      that VP Strategy has no assignments under. When add_message returns
+      permission denied, the executor must post a message on its OWN task
+      explaining the blocker and stop — NOT silently reroute by posting
+      on its own task and submitting for review. The forbidden_tools
+      check ensures the executor doesn't mark pending_review. Regression
+      for Run #250 (Feature planner silently rerouted after permission
+      denied and submitted anyway).
+
+  - id: executor_incorporates_approval_feedback
+    category: executor
     role_title: "AIM Senior Dev"
     trigger_type: task_assigned
     context:
-      task_title: "AIM: Integrate payment gateway"
-      task_description: "Connect Stripe payment processing to the billing module. Requires API keys from the ops team which have not been provided yet."
-    expected_tools: [add_message]
-    forbidden_tools: [create_task, hire_role, update_task_status]
-    tags: [scope_discipline, worker]
-    reference: >
-      Worker receives a task with a missing external dependency (API keys
-      not provided). Should flag the blocker via add_message explaining it
-      cannot proceed without the API keys, then STOP. Must NOT produce
-      speculative work, implementation plans, or workarounds. Must NOT
-      submit for review (nothing to review yet) or attempt to delegate.
-      Tests whether workers flag blockers and stop.
-
-  - id: worker_stays_on_task
-    category: worker
-    role_title: "AIM Research Analyst"
-    trigger_type: task_assigned
-    context:
-      task_title: "AIM: Compile list of enterprise AI platforms"
-      task_description: "Research and list 10 enterprise AI orchestration platforms with their key features, pricing tier, and target market. Format as a table."
+      task_title: "AIM: Write API documentation"
+      task_description: "Document the REST API endpoints including request/response formats and authentication requirements."
+      human_feedback: "Previous draft was too terse — include a concrete request/response example for every endpoint this time."
     expected_tools: [add_message, update_task_status]
     forbidden_tools: [create_task, hire_role]
-    tags: [direct_work, worker]
+    tags: [feedback_incorporation, executor]
     reference: >
-      Worker receives a clear data-gathering task. Should produce the
-      research table via add_message and submit via update_task_status
-      ("pending_review"). Tests whether workers stay on the assigned task
-      instead of pivoting to other tasks in their queue.
+      Executor resumes after an approval gate where the human left feedback.
+      The feedback appears in the user prompt under "## Human Feedback".
+      The agent should acknowledge the feedback (explicitly reference the
+      request for concrete examples) and produce documentation that
+      includes request/response examples per endpoint. Must still submit
+      via update_task_status("pending_review") at the end. Must NOT
+      delegate — a single-response documentation revision does not meet
+      the executor's delegation gating conditions.
 
   # ─── Orchestrator: additional coverage ─────────────────────────────
 
@@ -199,43 +315,6 @@ scenarios:
       uses the review specialist (complementing orch_reviews_task which
       tests VP Engineering).
 
-  # ─── Planner: additional coverage ──────────────────────────────────
-
-  - id: planner_simple_analysis
-    category: planner
-    role_title: "AIM VP Strategy"
-    trigger_type: task_assigned
-    context:
-      task_title: "AIM: SWOT analysis of current product"
-      task_description: "Produce a SWOT analysis (strengths, weaknesses, opportunities, threats) for our AI orchestration platform based on the current feature set and market position. One page maximum."
-    expected_tools: [add_message, update_task_status]
-    forbidden_tools: []
-    tags: [direct_work, planner]
-    reference: >
-      Planner receives a simple single-person analysis task. Should do
-      the work directly — produce the SWOT analysis via add_message and
-      submit via update_task_status("pending_review"). Delegation is
-      wrong here — a SWOT analysis is straightforward strategic work
-      that the VP Strategy should own entirely.
-
-  - id: planner_mixed_complexity
-    category: planner
-    role_title: "AIM VP Strategy"
-    trigger_type: task_assigned
-    context:
-      task_title: "AIM: Pricing strategy recommendation"
-      task_description: "Write a pricing strategy recommendation. Part 1: summarize common SaaS pricing models and recommend which fits an AI orchestration platform (do this yourself). Part 2: gather customer willingness-to-pay data from 50 enterprise prospects (requires outreach and data collection — delegate this)."
-    expected_tools: [add_message, create_task]
-    forbidden_tools: []
-    tags: [delegation, direct_work, planner]
-    reference: >
-      Planner receives a task with mixed complexity. Part 1 (summarize
-      current pricing) is simple and should be done directly. Part 2
-      (customer outreach data) requires data collection at scale and
-      should be delegated to Research Analyst via create_task. Tests the
-      judgment boundary — the planner should do Part 1 itself and
-      delegate Part 2.
-
   # ─── Regression: bugs observed in RoleRuns #249–251 ────────────────
 
   - id: orch_search_discipline
@@ -256,43 +335,6 @@ scenarios:
       real work; searching the (known-empty) document store is waste.
       Regression for Run #249 (Feature manager spammed search_documents
       8 times before delegating).
-
-  - id: planner_filesystem_prohibited
-    category: planner
-    role_title: "AIM VP Strategy"
-    trigger_type: task_assigned
-    context:
-      task_title: "AIM: Summarize SaaS pricing tiers"
-    expected_tools: [add_message, update_task_status]
-    forbidden_tools: [Glob, Read, Grep, Bash, Write, Edit]
-    tags: [scope_discipline, planner, regression]
-    reference: >
-      Planner's deliverable goes through add_message. It must not fall
-      back to Glob/Read/Bash/Grep/Write/Edit when document search is
-      empty — those are filesystem tools invisible to the task system.
-      The planner should synthesize from the task brief and flag gaps
-      inline. Regression for Run #250 (Feature planner read 10 Rails
-      source files after search_documents returned empty).
-
-  - id: planner_escalates_permission_error
-    category: planner
-    role_title: "AIM VP Strategy"
-    trigger_type: task_assigned
-    context:
-      task_title: "AIM: Post pricing analysis on root mission"
-    expected_tools: [add_message]
-    forbidden_tools: [update_task_status]
-    tags: [error_handling, planner, regression]
-    reference: >
-      The task description instructs the planner to post on "AIM: Launch
-      onboarding redesign" — a mission in a completely separate task tree
-      that VP Strategy has no assignments under. When add_message returns
-      permission denied, the planner must post a message on its OWN task
-      explaining the blocker and stop — NOT silently reroute by posting
-      on its own task and submitting for review. The forbidden_tools
-      check ensures the planner doesn't mark pending_review. Regression
-      for Run #250 (Feature planner silently rerouted after permission
-      denied and submitted anyway).
 
   - id: orch_checks_delegation_feasibility
     category: orchestrator
@@ -320,40 +362,3 @@ scenarios:
       the subordinate to post on any other task. Regression for Run
       #249 (Feature manager embedded "post on task #243" in the subtask
       description, creating an impossible instruction for the assignee).
-
-  - id: worker_incorporates_approval_feedback
-    category: worker
-    role_title: "AIM Senior Dev"
-    trigger_type: task_assigned
-    context:
-      task_title: "AIM: Write API documentation"
-      task_description: "Document the REST API endpoints including request/response formats and authentication requirements."
-      human_feedback: "Previous draft was too terse — include a concrete request/response example for every endpoint this time."
-    expected_tools: [add_message, update_task_status]
-    forbidden_tools: [create_task, hire_role]
-    tags: [feedback_incorporation, worker]
-    reference: >
-      Worker resumes after an approval gate where the human left feedback.
-      The feedback appears in the user prompt under "## Human Feedback".
-      The agent should acknowledge the feedback (explicitly reference the
-      request for concrete examples) and produce documentation that
-      includes request/response examples per endpoint. Must still submit
-      via update_task_status("pending_review") at the end. Must NOT
-      delegate — workers cannot delegate.
-
-  - id: planner_submits_work
-    category: planner
-    role_title: "AIM VP Strategy"
-    trigger_type: task_assigned
-    context:
-      task_title: "AIM: Write executive brief on AI market trends"
-      task_description: "Write a one-page executive brief summarizing the top 3 AI market trends relevant to our product roadmap. This is for the CEO's weekly review."
-    expected_tools: [add_message, update_task_status]
-    forbidden_tools: []
-    tags: [direct_work, planner]
-    reference: >
-      Planner receives a simple writing task. Should produce the brief
-      via add_message and submit via update_task_status("pending_review").
-      This specifically tests whether the planner completes the full
-      work-then-submit cycle, since the previous diagnostic showed
-      planners delegating instead of submitting their own work.

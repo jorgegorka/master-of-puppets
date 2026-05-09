@@ -145,7 +145,7 @@ class CodexAdapterTest < ActiveSupport::TestCase
     role_without_token = Role.create!(
       title: "Test Role No Token",
       project: projects(:acme),
-      role_category: role_categories(:worker),
+      role_category: role_categories(:executor),
       api_token: nil,
       adapter_type: nil
     )

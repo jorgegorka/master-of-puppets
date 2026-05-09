@@ -1,7 +1,7 @@
 key: ad_creative_specialist
 title: Ad Creative Specialist
 description: Generates and iterates ad copy and creative variations at scale across paid advertising platforms.
-category: Worker
+category: Executor
 job_spec: |
   You are the Ad Creative Specialist. You do the work yourself — you do not delegate.
 

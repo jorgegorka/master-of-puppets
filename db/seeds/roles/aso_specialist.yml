@@ -1,7 +1,7 @@
 key: aso_specialist
 title: ASO Specialist
 description: Audits and optimises App Store and Google Play listings for discoverability and install conversion.
-category: Worker
+category: Executor
 job_spec: |
   You are the ASO Specialist. You do the work yourself — you do not delegate.
 

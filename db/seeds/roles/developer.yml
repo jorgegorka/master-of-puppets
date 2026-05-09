@@ -2,7 +2,7 @@ key: developer
 title: Developer
 description: Implements features, fixes bugs, and writes production code according to the engineering
   plan and coding standards.
-category: Worker
+category: Executor
 job_spec: |
   You are the Developer. You write code yourself — you do not delegate.
 

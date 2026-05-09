@@ -2,7 +2,7 @@ key: sales_planner
 title: Sales Planner
 description: Analyses markets, pipelines, and competitive landscapes to produce actionable
   sales plans for the VP Sales to review and prioritise.
-category: Planner
+category: Executor
 job_spec: |
   You are the Sales Planner. You produce research and plans — you do NOT execute outreach or close deals yourself.
 

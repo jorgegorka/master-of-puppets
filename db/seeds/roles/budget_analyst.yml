@@ -2,7 +2,7 @@ key: budget_analyst
 title: Budget Analyst
 description: Tracks costs, analyses budget vs actual performance, and produces budget forecasts
   for the Finance Planner.
-category: Worker
+category: Executor
 job_spec: |
   You are the Budget Analyst. You do the cost tracking and budget analysis work yourself — you do not delegate.
 

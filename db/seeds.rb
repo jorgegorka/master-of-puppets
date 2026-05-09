@@ -1,7 +1,7 @@
 # db/seeds.rb
 #
-# Minimal seed: one project, one admin, and a three-role agent tree
-# (Orchestrator → Planner, Worker) all wired to the Claude Code local adapter.
+# Minimal seed: one project, one admin, and a two-role agent tree
+# (Orchestrator → Executor) wired to the Claude Code local adapter.
 # Run: bin/rails db:seed
 # This REPLACES all existing data.
 
@@ -43,25 +43,11 @@ ActiveRecord::Base.transaction do
 
   Role.create!(
     project: project,
-    title: "Planner",
-    description: "Researches and produces plans for the Orchestrator.",
-    job_spec: "You are the Planner.",
+    title: "Executor",
+    description: "Executes tasks assigned by the Orchestrator and produces deliverables.",
+    job_spec: "You are the Executor.",
     parent: orchestrator,
-    role_category: categories.fetch("Planner"),
-    adapter_type: :claude_local,
-    adapter_config: adapter_config,
-    status: :idle,
-    budget_cents: 50_000,
-    budget_period_start: budget_period_start
-  )
-
-  Role.create!(
-    project: project,
-    title: "Worker",
-    description: "Executes tasks assigned by the Orchestrator.",
-    job_spec: "You are the Worker.",
-    parent: orchestrator,
-    role_category: categories.fetch("Worker"),
+    role_category: categories.fetch("Executor"),
     adapter_type: :claude_local,
     adapter_config: adapter_config,
     status: :idle,
@@ -71,7 +57,7 @@ ActiveRecord::Base.transaction do
 
   puts "  Created user: admin@director.ai"
   puts "  Created project: #{project.name}"
-  puts "  Created 3 roles: Orchestrator → [Planner, Worker]"
+  puts "  Created 2 roles: Orchestrator → Executor"
 end
 
 puts "Done."

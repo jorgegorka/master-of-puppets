@@ -71,7 +71,7 @@ class RoleLibrary::RegistryTest < ActiveSupport::TestCase
   end
 
   test "library role category is one of the known values" do
-    valid = %w[Orchestrator Planner Worker]
+    valid = %w[Orchestrator Executor]
     RoleLibrary::Registry.all.each do |role|
       assert_includes valid, role.category,
         "#{role.key} has invalid category '#{role.category}'"

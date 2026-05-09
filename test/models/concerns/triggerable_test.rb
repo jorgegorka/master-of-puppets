@@ -82,7 +82,7 @@ class TriggerableTaskTest < ActiveSupport::TestCase
 
   test "does not trigger wake for terminated role" do
     terminated_role = Role.create!(
-      role_category: role_categories(:worker),
+      role_category: role_categories(:executor),
       title: "Dead Role",
       project: @project,
       parent: @cto,

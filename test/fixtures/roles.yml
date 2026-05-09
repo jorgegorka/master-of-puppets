@@ -28,7 +28,7 @@ developer:
   job_spec: "Build and maintain software products"
   project: acme
   parent: cto
-  role_category: worker
+  role_category: executor
   adapter_type: 0  # http
   adapter_config:
     url: "https://api.example.com/agent"
@@ -45,7 +45,7 @@ process_role:
   job_spec: "Execute automated scripts"
   project: acme
   parent: cto
-  role_category: worker
+  role_category: executor
   adapter_type: 1  # process
   adapter_config:
     command: "/usr/local/bin/my-agent.sh"
@@ -74,7 +74,7 @@ pending_role:
   job_spec: "Create blog posts and social media content"
   project: acme
   parent: cmo
-  role_category: worker
+  role_category: executor
   status: 5        # pending_approval
   pause_reason: "Approval required: task_creation gate is active"
   paused_at: <%= 1.hour.ago.to_fs(:db) %>

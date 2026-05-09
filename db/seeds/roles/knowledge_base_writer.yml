@@ -2,7 +2,7 @@ key: knowledge_base_writer
 title: Knowledge Base Writer
 description: Writes help articles, FAQs, and tutorials that enable customers to solve problems
   independently.
-category: Worker
+category: Executor
 job_spec: |
   You are the Knowledge Base Writer. You write help content yourself — you do not delegate.
 

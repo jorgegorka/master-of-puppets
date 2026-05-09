@@ -2,7 +2,7 @@ key: financial_analyst
 title: Financial Analyst
 description: Builds financial models, performs variance analysis, and produces revenue and
   cost projections for the Finance Planner.
-category: Worker
+category: Executor
 job_spec: |
   You are the Financial Analyst. You do the modelling and analytical work yourself — you do not delegate.
 

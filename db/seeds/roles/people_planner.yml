@@ -2,7 +2,7 @@ key: people_planner
 title: People Planner
 description: Analyses workforce data, compensation trends, and employee sentiment to produce
   actionable people plans for the CHRO to review.
-category: Planner
+category: Executor
 job_spec: |
   You are the People Planner. You produce research and plans — you do NOT write policies or create training materials yourself.
 

@@ -38,7 +38,7 @@ class RoleCategoryTest < ActiveSupport::TestCase
 
   test "same name allowed in different projects" do
     widgets = projects(:widgets)
-    category = RoleCategory.new(name: "Planner", job_spec: "Plan things.", project: widgets)
+    category = RoleCategory.new(name: "Executor", job_spec: "Execute work.", project: widgets)
     assert category.valid?
   end
 
@@ -72,14 +72,13 @@ class RoleCategoryTest < ActiveSupport::TestCase
   test "default_definitions returns array of category hashes" do
     defs = RoleCategory.default_definitions
     assert_kind_of Array, defs
-    assert defs.size >= 3
+    assert defs.size >= 2
     assert defs.all? { |d| d.key?("name") && d.key?("job_spec") }
   end
 
-  test "default definitions include Orchestrator, Planner, Worker" do
+  test "default definitions include Orchestrator and Executor" do
     names = RoleCategory.default_definitions.map { |d| d["name"] }
     assert_includes names, "Orchestrator"
-    assert_includes names, "Planner"
-    assert_includes names, "Worker"
+    assert_includes names, "Executor"
   end
 end

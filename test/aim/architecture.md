@@ -39,7 +39,7 @@ The system prompt is composed from 5 parts in this order:
 |------|--------|-------|---------|
 | Identity | `build_identity_prompt` | 190-239 | Role title, project name, org chart (manager + reports), specialist tool catalog, efficiency rules |
 | Role job_spec | `role.job_spec` | — | Optional role-level override (most roles don't have one) |
-| Category job_spec | `role.role_category.job_spec` | — | The main behavioral instructions — Orchestrator, Planner, or Worker |
+| Category job_spec | `role.role_category.job_spec` | — | The main behavioral instructions — Orchestrator or Executor |
 | Mission context | `build_root_task_prompt` | 241-253 | Only included for subtasks. Shows root task title + description + focus rules. Root tasks themselves don't get this block. |
 | Skills | `build_skills_prompt` | 255-277 | Skill catalog + full markdown instructions |
 
@@ -67,7 +67,7 @@ The user prompt branches on trigger type and task shape:
 
 | File | What it controls |
 |------|-----------------|
-| `db/seeds/role_categories.yml` | The 3 category job specs. Primary optimization target. After editing, run `bin/rails db:seed` to reload into the database. |
+| `db/seeds/role_categories.yml` | The 2 category job specs (Orchestrator, Executor). Primary optimization target. After editing, run `bin/rails db:seed` to reload into the database. |
 
 ### Medium impact (affects all roles)
 
@@ -97,7 +97,7 @@ The user prompt branches on trigger type and task shape:
 
 ## Tool scopes
 
-Defined in `app/mcp/director_server.rb:9-45` as `TOOL_SCOPES`. Every role currently runs under the `:orchestrator` scope — worker/planner differentiation comes entirely from the job_spec prompt, not from the tool whitelist.
+Defined in `app/mcp/director_server.rb:9-45` as `TOOL_SCOPES`. Every role currently runs under the `:orchestrator` scope — orchestrator/executor differentiation comes entirely from the job_spec prompt, not from the tool whitelist.
 
 ### `:orchestrator` scope (11 tools)
 
@@ -122,7 +122,7 @@ Defined in `app/mcp/director_server.rb:9-45` as `TOOL_SCOPES`. Every role curren
 | `sub_agent_hire_role` | `list_hirable_roles`, `hire_role` (direct mutation) |
 | `sub_agent_summarize_task` | `get_task_details`, `update_task_summary` (direct mutation) |
 
-**Note on worker/planner discipline:** All categories currently share the orchestrator tool scope at the `DirectorServer` level. Behavioral discipline (workers not delegating, planners not mass-delegating) comes entirely from the job_spec prompt instructions. This is a known design gap.
+**Note on executor discipline:** Both categories currently share the orchestrator tool scope at the `DirectorServer` level. Behavioral discipline (executors not over-delegating, orchestrators not producing deliverables) comes entirely from the job_spec prompt instructions. This is a known design gap.
 
 ---
 

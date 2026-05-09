@@ -2,7 +2,7 @@ key: web_analyst
 title: Web Analyst
 description: Evaluates website performance using analytics data and provides data-driven insights
   to the Marketing Planner.
-category: Worker
+category: Executor
 job_spec: |
   You are the Web Analyst. You do the analytical work yourself — you do not delegate.
 

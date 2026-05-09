@@ -199,12 +199,7 @@
     color: oklch(75% 0.15 300);
   }
 
-  .role-category-badge--planner {
-    background: oklch(20% 0.06 185);
-    color: oklch(75% 0.15 185);
-  }
-
-  .role-category-badge--worker {
+  .role-category-badge--executor {
     background: oklch(20% 0.06 75);
     color: oklch(75% 0.1 75);
   }

@@ -2,7 +2,7 @@ key: ux_writer
 title: UX Writer
 description: Crafts microcopy, UI text, error messages, and in-product communication that guides
   users through the product experience.
-category: Worker
+category: Executor
 job_spec: |
   You are the UX Writer. You write product copy and UI text yourself — you do not delegate.
 
