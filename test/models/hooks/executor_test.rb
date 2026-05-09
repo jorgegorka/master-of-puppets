@@ -80,9 +80,10 @@ class Hooks::ExecutorTest < ActiveSupport::TestCase
   test "trigger_agent raises when target role not found" do
     @trigger_hook.update_columns(action_config: { "target_role_id" => 999999 })
 
-    assert_raises(RuntimeError, /Target role not found/) do
+    error = assert_raises(RuntimeError) do
       Hooks::Executor.call(@trigger_execution)
     end
+    assert_match(/Target role not found/, error.message)
 
     @trigger_execution.reload
     assert @trigger_execution.failed?
@@ -133,9 +134,10 @@ class Hooks::ExecutorTest < ActiveSupport::TestCase
     stub_request(:post, "https://hooks.example.com/task-started")
       .to_return(status: 500, body: "Internal Server Error")
 
-    assert_raises(RuntimeError, /Webhook returned 500/) do
+    error = assert_raises(RuntimeError) do
       Hooks::Executor.call(@webhook_execution)
     end
+    assert_match(/Webhook returned 500/, error.message)
 
     @webhook_execution.reload
     assert @webhook_execution.failed?

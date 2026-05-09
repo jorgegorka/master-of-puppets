@@ -1,4 +1,4 @@
-<% content_for :title, "Installation — Director Docs" %>
+<% content_for :title, "Installation — Master of Puppets Docs" %>
 
 <% content_for :toc do %>
   <span class="docs-toc__title">On this page</span>
@@ -16,51 +16,51 @@
 <div class="docs-content__header">
   <span class="docs-content__eyebrow">Get Started</span>
   <h1 class="docs-content__title">Installation</h1>
-  <p class="docs-content__description">Get Director running locally or deploy it to production. Choose the installation method that suits you best.</p>
+  <p class="docs-content__description">Get Master of Puppets running locally or deploy it to production. Choose the installation method that suits you best.</p>
 </div>
 
 <div class="prose">
   <h2 id="one-command-install">One-Command Install</h2>
-  <p>The fastest way to get Director running on your machine. This is the recommended path for most users — it handles Docker installation on Linux, pulls the latest image, and starts Director with a persistent volume for your data.</p>
-  <pre><code>curl -fsSL https://raw.githubusercontent.com/jorgegorka/director/master/scripts/install.sh | sh</code></pre>
+  <p>The fastest way to get Master of Puppets running on your machine. This is the recommended path for most users — it handles Docker installation on Linux, pulls the latest image, and starts Master of Puppets with a persistent volume for your data.</p>
+  <pre><code>curl -fsSL https://raw.githubusercontent.com/jorgegorka/master-of-puppets/master/scripts/install.sh | sh</code></pre>
   <p>On Linux, the installer will install Docker for you if it isn't already present. On macOS, install <a href="https://www.docker.com/products/docker-desktop" target="_blank" rel="noopener">Docker Desktop</a> first, then run the command above.</p>
-  <p>Once it finishes, visit <code>http://localhost:3000</code>. Your SQLite data persists in the <code>director_storage</code> Docker volume across restarts. You can override defaults with <code>DIRECTOR_IMAGE</code>, <code>DIRECTOR_CONTAINER</code>, <code>DIRECTOR_VOLUME</code>, and <code>DIRECTOR_PORT</code> environment variables.</p>
-  <p>Manage the container with standard Docker commands: <code>docker logs -f director</code>, <code>docker stop director</code>, <code>docker start director</code>.</p>
+  <p>Once it finishes, visit <code>http://localhost:3000</code>. Your SQLite data persists in the <code>master_of_puppets_storage</code> Docker volume across restarts. You can override defaults with <code>MASTER_OF_PUPPETS_IMAGE</code>, <code>MASTER_OF_PUPPETS_CONTAINER</code>, <code>MASTER_OF_PUPPETS_VOLUME</code>, and <code>MASTER_OF_PUPPETS_PORT</code> environment variables.</p>
+  <p>Manage the container with standard Docker commands: <code>docker logs -f master-of-puppets</code>, <code>docker stop master-of-puppets</code>, <code>docker start master-of-puppets</code>.</p>
 
   <h2 id="requirements">Requirements</h2>
   <ul>
     <li><strong>Ruby 3.3+</strong></li>
-    <li><strong>SQLite 3.35+</strong> — Director uses SQLite for everything: primary database, Solid Queue, Solid Cache, and Solid Cable</li>
+    <li><strong>SQLite 3.35+</strong> — Master of Puppets uses SQLite for everything: primary database, Solid Queue, Solid Cache, and Solid Cable</li>
     <li><strong>tmux</strong> — required for local adapters (Claude Code, OpenCode, and Codex) which run agent sessions in isolated tmux panes</li>
   </ul>
-  <p>No PostgreSQL, Redis, or other external services required. Director is designed to run self-contained on a single machine.</p>
+  <p>No PostgreSQL, Redis, or other external services required. Master of Puppets is designed to run self-contained on a single machine.</p>
 
   <h2 id="install-from-source">Install from Source</h2>
   <p>Clone the repository and run the setup script:</p>
-  <pre><code>git clone https://github.com/jorgegorka/director.git
-cd director
+  <pre><code>git clone https://github.com/jorgegorka/master-of-puppets.git
+cd master-of-puppets
 bin/setup</code></pre>
   <p>The setup script installs dependencies, prepares the database, and creates the necessary SQLite databases for Queue, Cache, and Cable.</p>
   <p>Start the development server with all background processes:</p>
   <pre><code>bin/dev</code></pre>
-  <p>This launches the Rails server, Solid Queue worker, and CSS build watcher via Foreman. Visit <code>http://localhost:3000</code> to access Director.</p>
+  <p>This launches the Rails server, Solid Queue worker, and CSS build watcher via Foreman. Visit <code>http://localhost:3000</code> to access Master of Puppets.</p>
   <p>Create an account, then create your first project to get started.</p>
 
   <h2 id="install-with-docker">Install with Docker</h2>
-  <p>Director is available as a Docker image. Pull the latest version from the GitHub Container Registry:</p>
-  <pre><code>docker pull ghcr.io/jorgegorka/director:latest</code></pre>
+  <p>Master of Puppets is available as a Docker image. Pull the latest version from the GitHub Container Registry:</p>
+  <pre><code>docker pull ghcr.io/jorgegorka/master-of-puppets:latest</code></pre>
   <p>Run the container:</p>
   <pre><code>docker run -d \
-  --name director \
+  --name master-of-puppets \
   -p 3000:3000 \
-  -v director_storage:/rails/storage \
+  -v master_of_puppets_storage:/rails/storage \
   -e SECRET_KEY_BASE=your-secret-key \
-  ghcr.io/jorgegorka/director:latest</code></pre>
+  ghcr.io/jorgegorka/master-of-puppets:latest</code></pre>
   <p>The <code>-v</code> flag ensures your SQLite databases persist across container restarts. Visit <code>http://localhost:3000</code> once the container is running.</p>
 
   <h2 id="install-with-once">Install with ONCE</h2>
-  <p><a href="https://github.com/basecamp/once" target="_blank" rel="noopener">ONCE</a> is Basecamp's tool for installing and managing self-hosted Rails applications. If you already have ONCE set up, you can use it to install and manage Director.</p>
-  <p>ONCE handles provisioning, updates, and backups — making it the easiest way to run Director in production on your own server.</p>
+  <p><a href="https://github.com/basecamp/once" target="_blank" rel="noopener">ONCE</a> is Basecamp's tool for installing and managing self-hosted Rails applications. If you already have ONCE set up, you can use it to install and manage Master of Puppets.</p>
+  <p>ONCE handles provisioning, updates, and backups — making it the easiest way to run Master of Puppets in production on your own server.</p>
   <p>Visit the <a href="https://github.com/basecamp/once" target="_blank" rel="noopener">ONCE repository</a> for setup instructions.</p>
 
   <h2 id="environment-variables">Environment Variables</h2>
@@ -71,11 +71,11 @@ bin/setup</code></pre>
     <li><strong><code>GEMINI_API_KEY</code></strong> — for OpenCode with Gemini models</li>
     <li><strong><code>GROQ_API_KEY</code></strong> — for OpenCode with Groq models</li>
   </ul>
-  <p>Set these in your shell environment or in a <code>.env</code> file. Director forwards the relevant keys to agent processes automatically.</p>
+  <p>Set these in your shell environment or in a <code>.env</code> file. Master of Puppets forwards the relevant keys to agent processes automatically.</p>
   <p>If you want to run fully offline, the Claude Code, OpenCode, and Codex adapters all support <strong>Ollama</strong> as a provider. Configure the adapter's <code>provider</code> to <code>ollama</code> and point <code>base_url</code> at your local Ollama server — no API keys required.</p>
 
   <h2 id="production-deployment">Production Deployment</h2>
-  <p>Director ships with a <strong>Dockerfile</strong> and <strong>Kamal</strong> configuration for production deployment. Kamal handles container building, deployment, and zero-downtime restarts.</p>
+  <p>Master of Puppets ships with a <strong>Dockerfile</strong> and <strong>Kamal</strong> configuration for production deployment. Kamal handles container building, deployment, and zero-downtime restarts.</p>
   <p>Key production considerations:</p>
   <ul>
     <li><strong>Secret key base</strong> — set <code>SECRET_KEY_BASE</code> for session encryption</li>

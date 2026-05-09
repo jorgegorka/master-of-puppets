@@ -1,4 +1,4 @@
-<% content_for :title, "Quick Start — Director Docs" %>
+<% content_for :title, "Quick Start — Master of Puppets Docs" %>
 
 <% content_for :toc do %>
   <span class="docs-toc__title">On this page</span>
@@ -20,8 +20,8 @@
 
 <div class="prose">
   <h2 id="create-a-project">Create a Project</h2>
-  <p>After signing in for the first time, Director launches an <strong>onboarding wizard</strong> that walks you through creating a project, picking a department template, and hiring a top-level role — the fastest path from a fresh install to a working org chart.</p>
-  <p>You can also skip the wizard and click <strong>New Project</strong> from the dashboard at any time. Give your project a name — this is the isolated workspace where all your agents, missions, and tasks will live. Director automatically seeds the project with default role categories and built-in skills so you can start staffing immediately.</p>
+  <p>After signing in for the first time, Master of Puppets launches an <strong>onboarding wizard</strong> that walks you through creating a project, picking a department template, and hiring a top-level role — the fastest path from a fresh install to a working org chart.</p>
+  <p>You can also skip the wizard and click <strong>New Project</strong> from the dashboard at any time. Give your project a name — this is the isolated workspace where all your agents, missions, and tasks will live. Master of Puppets automatically seeds the project with default role categories and built-in skills so you can start staffing immediately.</p>
 
   <h2 id="set-up-a-role">Set Up a Role</h2>
   <p>Navigate to <strong>Roles</strong> and create your first role. Pick a role category (e.g., Engineering) and give it a title like "Code Assistant". Write a <strong>job spec</strong> describing what the agent should do — this becomes part of the system prompt the agent receives.</p>
@@ -39,15 +39,15 @@
   <p>For this quick start, Claude Code is the fastest path. Set the model and optionally configure a working directory where the agent will operate.</p>
 
   <h2 id="define-a-mission">Define a Mission</h2>
-  <p>In Director, a <strong>mission</strong> is simply a <em>root task</em> — a task with no parent that describes what you want accomplished at a high level. Go to <strong>Goals</strong> and create one — for example, "Set up project scaffolding". Assign it to your new role.</p>
-  <p>When you assign a mission to a role that is online, Director automatically wakes the agent to start working on it. As subtasks are completed, the mission's progress rolls up automatically, and Director evaluates each completed subtask against the mission's intent with an AI quality gate.</p>
+  <p>In Master of Puppets, a <strong>mission</strong> is simply a <em>root task</em> — a task with no parent that describes what you want accomplished at a high level. Go to <strong>Goals</strong> and create one — for example, "Set up project scaffolding". Assign it to your new role.</p>
+  <p>When you assign a mission to a role that is online, Master of Puppets automatically wakes the agent to start working on it. As subtasks are completed, the mission's progress rolls up automatically, and Master of Puppets evaluates each completed subtask against the mission's intent with an AI quality gate.</p>
 
   <h2 id="assign-a-task">Assign a Task</h2>
   <p>Create a task under your mission — something concrete like "Initialize the repository with a README". Assign it to your role. Tasks are the actual units of work: the agent picks them up, executes them, and reports back.</p>
   <p>Set a priority if needed. Tasks are sorted by priority descending by default, so urgent tasks are handled first.</p>
 
   <h2 id="watch-it-run">Watch It Run</h2>
-  <p>Once the task is assigned, Director dispatches it to the agent. Navigate to the role's detail page to see the <strong>role run</strong> — streaming output appears in real time as the agent works.</p>
+  <p>Once the task is assigned, Master of Puppets dispatches it to the agent. Navigate to the role's detail page to see the <strong>role run</strong> — streaming output appears in real time as the agent works.</p>
   <p>When the agent finishes, the task moves to <strong>pending review</strong> (if the creator is a top-level role) or <strong>completed</strong>. Check the task's messages for output, and the role run for cost and timing details.</p>
   <p>From here, you can create more roles, build out an org chart with parent-child hierarchies, set budgets, and configure approval gates. See the guides section for deeper walkthroughs.</p>
 </div>

@@ -1,4 +1,4 @@
-<% content_for :title, "Budgets & Governance — Director Docs" %>
+<% content_for :title, "Budgets & Governance — Master of Puppets Docs" %>
 
 <% content_for :toc do %>
   <span class="docs-toc__title">On this page</span>
@@ -22,7 +22,7 @@
 
 <div class="prose">
   <h2 id="budget-basics">Budget Basics</h2>
-  <p>Every role in Director can have a <strong>monthly budget</strong> that caps how much it can spend on AI executions. Budgets are defined in cents and tracked against task costs within the current billing period. When a role exhausts its budget, Director blocks further executions until the next period begins.</p>
+  <p>Every role in Master of Puppets can have a <strong>monthly budget</strong> that caps how much it can spend on AI executions. Budgets are defined in cents and tracked against task costs within the current billing period. When a role exhausts its budget, Master of Puppets blocks further executions until the next period begins.</p>
 
   <h2 id="setting-a-budget">Setting a Budget</h2>
   <p>Set a role's budget on its settings page. You configure two values:</p>
@@ -33,23 +33,23 @@
   <p>Leave the budget unset (or set to zero) for unlimited spending. This is fine for development but should be configured for production operations.</p>
 
   <h2 id="spend-tracking">Spend Tracking</h2>
-  <p>Director tracks spending by summing the <code>cost_cents</code> of all tasks assigned to a role that were created within the current budget period. Each time an agent completes a task, the execution cost is recorded and counts toward the role's monthly spend.</p>
+  <p>Master of Puppets tracks spending by summing the <code>cost_cents</code> of all tasks assigned to a role that were created within the current budget period. Each time an agent completes a task, the execution cost is recorded and counts toward the role's monthly spend.</p>
   <p>You can view budget utilization on the role's detail page: current spend, remaining budget, and utilization as a percentage.</p>
 
   <h2 id="alerts-and-enforcement">Alerts &amp; Enforcement</h2>
-  <p>Director provides two levels of budget control:</p>
+  <p>Master of Puppets provides two levels of budget control:</p>
   <ul>
     <li><strong>Alert threshold</strong> — when a role reaches 80% utilization, it triggers a warning. This gives you time to adjust before the budget is exhausted.</li>
-    <li><strong>Hard enforcement</strong> — when the budget is fully exhausted, Director refuses to execute the agent. The check happens <em>before</em> execution, so no resources are consumed on a blocked run.</li>
+    <li><strong>Hard enforcement</strong> — when the budget is fully exhausted, Master of Puppets refuses to execute the agent. The check happens <em>before</em> execution, so no resources are consumed on a blocked run.</li>
   </ul>
   <p>Budget exhaustion is surfaced in error messages and role run records so you can see exactly why an execution was blocked.</p>
 
   <h2 id="approval-gates">Approval Gates</h2>
   <p>Approval gates add workflow checkpoints that require human sign-off before agents can perform certain actions. Each gate is configured per role and can be individually enabled or disabled.</p>
-  <p>When an agent attempts a gated action, Director pauses the operation and sets the role status to <strong>pending approval</strong>. A human operator must review and approve before the action proceeds.</p>
+  <p>When an agent attempts a gated action, Master of Puppets pauses the operation and sets the role status to <strong>pending approval</strong>. A human operator must review and approve before the action proceeds.</p>
 
   <h2 id="gate-types">Gate Types</h2>
-  <p>Director supports five types of approval gates:</p>
+  <p>Master of Puppets supports five types of approval gates:</p>
   <ul>
     <li><strong>Task creation</strong> — require approval before the agent can create new tasks</li>
     <li><strong>Task delegation</strong> — require approval before the agent can assign tasks to other roles</li>
@@ -60,7 +60,7 @@
   <p>Each gate type can only be configured once per role. Enable the gates that match the level of oversight you need — a trusted agent might have no gates, while a new or high-stakes agent might have all five enabled.</p>
 
   <h2 id="config-versioning">Config Versioning</h2>
-  <p>Director automatically versions changes to governance-sensitive role attributes. Every time you modify a role's title, job spec, budget, parent, status, or working directory, Director creates a <strong>config version</strong> snapshot.</p>
+  <p>Master of Puppets automatically versions changes to governance-sensitive role attributes. Every time you modify a role's title, job spec, budget, parent, status, or working directory, Master of Puppets creates a <strong>config version</strong> snapshot.</p>
   <p>Each version records:</p>
   <ul>
     <li>The <strong>action</strong> — create, update, or rollback</li>

@@ -1,4 +1,4 @@
-<% content_for :title, "Your First Agent — Director Docs" %>
+<% content_for :title, "Your First Agent — Master of Puppets Docs" %>
 
 <% content_for :toc do %>
   <span class="docs-toc__title">On this page</span>
@@ -22,7 +22,7 @@
 
 <div class="prose">
   <h2 id="overview">Overview</h2>
-  <p>In Director, an "agent" is a <strong>role</strong> with an <strong>adapter</strong> configured. The role defines <em>who</em> the agent is (title, job spec, skills), and the adapter defines <em>how</em> it executes (which AI model, what connection method). This guide walks you through setting both up.</p>
+  <p>In Master of Puppets, an "agent" is a <strong>role</strong> with an <strong>adapter</strong> configured. The role defines <em>who</em> the agent is (title, job spec, skills), and the adapter defines <em>how</em> it executes (which AI model, what connection method). This guide walks you through setting both up.</p>
 
   <h2 id="define-the-role">Define the Role</h2>
   <p>Navigate to <strong>Roles</strong> and create a new role. Choose a <strong>role category</strong> — categories are department templates (Engineering, Research, Operations, etc.) that provide a starting context for the role.</p>
@@ -49,7 +49,7 @@
     <li>Set the <strong>model</strong> (e.g., <code>claude-sonnet-4-6</code>)</li>
     <li>Optionally set <strong>max turns</strong> to limit how long the agent works per execution</li>
   </ol>
-  <p>Director automatically configures an MCP server for the agent, giving it the ability to call back into Director's API — reporting progress, creating subtasks, or asking questions through task messages.</p>
+  <p>Master of Puppets automatically configures an MCP server for the agent, giving it the ability to call back into Master of Puppets's API — reporting progress, creating subtasks, or asking questions through task messages.</p>
 
   <h2 id="set-a-working-directory">Set a Working Directory</h2>
   <p>Local adapters (Claude Code, OpenCode, and Codex) need a <strong>working directory</strong> — the filesystem path where the agent operates. Set this to the root of the codebase or project the agent will work on.</p>
@@ -58,8 +58,8 @@
   <h2 id="give-it-work">Give It Work</h2>
   <p>Your agent is ready. There are two ways to trigger it:</p>
   <ul>
-    <li><strong>Assign a task</strong> — create a task and assign it to this role. If the role is online, Director dispatches it immediately.</li>
-    <li><strong>Assign a mission</strong> — create a root task (one with no parent) and assign it to the role. Director wakes the agent and gives it the mission context so it can break the work into subtasks and drive them to completion.</li>
+    <li><strong>Assign a task</strong> — create a task and assign it to this role. If the role is online, Master of Puppets dispatches it immediately.</li>
+    <li><strong>Assign a mission</strong> — create a root task (one with no parent) and assign it to the role. Master of Puppets wakes the agent and gives it the mission context so it can break the work into subtasks and drive them to completion.</li>
   </ul>
   <p>The agent receives a system prompt built from its role identity, job spec, mission context (the task's root ancestor), and all assigned skills. It then executes the task using its configured adapter.</p>
 

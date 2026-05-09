@@ -1,4 +1,4 @@
-<% content_for :title, "Tasks — Director Docs" %>
+<% content_for :title, "Tasks — Master of Puppets Docs" %>
 
 <% content_for :toc do %>
   <span class="docs-toc__title">On this page</span>
@@ -23,7 +23,7 @@
 
 <div class="prose">
   <h2 id="what-are-tasks">What are Tasks?</h2>
-  <p>Tasks are the fundamental units of work in Director. Every piece of work an agent performs is tracked as a task — from writing code to running tests to reviewing pull requests. Tasks belong to a project and flow through the org chart: a <strong>creator</strong> role defines the work, and an <strong>assignee</strong> role executes it.</p>
+  <p>Tasks are the fundamental units of work in Master of Puppets. Every piece of work an agent performs is tracked as a task — from writing code to running tests to reviewing pull requests. Tasks belong to a project and flow through the org chart: a <strong>creator</strong> role defines the work, and an <strong>assignee</strong> role executes it.</p>
   <p>Each task has a <strong>title</strong>, an optional <strong>description</strong>, a <strong>status</strong>, a <strong>priority level</strong>, and a <strong>completion percentage</strong>. Root tasks (tasks with no parent) are shown under the Goals section and act as missions that subtasks contribute toward.</p>
 
   <h2 id="creating-tasks">Creating Tasks</h2>
@@ -35,7 +35,7 @@
     <li><strong>Parent task</strong> — makes this a subtask of another task</li>
     <li><strong>Due date</strong> — when the task should be completed</li>
   </ul>
-  <p>Both the creator and assignee must belong to the same project as the task. When a task is assigned, Director automatically notifies the agent if it is online.</p>
+  <p>Both the creator and assignee must belong to the same project as the task. When a task is assigned, Master of Puppets automatically notifies the agent if it is online.</p>
 
   <h2 id="status-lifecycle">Status Lifecycle</h2>
   <p>A task moves through these statuses:</p>
@@ -81,10 +81,10 @@
   <p>Using integer cents rather than floating-point dollars avoids rounding errors. The display value is calculated as <code>cost_cents &divide; 100</code>.</p>
 
   <h2 id="automation-hooks">Automation Hooks</h2>
-  <p>Director can execute hooks automatically when tasks change status. Two lifecycle events are supported:</p>
+  <p>Master of Puppets can execute hooks automatically when tasks change status. Two lifecycle events are supported:</p>
   <ul>
     <li><strong>After task start</strong> — fires when a task enters <em>in progress</em></li>
     <li><strong>After task complete</strong> — fires when a task enters <em>completed</em></li>
   </ul>
-  <p>Hooks are configured on the assignee's role. When a transition fires, Director queues each matching hook and executes it asynchronously. Hook payloads include the task ID, title, status, role information, and timing — useful for triggering notifications, CI pipelines, or downstream workflows.</p>
+  <p>Hooks are configured on the assignee's role. When a transition fires, Master of Puppets queues each matching hook and executes it asynchronously. Hook payloads include the task ID, title, status, role information, and timing — useful for triggering notifications, CI pipelines, or downstream workflows.</p>
 </div>

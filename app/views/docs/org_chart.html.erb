@@ -1,4 +1,4 @@
-<% content_for :title, "Org Chart Setup — Director Docs" %>
+<% content_for :title, "Org Chart Setup — Master of Puppets Docs" %>
 
 <% content_for :toc do %>
   <span class="docs-toc__title">On this page</span>
@@ -21,7 +21,7 @@
 
 <div class="prose">
   <h2 id="how-hierarchy-works">How Hierarchy Works</h2>
-  <p>Director organizes roles in a tree structure — each role can have a parent and multiple children, forming an org chart. This hierarchy is not just visual: it controls how work flows through your agent team, who can delegate to whom, and where problems escalate when agents get stuck.</p>
+  <p>Master of Puppets organizes roles in a tree structure — each role can have a parent and multiple children, forming an org chart. This hierarchy is not just visual: it controls how work flows through your agent team, who can delegate to whom, and where problems escalate when agents get stuck.</p>
   <p>Roles without a parent are <strong>root roles</strong>. These sit at the top of the org chart and typically represent the highest-level supervisors or the roles that interface directly with human operators.</p>
 
   <h2 id="designing-your-org-chart">Designing Your Org Chart</h2>
@@ -52,7 +52,7 @@
   <p>This prevents lateral or upward delegation that would bypass the chain of command. A backend engineer cannot assign work to the project lead — it has to go through escalation instead.</p>
 
   <h2 id="escalation-chains">Escalation Chains</h2>
-  <p>When an agent encounters a problem it cannot solve, it escalates. Director walks <em>up</em> the parent chain to find the nearest <strong>online</strong> manager — a parent role whose status is not idle or terminated.</p>
+  <p>When an agent encounters a problem it cannot solve, it escalates. Master of Puppets walks <em>up</em> the parent chain to find the nearest <strong>online</strong> manager — a parent role whose status is not idle or terminated.</p>
   <p>If no online manager is found in the ancestor chain, the escalation surfaces to the human operator through the dashboard. This ensures no problem gets silently swallowed — it always reaches someone who can act on it.</p>
 
   <h2 id="configuration-inheritance">Configuration Inheritance</h2>

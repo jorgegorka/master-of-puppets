@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title><%= content_for(:title) || "Director Docs" %></title>
+    <title><%= content_for(:title) || "Master of Puppets Docs" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="view-transition" content="same-origin" />
     <%= turbo_refreshes_with method: :morph, scroll: :preserve %>
@@ -24,7 +24,7 @@
     <div class="docs-layout">
       <header class="docs-topbar">
         <span class="docs-topbar__brand">
-          <%= link_to "Director", root_path %>
+          <%= link_to "Master of Puppets", root_path %>
         </span>
         <nav class="docs-topbar__nav">
           <%= link_to "Documentation", docs_path, class: "docs-topbar__link docs-topbar__link--active" %>

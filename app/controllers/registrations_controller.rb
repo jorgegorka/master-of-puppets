@@ -9,7 +9,7 @@ class RegistrationsController < ApplicationController
     @user = User.new(registration_params)
     if @user.save
       start_new_session_for(@user)
-      redirect_to root_path, notice: "Welcome to Director! Your account has been created."
+      redirect_to root_path, notice: "Welcome to Master of Puppets! Your account has been created."
     else
       render :new, status: :unprocessable_entity
     end

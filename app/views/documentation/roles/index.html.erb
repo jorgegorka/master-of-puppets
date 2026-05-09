@@ -1,4 +1,4 @@
-<% content_for :title, "Roles — Director Docs" %>
+<% content_for :title, "Roles — Master of Puppets Docs" %>
 
 <% content_for :toc do %>
   <span class="docs-toc__title">On this page</span>
@@ -44,7 +44,7 @@
   <p>When a role is deleted, its children are automatically re-parented to the deleted role's parent, keeping the org chart connected.</p>
 
   <h2 id="agent-configuration">Agent Configuration</h2>
-  <p>A role becomes an active agent once you configure its <strong>adapter</strong> — the connection method Director uses to communicate with the AI. Supported adapter types:</p>
+  <p>A role becomes an active agent once you configure its <strong>adapter</strong> — the connection method Master of Puppets uses to communicate with the AI. Supported adapter types:</p>
   <ul>
     <li><strong>HTTP</strong> — call an external API endpoint</li>
     <li><strong>Process</strong> — spawn a local process</li>
@@ -53,7 +53,7 @@
     <li><strong>Codex</strong> — run OpenAI Codex CLI locally</li>
   </ul>
   <p>Each adapter requires specific configuration (endpoint URLs, command paths, etc.). New roles inherit their parent's adapter configuration by default, so you only need to configure it once at the top of a branch.</p>
-  <p>Once configured, Director generates a unique <strong>API token</strong> for the role, used to authenticate agent communication.</p>
+  <p>Once configured, Master of Puppets generates a unique <strong>API token</strong> for the role, used to authenticate agent communication.</p>
 
   <h2 id="role-lifecycle">Role Lifecycle</h2>
   <p>A role moves through these statuses:</p>
@@ -68,11 +68,11 @@
   <p>A role is considered <em>online</em> when it is configured and in either the idle or running state.</p>
 
   <h2 id="skills">Skills</h2>
-  <p>Skills are capabilities attached to a role that define what the agent can do. When a role is first configured with an adapter, Director automatically assigns a set of default skills based on the role's title.</p>
+  <p>Skills are capabilities attached to a role that define what the agent can do. When a role is first configured with an adapter, Master of Puppets automatically assigns a set of default skills based on the role's title.</p>
   <p>You can add or remove skills at any time. Skills are defined at the project level and shared across roles, so multiple agents can have the same capability.</p>
 
   <h2 id="budgets">Budgets</h2>
-  <p>Roles support monthly budget controls to cap spending. When configured, Director tracks task costs against the budget on a monthly cycle:</p>
+  <p>Roles support monthly budget controls to cap spending. When configured, Master of Puppets tracks task costs against the budget on a monthly cycle:</p>
   <ul>
     <li><strong>Budget amount</strong> — the maximum spend allowed per month (in cents)</li>
     <li><strong>Utilization</strong> — current spend as a percentage of the budget</li>
@@ -84,7 +84,7 @@
   <p>Approval gates add human-in-the-loop governance to specific actions. When a gate is enabled, the role pauses and waits for human approval before proceeding. This lets you maintain control over sensitive operations while still letting agents work autonomously on routine tasks.</p>
 
   <h2 id="heartbeats">Heartbeats</h2>
-  <p>Roles can be configured to send periodic heartbeat signals, allowing Director to monitor agent health. Set a <strong>heartbeat interval</strong> (in seconds) and enable heartbeating to have Director periodically check in on the agent.</p>
+  <p>Roles can be configured to send periodic heartbeat signals, allowing Master of Puppets to monitor agent health. Set a <strong>heartbeat interval</strong> (in seconds) and enable heartbeating to have Master of Puppets periodically check in on the agent.</p>
   <p>Heartbeat events are logged with metadata, request/response payloads, and delivery timestamps for debugging and observability.</p>
 
   <h2 id="hiring">Hiring</h2>

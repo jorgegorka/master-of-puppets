@@ -5,7 +5,7 @@
 # Strip it so Rails.application.credentials.dig returns nil cleanly instead of
 # raising, and persist a SECRET_KEY_BASE on the mounted volume so web sessions
 # survive restarts.
-if [ "${DIRECTOR_STANDALONE:-}" = "1" ] && [ -z "${RAILS_MASTER_KEY:-}" ]; then
+if [ "${MASTER_OF_PUPPETS_STANDALONE:-}" = "1" ] && [ -z "${RAILS_MASTER_KEY:-}" ]; then
   rm -f /rails/config/credentials.yml.enc
   SECRET_FILE=/rails/storage/.secret_key_base
   if [ ! -f "$SECRET_FILE" ]; then

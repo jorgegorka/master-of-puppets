@@ -7,7 +7,7 @@ class InvitationMailer < ApplicationMailer
 
     mail(
       to: @invitation.email_address,
-      subject: "You've been invited to join #{@project.name} on Director"
+      subject: "You've been invited to join #{@project.name} on Master of Puppets"
     )
   end
 end

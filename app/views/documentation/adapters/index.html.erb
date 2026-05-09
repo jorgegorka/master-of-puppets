@@ -1,4 +1,4 @@
-<% content_for :title, "Adapters — Director Docs" %>
+<% content_for :title, "Adapters — Master of Puppets Docs" %>
 
 <% content_for :toc do %>
   <span class="docs-toc__title">On this page</span>
@@ -18,13 +18,13 @@
 <div class="docs-content__header">
   <span class="docs-content__eyebrow">Core Concepts</span>
   <h1 class="docs-content__title">Adapters</h1>
-  <p class="docs-content__description">How Director communicates with AI agents — the connection layer between roles and the models that power them.</p>
+  <p class="docs-content__description">How Master of Puppets communicates with AI agents — the connection layer between roles and the models that power them.</p>
 </div>
 
 <div class="prose">
   <h2 id="what-are-adapters">What are Adapters?</h2>
-  <p>An adapter is the bridge between a role and the AI model that fulfills it. Until you configure an adapter, a role is just a position on the org chart. Once configured, it becomes a live agent that Director can execute, monitor, and govern.</p>
-  <p>Director ships with five adapter types, each suited to different deployment scenarios. Every adapter receives the same execution context — task details, mission context from the root task, skills — and returns a standardized result with exit code, cost, and optional session ID.</p>
+  <p>An adapter is the bridge between a role and the AI model that fulfills it. Until you configure an adapter, a role is just a position on the org chart. Once configured, it becomes a live agent that Master of Puppets can execute, monitor, and govern.</p>
+  <p>Master of Puppets ships with five adapter types, each suited to different deployment scenarios. Every adapter receives the same execution context — task details, mission context from the root task, skills — and returns a standardized result with exit code, cost, and optional session ID.</p>
 
   <h2 id="http-api">HTTP API</h2>
   <p>Connect to a cloud-hosted agent via HTTP POST requests. Best for agents running on external infrastructure or behind an API gateway.</p>
@@ -43,7 +43,7 @@
   </ul>
 
   <h3>How it works</h3>
-  <p>Director sends a JSON payload containing the task, its root task (mission) context, skills, and role context to your endpoint. The payload includes the role title, run ID, trigger type, and any documents attached to the task.</p>
+  <p>Master of Puppets sends a JSON payload containing the task, its root task (mission) context, skills, and role context to your endpoint. The payload includes the role title, run ID, trigger type, and any documents attached to the task.</p>
   <p>Transient errors (5xx responses and timeouts) are retried up to 3 times with exponential backoff. Client errors (4xx) fail immediately.</p>
 
   <h2 id="claude-code-local">Claude Code (Local)</h2>
@@ -64,15 +64,15 @@
 
   <h3>Key features</h3>
   <ul>
-    <li><strong>Session resumption</strong> — Director tracks session IDs across runs, so an agent can continue where it left off on subsequent executions</li>
+    <li><strong>Session resumption</strong> — Master of Puppets tracks session IDs across runs, so an agent can continue where it left off on subsequent executions</li>
     <li><strong>Cost tracking</strong> — parses <code>total_cost_usd</code> from Claude's output and converts to cents for budget enforcement</li>
-    <li><strong>MCP integration</strong> — automatically configures an MCP server so the agent can call back into Director's API (report progress, create tasks, ask questions)</li>
+    <li><strong>MCP integration</strong> — automatically configures an MCP server so the agent can call back into Master of Puppets's API (report progress, create tasks, ask questions)</li>
     <li><strong>Budget enforcement</strong> — checks monthly spend against role budget before each execution</li>
     <li><strong>Streaming output</strong> — real-time output is captured and broadcast to the role run view</li>
   </ul>
 
   <h3>System prompt</h3>
-  <p>Director builds a system prompt for each execution that includes the role's identity, job spec, mission context (the task's root ancestor), and all attached skills. This gives the agent full awareness of its position in the org chart and what it's expected to do.</p>
+  <p>Master of Puppets builds a system prompt for each execution that includes the role's identity, job spec, mission context (the task's root ancestor), and all attached skills. This gives the agent full awareness of its position in the org chart and what it's expected to do.</p>
 
   <h2 id="opencode">OpenCode</h2>
   <p>Run OpenCode CLI locally with JSON output. Supports multiple AI providers — OpenAI, Anthropic, Gemini, Groq, AWS Bedrock, Azure, and more.</p>
@@ -91,7 +91,7 @@
   </ul>
 
   <h3>Provider API keys</h3>
-  <p>OpenCode supports many providers. Director forwards the relevant API key environment variables automatically — <code>OPENAI_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>, <code>GEMINI_API_KEY</code>, <code>GROQ_API_KEY</code>, and cloud provider credentials for AWS, Azure, and Vertex AI.</p>
+  <p>OpenCode supports many providers. Master of Puppets forwards the relevant API key environment variables automatically — <code>OPENAI_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>, <code>GEMINI_API_KEY</code>, <code>GROQ_API_KEY</code>, and cloud provider credentials for AWS, Azure, and Vertex AI.</p>
 
   <h2 id="openai-codex-local">OpenAI Codex (Local)</h2>
   <p>Run the Codex CLI locally with a streaming JSON event log and session resumption. Targets OpenAI's hosted API by default, or an OpenAI-compatible local server like Ollama.</p>
@@ -112,15 +112,15 @@
 
   <h3>Key features</h3>
   <ul>
-    <li><strong>Session resumption</strong> — Director tracks Codex session IDs and resumes via <code>codex exec resume</code> on subsequent runs</li>
+    <li><strong>Session resumption</strong> — Master of Puppets tracks Codex session IDs and resumes via <code>codex exec resume</code> on subsequent runs</li>
     <li><strong>Cost tracking</strong> — parses <code>total_cost_usd</code>, <code>usage.cost_usd</code>, or <code>cost_usd</code> from the event stream and converts to cents for budget enforcement</li>
-    <li><strong>MCP integration</strong> — each role gets its own <code>CODEX_HOME</code> with an auto-generated <code>config.toml</code> pointing Codex at Director's MCP server</li>
+    <li><strong>MCP integration</strong> — each role gets its own <code>CODEX_HOME</code> with an auto-generated <code>config.toml</code> pointing Codex at Master of Puppets's MCP server</li>
     <li><strong>Sandbox &amp; approval controls</strong> — per-role guardrails on filesystem writes and command execution</li>
     <li><strong>Streaming output</strong> — JSON events are captured and broadcast to the role run view in real time</li>
   </ul>
 
   <h3>Provider API keys</h3>
-  <p>With the OpenAI provider, Director forwards <code>OPENAI_API_KEY</code> (or <code>CODEX_API_KEY</code>) to the Codex process. With the Ollama provider, no API key is needed — just point <code>base_url</code> at your local Ollama server.</p>
+  <p>With the OpenAI provider, Master of Puppets forwards <code>OPENAI_API_KEY</code> (or <code>CODEX_API_KEY</code>) to the Codex process. With the Ollama provider, no API key is needed — just point <code>base_url</code> at your local Ollama server.</p>
 
   <h2 id="shell-command">Shell Command</h2>
   <p>Run a local script or CLI tool via shell command. Useful for custom agent implementations or wrapping non-standard tools.</p>
@@ -142,7 +142,7 @@
   <p>Working directories follow the same inheritance pattern. A child role uses its parent's working directory unless you explicitly set a different one. The <code>effective_working_directory</code> walks up the ancestor chain until it finds a role with a directory set.</p>
 
   <h2 id="execution-flow">Execution Flow</h2>
-  <p>When Director runs an agent, it follows this sequence:</p>
+  <p>When Master of Puppets runs an agent, it follows this sequence:</p>
   <ol>
     <li><strong>Validate</strong> — ensure the role has an adapter configured</li>
     <li><strong>Mark running</strong> — update role status and role run state</li>
@@ -151,10 +151,10 @@
     <li><strong>Record result</strong> — store exit code, cost, and session ID on the role run</li>
     <li><strong>Return to idle</strong> — reset role status and dispatch any throttled runs</li>
   </ol>
-  <p>For local adapters (Claude Code, OpenCode, and Codex), execution happens inside an isolated tmux session. Director polls the session output every 500ms, streaming it to the role run view in real time. Sessions time out after 5 minutes or after 60 seconds of no output.</p>
+  <p>For local adapters (Claude Code, OpenCode, and Codex), execution happens inside an isolated tmux session. Master of Puppets polls the session output every 500ms, streaming it to the role run view in real time. Sessions time out after 5 minutes or after 60 seconds of no output.</p>
 
   <h2 id="error-handling">Error Handling</h2>
-  <p>When an adapter execution fails, Director:</p>
+  <p>When an adapter execution fails, Master of Puppets:</p>
   <ol>
     <li>Marks the role run as failed with the error message</li>
     <li>Resets the role status to allow future runs</li>

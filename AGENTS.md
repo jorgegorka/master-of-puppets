@@ -4,7 +4,7 @@ This file provides guidance to Agents when working with code in this repository.
 
 ## What This Is
 
-Director is a Rails 8 orchestration platform for AI agent projects. Users create projects staffed by AI agents, organize them in hierarchies, assign tasks (root tasks act as missions), enforce budgets, and govern operations through approval gates.
+Master of Puppets is a Rails 8 orchestration platform for AI agent projects. Users create projects staffed by AI agents, organize them in hierarchies, assign tasks (root tasks act as missions), enforce budgets, and govern operations through approval gates.
 
 ## Hard Constraints
 

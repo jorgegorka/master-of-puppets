@@ -1,4 +1,4 @@
-<% content_for :title, "Projects — Director Docs" %>
+<% content_for :title, "Projects — Master of Puppets Docs" %>
 
 <% content_for :toc do %>
   <span class="docs-toc__title">On this page</span>
@@ -21,11 +21,11 @@
 
 <div class="prose">
   <h2 id="what-are-projects">What are Projects?</h2>
-  <p>A project is the top-level organizational unit in Director. It acts as an isolated workspace that contains everything needed to run an AI agent operation — roles, tasks, skills, and documents. All data is scoped to a project, so nothing leaks between workspaces.</p>
+  <p>A project is the top-level organizational unit in Master of Puppets. It acts as an isolated workspace that contains everything needed to run an AI agent operation — roles, tasks, skills, and documents. All data is scoped to a project, so nothing leaks between workspaces.</p>
   <p>Think of a project as a self-contained company: it has its own org chart, its own objectives, its own knowledge base, and its own budget controls.</p>
 
   <h2 id="creating-a-project">Creating a Project</h2>
-  <p>Every project needs a <strong>name</strong>. Once created, Director automatically seeds it with:</p>
+  <p>Every project needs a <strong>name</strong>. Once created, Master of Puppets automatically seeds it with:</p>
   <ul>
     <li><strong>Default role categories</strong> — pre-built department templates (Engineering, Research, Operations, etc.) so you can start staffing right away</li>
     <li><strong>Built-in skills</strong> — a library of reusable capabilities that agents can be equipped with</li>
@@ -33,7 +33,7 @@
   <p>You can switch between projects at any time. The currently active project determines what data you see across all screens.</p>
 
   <h2 id="multi-tenancy">Multi-tenancy</h2>
-  <p>Director uses <code>Current.project</code> scoping for multi-tenancy. When you select a project, all queries — roles, tasks, documents — are automatically filtered to that project. This means you never accidentally see or modify another project's data.</p>
+  <p>Master of Puppets uses <code>Current.project</code> scoping for multi-tenancy. When you select a project, all queries — roles, tasks, documents — are automatically filtered to that project. This means you never accidentally see or modify another project's data.</p>
   <p>Models that belong to a project include the <code>Tenantable</code> concern, which enforces this scoping at the model level.</p>
 
   <h2 id="team-collaboration">Team Collaboration</h2>
@@ -49,7 +49,7 @@
   <p>Set this to <code>0</code> for unlimited concurrency. This is useful for development but in production you may want to cap it to control costs and system load.</p>
 
   <h2 id="project-defaults">Project Defaults</h2>
-  <p>When a project is created, Director seeds it with sensible defaults so you can get productive immediately:</p>
+  <p>When a project is created, Master of Puppets seeds it with sensible defaults so you can get productive immediately:</p>
   <ul>
     <li><strong>Role categories</strong> — department templates with pre-written job specs that define what each category of agent does</li>
     <li><strong>Skills</strong> — built-in capabilities loaded from YAML definitions that can be attached to any role</li>
