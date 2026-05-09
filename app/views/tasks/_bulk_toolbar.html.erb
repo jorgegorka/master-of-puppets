@@ -1,0 +1,16 @@
+<div class="bulk-toolbar" data-kanban-target="toolbar" hidden>
+  <span class="bulk-toolbar__count">
+    <span data-kanban-target="selectedCount">0</span> selected
+  </span>
+
+  <%= render "bulk_select", attribute: "status",      options: options_for_task_status,      prompt: "Set status…" %>
+  <%= render "bulk_select", attribute: "assignee_id", options: options_for_role_pill_select, prompt: "Set assignee…" %>
+  <%= render "bulk_select", attribute: "priority",    options: options_for_task_priority,    prompt: "Set priority…" %>
+
+  <%= form_with url: bulk_update_path, method: :delete,
+                class: "bulk-toolbar__action",
+                data: { turbo_confirm: "Delete the selected tasks?" } do |f| %>
+    <%= f.hidden_field :ids, value: "", data: { kanban_target: "idsField" } %>
+    <%= f.submit "Delete", class: "btn btn--danger btn--sm" %>
+  <% end %>
+</div>

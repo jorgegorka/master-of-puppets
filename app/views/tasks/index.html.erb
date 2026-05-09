@@ -1,19 +1,29 @@
 <% content_for(:title, "Tasks") %>
 
-<section class="tasks-page">
-  <div class="tasks-page__header">
+<section class="tasks-board"
+         data-controller="kanban"
+         data-kanban-update-url-value="<%= bulk_update_path %>">
+
+  <header class="tasks-board__header">
     <h1>Tasks</h1>
     <% if Current.project.roles.exists? %>
       <%= link_to "New Task", new_task_path,
             class: "btn btn--primary btn--sm",
             data: { turbo_frame: "task_form_modal" } %>
     <% end %>
-  </div>
+  </header>
 
-  <% if @tasks.any? %>
-    <div class="task-list">
-      <% @tasks.each do |task| %>
-        <%= render partial: "tasks/task", locals: { task: task } %>
+  <%= render "filters" %>
+  <%= render "bulk_toolbar" %>
+
+  <% if @tasks_by_status.values.any?(&:any?) || request.query_parameters.any? %>
+    <div class="kanban">
+      <% @visible_columns.each do |status| %>
+        <%= render "column",
+              status: status,
+              tasks: @tasks_by_status[status] || [],
+              count: @counts_by_status[status] || 0,
+              limit: @kanban_column_limit %>
       <% end %>
     </div>
   <% else %>

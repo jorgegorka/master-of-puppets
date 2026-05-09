@@ -1,4 +1,15 @@
-<div class="task-card">
+<article id="<%= dom_id(task) %>"
+         class="task-card kanban-card"
+         draggable="true"
+         data-kanban-target="card"
+         data-task-id="<%= task.id %>"
+         data-action="dragstart->kanban#dragStart dragend->kanban#dragEnd">
+  <label class="kanban-card__select" data-kanban-no-drag>
+    <input type="checkbox"
+           data-kanban-target="checkbox"
+           data-action="change->kanban#toggleSelection"
+           value="<%= task.id %>">
+  </label>
   <div class="task-card__title">
     <%= link_to task.title, task_path(task) %>
   </div>
@@ -27,4 +38,4 @@
       <span class="task-card__cost task-cost"><%= format_cents_as_dollars(task.cost_cents) %></span>
     <% end %>
   </div>
-</div>
+</article>

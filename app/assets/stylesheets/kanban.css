@@ -1,0 +1,165 @@
+/* ============================================================
+   KANBAN BOARD
+   ============================================================ */
+@layer components {
+  .tasks-board {
+    max-inline-size: 100%;
+  }
+
+  .tasks-board__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-block-end: var(--space-4);
+
+    & h1 {
+      font-size: var(--font-size-2xl);
+    }
+  }
+
+  /* --- Filters --- */
+
+  .tasks-board__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    align-items: center;
+    margin-block-end: var(--space-3);
+  }
+
+  .filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--font-size-sm);
+    color: var(--text-subtle);
+    cursor: pointer;
+    user-select: none;
+
+    & input[type="checkbox"] {
+      cursor: pointer;
+    }
+  }
+
+  /* --- Bulk toolbar --- */
+
+  .bulk-toolbar {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 10;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    margin-block-end: var(--space-3);
+    background: var(--bg-surface);
+    border: 1px solid var(--color-neutral-300);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+  }
+
+  .bulk-toolbar[hidden] {
+    display: none;
+  }
+
+  .bulk-toolbar__count {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+  }
+
+  .bulk-toolbar__action {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  /* --- Board grid --- */
+
+  .kanban {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: var(--space-3);
+    align-items: start;
+  }
+
+  .kanban__column {
+    background: var(--color-neutral-50);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-2);
+    min-block-size: 12rem;
+    transition: background-color var(--transition-fast);
+  }
+
+  .kanban__column--drag-over {
+    background: var(--color-neutral-100);
+    border-color: var(--color-neutral-300);
+  }
+
+  .kanban__column-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-block-end: var(--space-2);
+  }
+
+  .kanban__column-count {
+    font-size: var(--font-size-xs);
+    color: var(--text-subtle);
+    background: var(--color-neutral-100);
+    padding-inline: var(--space-2);
+    border-radius: var(--radius-sm);
+  }
+
+  .kanban__column-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-block-size: 4rem;
+  }
+
+  .kanban__column-truncated {
+    margin-block-start: var(--space-2);
+    padding: var(--space-2);
+    font-size: var(--font-size-xs);
+    color: var(--text-subtle);
+    text-align: center;
+    border-block-start: 1px dashed var(--border);
+  }
+
+  /* --- Cards --- */
+
+  .kanban-card {
+    cursor: grab;
+    position: relative;
+    padding-inline-end: var(--space-8);
+
+    &:active {
+      cursor: grabbing;
+    }
+  }
+
+  .kanban-card--dragging {
+    opacity: 0.5;
+  }
+
+  .kanban-card--selected {
+    outline: 2px solid var(--color-neutral-300);
+    outline-offset: -2px;
+  }
+
+  .kanban-card__select {
+    position: absolute;
+    inset-block-start: var(--space-2);
+    inset-inline-end: var(--space-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+
+    & input[type="checkbox"] {
+      cursor: pointer;
+    }
+  }
+}
