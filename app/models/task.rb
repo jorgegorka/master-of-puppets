@@ -24,8 +24,10 @@ class Task < ApplicationRecord
   has_many :task_documents, dependent: :destroy, inverse_of: :task
   has_many :documents, through: :task_documents
 
-  enum :status, { open: 0, in_progress: 1, blocked: 2, completed: 3, cancelled: 4, pending_review: 5 }
-  enum :priority, { low: 0, medium: 1, high: 2, urgent: 3 }, default: :medium
+  enum :status, { open: 0, in_progress: 1, blocked: 2, completed: 3, cancelled: 4, pending_review: 5 }, validate: true
+  enum :priority, { low: 0, medium: 1, high: 2, urgent: 3 }, default: :medium, validate: true
+
+  BOARD_COLUMNS = %w[open in_progress blocked pending_review completed cancelled].freeze
 
   validates :title, presence: true
   validates :cost_cents, numericality: { only_integer: true, greater_than_or_equal_to: 0 }, allow_nil: true
@@ -36,6 +38,7 @@ class Task < ApplicationRecord
   scope :by_priority, -> { order(priority: :desc, created_at: :desc) }
   scope :roots, -> { where(parent_task_id: nil) }
   scope :blocked, -> { where(status: :blocked) }
+  scope :overdue, -> { where("due_at < ?", Time.current).where.not(status: [ :completed, :cancelled ]) }
   scope :pending_human_review, -> { where(status: :pending_review).where.not(parent_task_id: nil).where(creator_id: Role.roots.select(:id)) }
 
   before_validation :default_assignee_to_creator

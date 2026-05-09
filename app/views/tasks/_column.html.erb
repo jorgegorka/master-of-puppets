@@ -1,0 +1,21 @@
+<% count ||= tasks.size %>
+<% limit ||= nil %>
+<div class="kanban__column"
+     data-status="<%= status %>"
+     data-kanban-target="column"
+     data-action="dragover->kanban#dragOver dragenter->kanban#dragEnter dragleave->kanban#dragLeave drop->kanban#drop">
+  <header class="kanban__column-header">
+    <span class="status-badge status-badge--<%= status %>"><%= status.humanize %></span>
+    <span class="kanban__column-count" data-kanban-target="count"><%= count %></span>
+  </header>
+  <div class="kanban__column-body">
+    <% tasks.each do |task| %>
+      <%= render "task", task: task %>
+    <% end %>
+    <% if limit && count > tasks.size %>
+      <p class="kanban__column-truncated">
+        Showing first <%= tasks.size %> of <%= count %>. Refine filters to see more.
+      </p>
+    <% end %>
+  </div>
+</div>

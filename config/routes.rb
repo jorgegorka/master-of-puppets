@@ -85,6 +85,9 @@ Rails.application.routes.draw do
       post :escalate, to: "task_escalations#create"
       post :ask_question, to: "task_questions#create"
     end
+    collection do
+      resource :bulk_update, only: [ :create, :destroy ], controller: "tasks/bulk_updates"
+    end
   end
 
   # Goals (scoped to active project via Current.project)

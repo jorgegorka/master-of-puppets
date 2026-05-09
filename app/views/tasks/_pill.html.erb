@@ -2,17 +2,21 @@
   Linear-style pill button that opens a popover picker.
 
   Locals:
-    form       — form builder
-    attribute  — model attribute symbol (e.g. :assignee_id)
-    icon       — inline SVG string (use task_pill_icon helper)
-    placeholder— text shown when no value is selected
-    options    — array of [label, value] tuples
-    searchable — whether to show a search input above options (default: false)
+    form           — form builder
+    attribute      — model attribute symbol (e.g. :assignee_id)
+    icon           — inline SVG string (use task_pill_icon helper)
+    placeholder    — text shown when no value is selected
+    options        — array of [label, value] tuples
+    searchable     — whether to show a search input above options (default: false)
+    current_value  — (optional) override; defaults to form.object.public_send(attribute)
+    selected_label — (optional) override; defaults to lookup in options by current_value
 %>
 <%
-  searchable = local_assigns.fetch(:searchable, false)
-  current_value = form.object.public_send(attribute)
-  selected_label = options.find { |_label, value| value.to_s == current_value.to_s }&.first if current_value.present?
+  searchable     = local_assigns.fetch(:searchable, false)
+  current_value  = local_assigns.fetch(:current_value)  { form.object&.public_send(attribute) }
+  selected_label = local_assigns.fetch(:selected_label) do
+    current_value.present? ? options.find { |_label, value| value.to_s == current_value.to_s }&.first : nil
+  end
 %>
 <div class="pill-picker"
      data-controller="popover-picker"
@@ -27,7 +31,7 @@
     </span>
   </button>
 
-  <%= form.hidden_field attribute, data: { popover_picker_target: "input" } %>
+  <%= form.hidden_field attribute, value: current_value, data: { popover_picker_target: "input" } %>
 
   <div class="popover-picker" hidden
        data-popover-picker-target="panel"

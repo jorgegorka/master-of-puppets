@@ -1,0 +1,7 @@
+<%= form_with url: bulk_update_path, method: :post, class: "bulk-toolbar__action" do |f| %>
+  <%= f.hidden_field :attribute, value: attribute %>
+  <%= f.hidden_field :ids, value: "", data: { kanban_target: "idsField" } %>
+  <%= f.select :value, options,
+               { prompt: prompt, include_blank: false },
+               data: { action: "change->kanban#submitBulk" } %>
+<% end %>

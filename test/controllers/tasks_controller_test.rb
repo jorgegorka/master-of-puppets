@@ -28,6 +28,58 @@ class TasksControllerTest < ActionDispatch::IntegrationTest
     assert_select ".task-card__title a", text: "Update widget catalog", count: 0
   end
 
+  test "index renders kanban columns for each status" do
+    get tasks_url
+    assert_response :success
+    Task::BOARD_COLUMNS.each do |status|
+      next if status == "cancelled"
+      assert_select ".kanban__column[data-status=?]", status
+    end
+  end
+
+  test "index hides cancelled column by default" do
+    cancelled = Task.create!(title: "Cancelled task", project: @project, creator: @ceo, status: :cancelled)
+    get tasks_url
+    assert_response :success
+    assert_select ".kanban__column[data-status='cancelled']", count: 0
+    assert_select ".task-card__title a", text: cancelled.title, count: 0
+  end
+
+  test "index shows cancelled column when show_cancelled=1" do
+    cancelled = Task.create!(title: "Cancelled task", project: @project, creator: @ceo, status: :cancelled)
+    get tasks_url, params: { show_cancelled: "1" }
+    assert_response :success
+    assert_select ".kanban__column[data-status='cancelled']"
+    assert_select ".task-card__title a", text: cancelled.title
+  end
+
+  test "index filters by assignee_id" do
+    get tasks_url, params: { assignee_id: @cto.id }
+    assert_response :success
+    # @cto-assigned tasks visible
+    assert_select ".task-card__title a", text: @design_task.title
+    # @developer-only tasks (no @cto assignment) hidden
+    assert_select ".task-card__title a", text: tasks(:fix_login_bug).title, count: 0
+  end
+
+  test "index filters by parent_task_id" do
+    get tasks_url, params: { parent_task_id: @design_task.id }
+    assert_response :success
+    # subtask of design_task is shown
+    assert_select ".task-card__title a", text: tasks(:subtask_one).title
+    # design_task itself (parent) is hidden
+    assert_select ".task-card__title a", text: @design_task.title, count: 0
+  end
+
+  test "index filters by overdue" do
+    overdue = Task.create!(title: "Overdue uniq", project: @project, creator: @ceo, status: :open, due_at: 2.days.ago)
+    Task.create!(title: "Future uniq", project: @project, creator: @ceo, status: :open, due_at: 2.days.from_now)
+    get tasks_url, params: { overdue: "1" }
+    assert_response :success
+    assert_select ".task-card__title a", text: overdue.title
+    assert_select ".task-card__title a", text: "Future uniq", count: 0
+  end
+
   # --- Show ---
 
   test "should show task" do

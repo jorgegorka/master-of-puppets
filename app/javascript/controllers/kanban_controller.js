@@ -1,17 +1,73 @@
 import { Controller } from "@hotwired/stimulus"
+import { patch, post } from "@rails/request.js"
 
 export default class extends Controller {
-  static targets = ["card", "column"]
+  static targets = [
+    "card", "column", "count",
+    "checkbox", "toolbar", "selectedCount",
+    "idsField"
+  ]
+  static values = { updateUrl: String }
+
+  connect() {
+    this.selected = new Set()
+    this.refreshSelectionUI()
+  }
+
+  toggleSelection(event) {
+    const checkbox = event.currentTarget
+    const id = checkbox.value
+    if (checkbox.checked) {
+      this.selected.add(id)
+    } else {
+      this.selected.delete(id)
+    }
+    this.refreshSelectionUI()
+  }
+
+  refreshSelectionUI() {
+    const count = this.selected.size
+    if (this.hasSelectedCountTarget) {
+      this.selectedCountTarget.textContent = count
+    }
+    if (this.hasToolbarTarget) {
+      this.toolbarTarget.hidden = count === 0
+    }
+    const csv = Array.from(this.selected).join(",")
+    this.idsFieldTargets.forEach(field => { field.value = csv })
+
+    this.cardTargets.forEach(card => {
+      card.classList.toggle("kanban-card--selected", this.selected.has(card.dataset.taskId))
+    })
+  }
+
+  submitBulk(event) {
+    const select = event.currentTarget
+    if (!select.value) return
+    const form = select.closest("form")
+    if (form) form.requestSubmit()
+  }
 
   dragStart(event) {
     const card = event.currentTarget
-    event.dataTransfer.setData("text/plain", card.dataset.taskId)
+    const id = card.dataset.taskId
+
+    let payload = id
+    if (this.selected.has(id) && this.selected.size > 1) {
+      payload = Array.from(this.selected).join(",")
+      this.cardTargets.forEach(c => {
+        if (this.selected.has(c.dataset.taskId)) c.classList.add("kanban-card--dragging")
+      })
+    } else {
+      card.classList.add("kanban-card--dragging")
+    }
+
+    event.dataTransfer.setData("text/plain", payload)
     event.dataTransfer.effectAllowed = "move"
-    card.classList.add("kanban-card--dragging")
   }
 
-  dragEnd(event) {
-    event.currentTarget.classList.remove("kanban-card--dragging")
+  dragEnd() {
+    this.cardTargets.forEach(c => c.classList.remove("kanban-card--dragging"))
     this.columnTargets.forEach(col => col.classList.remove("kanban__column--drag-over"))
   }
 
@@ -22,13 +78,12 @@ export default class extends Controller {
 
   dragEnter(event) {
     event.preventDefault()
-    const column = event.currentTarget
-    column.classList.add("kanban__column--drag-over")
+    event.currentTarget.classList.add("kanban__column--drag-over")
   }
 
   dragLeave(event) {
     const column = event.currentTarget
-    // Only remove if leaving the column itself, not entering a child
+    // dragleave fires when entering a child element; only clear when truly leaving the column.
     if (!column.contains(event.relatedTarget)) {
       column.classList.remove("kanban__column--drag-over")
     }
@@ -39,35 +94,49 @@ export default class extends Controller {
     const column = event.currentTarget
     column.classList.remove("kanban__column--drag-over")
 
-    const taskId = event.dataTransfer.getData("text/plain")
+    const payload = event.dataTransfer.getData("text/plain")
     const newStatus = column.dataset.status
-    const card = this.cardTargets.find(c => c.dataset.taskId === taskId)
+    if (!payload) return
 
+    if (payload.includes(",")) {
+      this.#bulkDrop(payload, newStatus, column)
+    } else {
+      this.#singleDrop(payload, newStatus, column)
+    }
+  }
+
+  async #singleDrop(taskId, newStatus, column) {
+    const card = this.cardTargets.find(c => c.dataset.taskId === taskId)
     if (!card) return
 
-    // Move card DOM element to new column
     const columnBody = column.querySelector(".kanban__column-body")
     columnBody.appendChild(card)
-
-    // Update column counts
     this.#updateColumnCounts()
 
-    // PATCH request to update task status
-    const csrfToken = document.querySelector("meta[name='csrf-token']")?.content
-    fetch(`/tasks/${taskId}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRF-Token": csrfToken,
-        "Accept": "text/vnd.turbo-stream.html, text/html"
-      },
-      body: JSON.stringify({ task: { status: newStatus } })
-    }).then(response => {
-      if (!response.ok) {
-        // Revert: reload page on failure
-        window.location.reload()
-      }
+    const response = await patch(`/tasks/${taskId}`, {
+      body: { task: { status: newStatus } },
+      responseKind: "turbo-stream"
     })
+    if (!response.ok) window.location.reload()
+  }
+
+  async #bulkDrop(idsCsv, newStatus, column) {
+    const ids = idsCsv.split(",")
+    const columnBody = column.querySelector(".kanban__column-body")
+
+    ids.forEach(id => {
+      const card = this.cardTargets.find(c => c.dataset.taskId === id)
+      if (card) columnBody.appendChild(card)
+    })
+    this.#updateColumnCounts()
+
+    const body = new FormData()
+    body.append("attribute", "status")
+    body.append("value", newStatus)
+    body.append("ids", idsCsv)
+
+    const response = await post(this.updateUrlValue, { body, responseKind: "html" })
+    if (!response.ok) window.location.reload()
   }
 
   #updateColumnCounts() {

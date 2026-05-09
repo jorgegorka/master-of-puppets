@@ -150,6 +150,20 @@ class TaskTest < ActiveSupport::TestCase
     assert tasks(:fix_login_bug).urgent?
   end
 
+  test "invalid status value adds validation error instead of raising" do
+    task = tasks(:design_homepage)
+    assert_nothing_raised { task.status = "garbage" }
+    assert_not task.valid?
+    assert_includes task.errors[:status], "is not included in the list"
+  end
+
+  test "invalid priority value adds validation error instead of raising" do
+    task = tasks(:design_homepage)
+    assert_nothing_raised { task.priority = "extreme" }
+    assert_not task.valid?
+    assert_includes task.errors[:priority], "is not included in the list"
+  end
+
   # --- Associations ---
 
   test "belongs to project" do
@@ -228,6 +242,19 @@ class TaskTest < ActiveSupport::TestCase
     roots = Task.roots
     assert_includes roots, @task
     assert_not_includes roots, tasks(:subtask_one)
+  end
+
+  test "overdue scope returns active tasks past their due date" do
+    overdue = Task.create!(title: "Overdue", project: @project, creator: @ceo, status: :open, due_at: 2.days.ago)
+    upcoming = Task.create!(title: "Upcoming", project: @project, creator: @ceo, status: :open, due_at: 2.days.from_now)
+    completed_overdue = Task.create!(title: "Done overdue", project: @project, creator: @ceo, status: :completed, due_at: 2.days.ago)
+    cancelled_overdue = Task.create!(title: "Cancelled overdue", project: @project, creator: @ceo, status: :cancelled, due_at: 2.days.ago)
+
+    result = Task.overdue
+    assert_includes result, overdue
+    assert_not_includes result, upcoming
+    assert_not_includes result, completed_overdue
+    assert_not_includes result, cancelled_overdue
   end
 
   # --- Callbacks ---
