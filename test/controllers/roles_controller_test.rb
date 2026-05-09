@@ -47,6 +47,43 @@ class RolesControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # --- JSON search (powers @-mention autocomplete) ---
+
+  test "JSON index returns active roles in current project" do
+    get roles_url(format: :json)
+    assert_response :success
+
+    json = response.parsed_body
+    assert json.is_a?(Array)
+    titles = json.map { |r| r["title"] }
+    assert_includes titles, "CEO"
+    assert_includes titles, "CTO"
+    refute_includes titles, "Operations Lead" # cross-project role
+  end
+
+  test "JSON index filters by case-insensitive substring on title" do
+    get roles_url(format: :json, q: "ce")
+    assert_response :success
+
+    titles = response.parsed_body.map { |r| r["title"] }
+    assert_includes titles, "CEO"
+    refute_includes titles, "CTO"
+  end
+
+  test "JSON index returns each role with id and title only" do
+    get roles_url(format: :json, q: "CEO")
+    json = response.parsed_body
+    assert_equal 1, json.size
+    assert_equal %w[id title].sort, json.first.keys.sort
+  end
+
+  test "JSON index excludes terminated roles" do
+    @cto.update!(status: :terminated)
+    get roles_url(format: :json, q: "CTO")
+    titles = response.parsed_body.map { |r| r["title"] }
+    refute_includes titles, "CTO"
+  end
+
   # --- Show ---
 
   test "should show role" do

@@ -39,7 +39,7 @@
     <% if @task.description.present? %>
       <div class="task-detail__section">
         <h2>Description</h2>
-        <%= markdown(@task.description) %>
+        <%= markdown_with_mentions(@task.description) %>
       </div>
     <% end %>
 

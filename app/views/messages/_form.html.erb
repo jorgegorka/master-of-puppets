@@ -2,8 +2,24 @@
   <% if local_assigns[:parent_id].present? %>
     <%= f.hidden_field :parent_id, value: parent_id %>
   <% end %>
-  <div class="message-form__field">
-    <%= f.text_area :body, placeholder: "Write a message...", required: true, rows: 3, class: "message-form__textarea" %>
+  <div class="message-form__field mention-autocomplete"
+       data-controller="mention-autocomplete"
+       data-mention-autocomplete-url-value="<%= roles_path(format: :json) %>">
+    <%= f.text_area :body,
+          placeholder: "Write a message... use @ to mention a role",
+          required: true,
+          rows: 3,
+          class: "message-form__textarea",
+          data: {
+            mention_autocomplete_target: "input",
+            action: "input->mention-autocomplete#onInput keydown->mention-autocomplete#onKeydown"
+          } %>
+    <div class="mention-autocomplete__panel"
+         data-mention-autocomplete-target="panel"
+         hidden>
+      <div class="mention-autocomplete__list" data-mention-autocomplete-target="list" role="listbox"></div>
+      <div class="mention-autocomplete__empty" data-mention-autocomplete-target="empty" hidden>No matching roles</div>
+    </div>
   </div>
   <div class="message-form__actions">
     <%= f.submit "Post Message", class: "btn btn--primary btn--sm" %>

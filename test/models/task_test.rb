@@ -287,6 +287,49 @@ class TaskTest < ActiveSupport::TestCase
     assert_equal @cto, event.role
   end
 
+  # --- Mention wakes ---
+
+  test "creating a task with @Role mention in description wakes that role" do
+    assert_difference -> { HeartbeatEvent.where(trigger_type: :mention).count }, 1 do
+      Task.create!(
+        title: "Investigate auth flow",
+        description: "Hey @#{@developer.title}, can you take a look?",
+        project: @project,
+        creator: @ceo
+      )
+    end
+
+    event = HeartbeatEvent.where(trigger_type: :mention).last
+    assert_equal @developer, event.role
+  end
+
+  test "creating a task with @Role in title wakes that role" do
+    assert_difference -> { HeartbeatEvent.where(trigger_type: :mention).count }, 1 do
+      Task.create!(
+        title: "Pair with @#{@developer.title} on rollout",
+        project: @project,
+        creator: @ceo
+      )
+    end
+  end
+
+  test "task mention wake skips the creator" do
+    assert_no_difference -> { HeartbeatEvent.where(trigger_type: :mention).count } do
+      Task.create!(
+        title: "Self-assigned",
+        description: "I (@#{@ceo.title}) will handle this.",
+        project: @project,
+        creator: @ceo
+      )
+    end
+  end
+
+  test "task without mentions does not fire mention wakes" do
+    assert_no_difference -> { HeartbeatEvent.where(trigger_type: :mention).count } do
+      Task.create!(title: "Plain task", description: "Nothing fancy.", project: @project, creator: @ceo)
+    end
+  end
+
   # --- Audit ---
 
   test "record_audit_event! creates an AuditEvent linked to the task" do

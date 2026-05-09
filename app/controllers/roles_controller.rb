@@ -3,12 +3,18 @@ class RolesController < ApplicationController
   before_action :set_role, only: [ :show, :edit, :update, :destroy ]
 
   def index
-    @roles = Current.project.roles.includes(:parent, :children, :skills, :role_category).order(:title)
-    @view = params[:view] || "chart"
+    respond_to do |format|
+      format.html do
+        @roles = Current.project.roles.includes(:parent, :children, :skills, :role_category).order(:title)
+        @view = params[:view] || "chart"
 
-    if @view == "chart"
-      @roles_by_parent_id = @roles.group_by(&:parent_id)
-      @root_roles = @roles_by_parent_id[nil] || []
+        if @view == "chart"
+          @roles_by_parent_id = @roles.group_by(&:parent_id)
+          @root_roles = @roles_by_parent_id[nil] || []
+        end
+      end
+
+      format.json { render json: search_active_roles }
     end
   end
 
@@ -66,6 +72,16 @@ class RolesController < ApplicationController
   end
 
   private
+
+  def search_active_roles
+    scope = Current.project.roles.active.order(:title)
+    query = params[:q].to_s.strip
+    if query.present?
+      escaped = ActiveRecord::Base.sanitize_sql_like(query)
+      scope = scope.where("LOWER(title) LIKE ?", "%#{escaped.downcase}%")
+    end
+    scope.limit(10).pluck(:id, :title).map { |id, title| { id: id, title: title } }
+  end
 
   def set_role
     @role = Current.project.roles.includes(:skills, :approval_gates, :role_skills, :role_category, children: [ :skills, :role_category ]).find(params[:id])

@@ -47,6 +47,7 @@ class Task < ApplicationRecord
   after_commit :enqueue_validation_feedback, on: [ :create, :update ]
 
   after_create_commit :audit_created
+  after_create_commit :trigger_mention_wakes
   before_destroy :audit_destroyed
 
   def cost_in_dollars
@@ -116,6 +117,22 @@ class Task < ApplicationRecord
   end
 
   private
+
+  def trigger_mention_wakes
+    return unless project
+
+    text = [ title, description ].compact_blank.join("\n")
+    detect_mentions(text, project).each do |mentioned_role|
+      next if mentioned_role == creator
+
+      trigger_role_wake(
+        role: mentioned_role,
+        trigger_type: :mention,
+        trigger_source: "Task##{id}",
+        context: { task_id: id }
+      )
+    end
+  end
 
   def default_assignee_to_creator
     self.creator ||= project.roles.roots.order(:created_at).first

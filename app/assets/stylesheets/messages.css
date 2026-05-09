@@ -129,6 +129,81 @@
     display: none;
   }
 
+  /* --- @-Mention Autocomplete --- */
+  .mention-autocomplete {
+    position: relative;
+  }
+
+  .mention-autocomplete__panel[hidden] {
+    display: none;
+  }
+
+  .mention-autocomplete__panel {
+    position: absolute;
+    inset-inline-start: 0;
+    inset-block-start: calc(100% + var(--space-1));
+    inline-size: min(320px, 100%);
+    z-index: var(--z-popup);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px -8px oklch(from var(--text-base) l c h / 0.18);
+    padding: var(--space-1);
+    max-block-size: 220px;
+    overflow-y: auto;
+  }
+
+  .mention-autocomplete__list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .mention-autocomplete__item {
+    display: block;
+    inline-size: 100%;
+    text-align: start;
+    padding: var(--space-2) var(--space-3);
+    border: none;
+    background: transparent;
+    color: var(--text-base);
+    font: inherit;
+    font-size: var(--font-size-sm);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+
+  .mention-autocomplete__item:hover,
+  .mention-autocomplete__item--active {
+    background: var(--color-brand-50, oklch(from var(--color-brand-500) 0.96 0.02 h));
+    color: var(--color-brand-700, var(--color-brand-500));
+  }
+
+  .mention-autocomplete__empty {
+    padding: var(--space-2) var(--space-3);
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  /* --- Rendered mention chip (in markdown bodies) --- */
+  .mention {
+    display: inline-flex;
+    align-items: baseline;
+    padding-inline: 0.4em;
+    padding-block: 0.05em;
+    border-radius: var(--radius-sm);
+    background: var(--badge-teal-bg);
+    color: var(--badge-teal-fg);
+    border: 1px solid var(--badge-teal-border);
+    font-weight: 600;
+    text-decoration: none;
+    line-height: 1.3;
+  }
+
+  a.mention:hover {
+    text-decoration: underline;
+  }
+
   /* --- Goals --- */
   .goals-page__header {
     display: flex;

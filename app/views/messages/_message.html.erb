@@ -18,7 +18,7 @@
     </time>
   </div>
 
-  <div class="message__body"><%= markdown(message.body) %></div>
+  <div class="message__body"><%= markdown_with_mentions(message.body) %></div>
 
   <div class="message__actions" data-controller="reply">
     <button class="btn btn--ghost btn--sm" data-action="reply#toggle">Reply</button>
