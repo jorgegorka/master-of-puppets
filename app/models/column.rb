@@ -50,6 +50,7 @@ class Column < ApplicationRecord
   scope :visible,       -> { where(hidden_by_default: false) }
   scope :for_system,    ->(key) { where(system_key: key) }
   scope :by_name_ci,    ->(name) { where("LOWER(name) = ?", name.to_s.downcase) }
+  scope :name_matches,  ->(q) { where("LOWER(name) LIKE ?", "%#{sanitize_sql_like(q.to_s.downcase)}%") }
 
   before_validation :nullify_agent_fields_on_manual
   before_validation :ensure_api_token, if: :agent?

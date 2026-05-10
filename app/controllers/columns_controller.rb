@@ -3,8 +3,17 @@ class ColumnsController < ApplicationController
   before_action :set_column, only: %i[show edit update destroy]
 
   def index
-    @columns = Current.project.columns.ordered.includes(:tasks).to_a
-    Current.project.preload_monthly_spend(@columns)
+    respond_to do |format|
+      format.html do
+        @columns = Current.project.columns.ordered.includes(:tasks).to_a
+        Current.project.preload_monthly_spend(@columns)
+      end
+      format.json do
+        scope = Current.project.columns.ordered
+        scope = scope.name_matches(params[:q]) if params[:q].present?
+        render json: scope.limit(20).map { |c| { id: c.id, title: c.name } }
+      end
+    end
   end
 
   def show

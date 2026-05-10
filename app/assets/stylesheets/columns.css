@@ -1,0 +1,101 @@
+/* ============================================================
+   COLUMNS — board-settings index, show, form
+   ============================================================ */
+@layer components {
+  .columns-page {
+    max-inline-size: 56rem;
+    margin-inline: auto;
+    padding-block: var(--space-8);
+    padding-inline: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+
+  .columns-page__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+
+    & h1 {
+      margin: 0;
+      font-size: var(--font-size-2xl);
+      font-weight: 700;
+      letter-spacing: var(--letter-spacing-tight);
+    }
+  }
+
+  .columns-page__table {
+    inline-size: 100%;
+    border-collapse: collapse;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    font-size: var(--font-size-sm);
+  }
+
+  .columns-page__table th,
+  .columns-page__table td {
+    text-align: start;
+    padding: var(--space-2) var(--space-3);
+    border-block-end: 1px solid var(--border-subtle);
+  }
+
+  .columns-page__table th {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide);
+  }
+
+  .columns-page__table tbody tr:last-child td {
+    border-block-end: 0;
+  }
+
+  /* Column show */
+  .column-show__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    margin-block-end: var(--space-3);
+
+    & h1 {
+      margin: 0;
+      font-size: var(--font-size-2xl);
+      font-weight: 700;
+      letter-spacing: var(--letter-spacing-tight);
+    }
+  }
+
+  .column-show__meta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+  }
+
+  .column-show__description {
+    color: var(--text-muted);
+    margin-block-end: var(--space-5);
+  }
+
+  /* Inline mention chip rendered for "@Column Name" tokens */
+  .column-token {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-sm);
+    background: var(--badge-blue-bg);
+    color: var(--badge-blue-fg);
+    font-weight: 600;
+  }
+
+  /* Column form: agent-only fields collapse on manual policy */
+  .column-form [data-policy-section="agent"][hidden] {
+    display: none;
+  }
+}

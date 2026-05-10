@@ -7,8 +7,7 @@
     <li><a href="#setting-a-budget" class="docs-toc__link">Setting a Budget</a></li>
     <li><a href="#spend-tracking" class="docs-toc__link">Spend Tracking</a></li>
     <li><a href="#alerts-and-enforcement" class="docs-toc__link">Alerts & Enforcement</a></li>
-    <li><a href="#approval-gates" class="docs-toc__link">Approval Gates</a></li>
-    <li><a href="#gate-types" class="docs-toc__link">Gate Types</a></li>
+    <li><a href="#review-columns" class="docs-toc__link">Review Columns</a></li>
     <li><a href="#config-versioning" class="docs-toc__link">Config Versioning</a></li>
     <li><a href="#audit-trail" class="docs-toc__link">Audit Trail</a></li>
   </ul>
@@ -17,60 +16,45 @@
 <div class="docs-content__header">
   <span class="docs-content__eyebrow">Guides</span>
   <h1 class="docs-content__title">Budgets &amp; Governance</h1>
-  <p class="docs-content__description">Control agent spending with per-role budgets, enforce workflows with approval gates, and track every change with audit logs.</p>
+  <p class="docs-content__description">Control agent spending with per-column budgets, insert manual review steps, and track every change with audit logs.</p>
 </div>
 
 <div class="prose">
   <h2 id="budget-basics">Budget Basics</h2>
-  <p>Every role in Master of Puppets can have a <strong>monthly budget</strong> that caps how much it can spend on AI executions. Budgets are defined in cents and tracked against task costs within the current billing period. When a role exhausts its budget, Master of Puppets blocks further executions until the next period begins.</p>
+  <p>Every agent-driven column in Master of Puppets can have a <strong>monthly budget</strong> that caps how much it can spend on AI executions. Budgets are defined in cents and tracked against run costs within the current billing period. When a column exhausts its budget, Master of Puppets blocks further runs until the next period begins.</p>
 
   <h2 id="setting-a-budget">Setting a Budget</h2>
-  <p>Set a role's budget on its settings page. You configure two values:</p>
-  <ul>
-    <li><strong>Budget amount</strong> — the maximum monthly spend in dollars (stored as cents internally to avoid rounding errors)</li>
-    <li><strong>Budget period start</strong> — defaults to the first of the current month. The period runs for one calendar month from this date.</li>
-  </ul>
-  <p>Leave the budget unset (or set to zero) for unlimited spending. This is fine for development but should be configured for production operations.</p>
+  <p>Set a column's budget on its edit page. The <strong>budget amount</strong> is the maximum monthly spend in dollars (stored as cents internally to avoid rounding errors). Manual columns don't have budgets &mdash; they don't run anything that costs money.</p>
+  <p>Leave the budget at zero for unlimited spending. This is fine for development but should be configured for production operations.</p>
 
   <h2 id="spend-tracking">Spend Tracking</h2>
-  <p>Master of Puppets tracks spending by summing the <code>cost_cents</code> of all tasks assigned to a role that were created within the current budget period. Each time an agent completes a task, the execution cost is recorded and counts toward the role's monthly spend.</p>
-  <p>You can view budget utilization on the role's detail page: current spend, remaining budget, and utilization as a percentage.</p>
+  <p>Master of Puppets tracks spending by summing the <code>cost_cents</code> of all <strong>runs</strong> a column produced within the current calendar month. Each time an adapter finishes, the run cost is recorded and counts toward the column's monthly spend.</p>
+  <p>You can view budget utilization on the column's detail page: current spend, remaining budget, and utilization as a percentage.</p>
 
   <h2 id="alerts-and-enforcement">Alerts &amp; Enforcement</h2>
   <p>Master of Puppets provides two levels of budget control:</p>
   <ul>
-    <li><strong>Alert threshold</strong> — when a role reaches 80% utilization, it triggers a warning. This gives you time to adjust before the budget is exhausted.</li>
-    <li><strong>Hard enforcement</strong> — when the budget is fully exhausted, Master of Puppets refuses to execute the agent. The check happens <em>before</em> execution, so no resources are consumed on a blocked run.</li>
+    <li><strong>Alert threshold</strong> &mdash; when a column reaches 80% utilization, it triggers a warning. This gives you time to adjust before the budget is exhausted.</li>
+    <li><strong>Hard enforcement</strong> &mdash; when the budget is fully exhausted, Master of Puppets refuses to start a new run on the column. The check happens <em>before</em> execution, so no resources are consumed on a blocked run.</li>
   </ul>
-  <p>Budget exhaustion is surfaced in error messages and role run records so you can see exactly why an execution was blocked.</p>
+  <p>Budget exhaustion is surfaced in error messages and run records so you can see exactly why an execution was blocked.</p>
 
-  <h2 id="approval-gates">Approval Gates</h2>
-  <p>Approval gates add workflow checkpoints that require human sign-off before agents can perform certain actions. Each gate is configured per role and can be individually enabled or disabled.</p>
-  <p>When an agent attempts a gated action, Master of Puppets pauses the operation and sets the role status to <strong>pending approval</strong>. A human operator must review and approve before the action proceeds.</p>
-
-  <h2 id="gate-types">Gate Types</h2>
-  <p>Master of Puppets supports five types of approval gates:</p>
-  <ul>
-    <li><strong>Task creation</strong> — require approval before the agent can create new tasks</li>
-    <li><strong>Task delegation</strong> — require approval before the agent can assign tasks to other roles</li>
-    <li><strong>Budget spend</strong> — require approval before executing work that will incur cost</li>
-    <li><strong>Status change</strong> — require approval before the agent can change its own status</li>
-    <li><strong>Escalation</strong> — require approval before the agent can escalate issues up the org chart</li>
-  </ul>
-  <p>Each gate type can only be configured once per role. Enable the gates that match the level of oversight you need — a trusted agent might have no gates, while a new or high-stakes agent might have all five enabled.</p>
+  <h2 id="review-columns">Review Columns</h2>
+  <p>Master of Puppets does not have per-action approval gates. Instead, governance is shaped by the board itself: insert a <strong>manual review column</strong> (transition policy <code>manual</code>, kind <code>review</code>) anywhere a human should sign off before work continues.</p>
+  <p>When a task lands in a review column, no adapter runs &mdash; the task waits for a human to <em>advance</em> it (forward) or <em>reject</em> it (back to a previous column with feedback). Use review columns wherever a piece of work is high-stakes, customer-visible, or expensive to undo.</p>
 
   <h2 id="config-versioning">Config Versioning</h2>
-  <p>Master of Puppets automatically versions changes to governance-sensitive role attributes. Every time you modify a role's title, job spec, budget, parent, status, or working directory, Master of Puppets creates a <strong>config version</strong> snapshot.</p>
+  <p>Master of Puppets automatically versions changes to governance-sensitive column attributes. Every time you modify a column's name, transition policy, job spec, success criteria, adapter config, budget, or position, Master of Puppets creates a <strong>config version</strong> snapshot.</p>
   <p>Each version records:</p>
   <ul>
-    <li>The <strong>action</strong> — create, update, or rollback</li>
-    <li>The <strong>full snapshot</strong> — the complete state of the role at that point</li>
-    <li>The <strong>changeset</strong> — only the fields that changed</li>
-    <li>The <strong>author</strong> — who made the change (human user or agent)</li>
+    <li>The <strong>action</strong> &mdash; create, update, or rollback</li>
+    <li>The <strong>full snapshot</strong> &mdash; the complete state of the column at that point</li>
+    <li>The <strong>changeset</strong> &mdash; only the fields that changed</li>
+    <li>The <strong>author</strong> &mdash; who made the change (human user or agent)</li>
   </ul>
-  <p>You can <strong>rollback</strong> to any previous version, restoring the role to that exact state. This provides a safety net when experimenting with agent configurations.</p>
+  <p>You can <strong>rollback</strong> to any previous version, restoring the column to that exact state. This provides a safety net when experimenting with column configurations.</p>
 
   <h2 id="audit-trail">Audit Trail</h2>
-  <p>All changes to auditable resources (roles, tasks, goals, documents, skills) are recorded as <strong>audit events</strong>. The audit trail captures who did what, when, and to which resource — whether the actor was a human user or an agent.</p>
-  <p>Audit events are project-scoped and include metadata about the change. Use the audit trail to investigate unexpected agent behavior, track operational history, and maintain accountability across your agent team.</p>
+  <p>All changes to auditable resources (columns, tasks, documents, skills) are recorded as <strong>audit events</strong>, along with every column transition (advance, reject, block, manual_move, cancel). The audit trail captures who did what, when, and to which resource &mdash; whether the actor was a human user or a column run.</p>
+  <p>Audit events are project-scoped and include metadata about the change. Use the audit trail to investigate unexpected agent behavior, track operational history, and maintain accountability.</p>
 </div>

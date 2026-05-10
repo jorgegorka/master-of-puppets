@@ -10,6 +10,8 @@ class DirectorServer
       Tools::AddMessage,
       Tools::ListMyTasks,
       Tools::GetTaskDetails,
+      Tools::ListColumns,
+      Tools::FindColumn,
       Tools::SearchDocuments,
       Tools::GetDocument
     ]

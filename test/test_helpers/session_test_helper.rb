@@ -8,6 +8,11 @@ module SessionTestHelper
     end
   end
 
+  def sign_in_with_project(user, project)
+    sign_in_as(user)
+    cookies[:project_id] = project.id
+  end
+
   def sign_out
     Current.session&.destroy!
     cookies.delete("session_id")

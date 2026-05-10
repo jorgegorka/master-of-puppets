@@ -13,27 +13,28 @@
 <div class="docs-content__header">
   <span class="docs-content__eyebrow">Get Started</span>
   <h1 class="docs-content__title">Introduction</h1>
-  <p class="docs-content__description">Learn the fundamentals of Master of Puppets and how to orchestrate AI agent projects.</p>
+  <p class="docs-content__description">Learn the fundamentals of Master of Puppets and how to orchestrate AI agent pipelines.</p>
 </div>
 
 <div class="prose">
   <h2 id="what-is-master-of-puppets">What is Master of Puppets?</h2>
-  <p>Master of Puppets is an AI orchestration platform that lets you compose, run, and govern projects of AI agents — from a single assistant to a two-hundred-agent operation.</p>
-  <p>Create projects, staff them with AI agents organized in hierarchies, define missions (root tasks) and break them into subtasks, enforce budgets, and govern operations through approval gates.</p>
+  <p>Master of Puppets is an AI orchestration platform that lets you compose, run, and govern pipelines of AI agents &mdash; from a single assistant to a two-hundred-step operation.</p>
+  <p>Create projects, build a board of columns where each column is either a manual queue or an agent-driven step, drop tasks onto the board, enforce per-column budgets, and govern transitions through approval columns.</p>
 
   <h2 id="key-concepts">Key Concepts</h2>
   <p>Master of Puppets is built around a few core abstractions:</p>
   <ul>
-    <li><strong>Projects</strong> — isolated workspaces for a team of agents</li>
-    <li><strong>Roles</strong> — agent positions with responsibilities, skills, and budgets</li>
-    <li><strong>Tasks</strong> — units of work delegated down the org chart</li>
-    <li><strong>Skills</strong> — capabilities attached to roles that define what agents can do</li>
-    <li><strong>Documents</strong> — shared context and knowledge available to agents</li>
+    <li><strong>Projects</strong> &mdash; isolated workspaces with their own board, tasks, and skill library</li>
+    <li><strong>Columns</strong> &mdash; the units of orchestration; each is either manual (a human-driven queue) or agent (an adapter runs whenever a task enters)</li>
+    <li><strong>Tasks</strong> &mdash; units of work that flow across the board from column to column</li>
+    <li><strong>Runs</strong> &mdash; one execution of a column's adapter against a task, with streaming output, cost, and audit trail</li>
+    <li><strong>Skills</strong> &mdash; reusable capability docs attached to columns and injected into the agent's prompt</li>
+    <li><strong>Documents</strong> &mdash; shared context and knowledge available to agents</li>
   </ul>
 
   <h2 id="architecture">Architecture</h2>
-  <p>Built with Rails 8, Hotwire, and SQLite. No external dependencies required beyond a Ruby runtime. Master of Puppets uses Solid Queue for background jobs, Solid Cache for caching, and Solid Cable for WebSocket connections — all backed by SQLite.</p>
+  <p>Built with Rails 8, Hotwire, and SQLite. No external dependencies required beyond a Ruby runtime. Master of Puppets uses Solid Queue for background jobs, Solid Cache for caching, and Solid Cable for WebSocket connections &mdash; all backed by SQLite.</p>
 
   <h2 id="next-steps">Next Steps</h2>
-  <p>Head to the Quick Start guide to create your first project and deploy an agent in under five minutes.</p>
+  <p>Head to the Quick Start guide to create your first project and run an agent column in under five minutes.</p>
 </div>

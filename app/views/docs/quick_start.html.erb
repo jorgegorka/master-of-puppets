@@ -4,10 +4,10 @@
   <span class="docs-toc__title">On this page</span>
   <ul class="docs-toc__list">
     <li><a href="#create-a-project" class="docs-toc__link">Create a Project</a></li>
-    <li><a href="#set-up-a-role" class="docs-toc__link">Set Up a Role</a></li>
+    <li><a href="#meet-the-board" class="docs-toc__link">Meet the Board</a></li>
+    <li><a href="#add-an-agent-column" class="docs-toc__link">Add an Agent Column</a></li>
     <li><a href="#configure-an-adapter" class="docs-toc__link">Configure an Adapter</a></li>
-    <li><a href="#define-a-mission" class="docs-toc__link">Define a Mission</a></li>
-    <li><a href="#assign-a-task" class="docs-toc__link">Assign a Task</a></li>
+    <li><a href="#drop-in-a-task" class="docs-toc__link">Drop in a Task</a></li>
     <li><a href="#watch-it-run" class="docs-toc__link">Watch It Run</a></li>
   </ul>
 <% end %>
@@ -15,39 +15,43 @@
 <div class="docs-content__header">
   <span class="docs-content__eyebrow">Get Started</span>
   <h1 class="docs-content__title">Quick Start</h1>
-  <p class="docs-content__description">Create your first project, staff it with an agent, and run a task — all in under five minutes.</p>
+  <p class="docs-content__description">Create your first project, configure an agent-driven column, and run a task &mdash; all in under five minutes.</p>
 </div>
 
 <div class="prose">
   <h2 id="create-a-project">Create a Project</h2>
-  <p>After signing in for the first time, Master of Puppets launches an <strong>onboarding wizard</strong> that walks you through creating a project, picking a department template, and hiring a top-level role — the fastest path from a fresh install to a working org chart.</p>
-  <p>You can also skip the wizard and click <strong>New Project</strong> from the dashboard at any time. Give your project a name — this is the isolated workspace where all your agents, missions, and tasks will live. Master of Puppets automatically seeds the project with default role categories and built-in skills so you can start staffing immediately.</p>
+  <p>After signing in for the first time, Master of Puppets launches an <strong>onboarding wizard</strong> that walks you through creating a project, choosing an adapter, and seeding the default board &mdash; the fastest path from a fresh install to a working pipeline.</p>
+  <p>You can also skip the wizard and click <strong>New Project</strong> from the dashboard at any time. Give your project a name &mdash; this is the isolated workspace where all your columns, tasks, and runs will live. Master of Puppets automatically seeds the project with the system columns (<code>backlog</code>, <code>in_progress</code>, <code>review</code>, <code>done</code>, <code>cancelled</code>, <code>blocked</code>) and a starter skill library.</p>
 
-  <h2 id="set-up-a-role">Set Up a Role</h2>
-  <p>Navigate to <strong>Roles</strong> and create your first role. Pick a role category (e.g., Engineering) and give it a title like "Code Assistant". Write a <strong>job spec</strong> describing what the agent should do — this becomes part of the system prompt the agent receives.</p>
-  <p>Assign skills from the project's skill library to give the agent specific capabilities. Skills are injected into the agent's context on every execution.</p>
+  <h2 id="meet-the-board">Meet the Board</h2>
+  <p>Open the <strong>board</strong>. Each column on it has a <em>transition policy</em>:</p>
+  <ul>
+    <li><strong>Manual</strong> columns are queues &mdash; humans drag tasks in and out.</li>
+    <li><strong>Agent</strong> columns run an AI adapter automatically whenever a task lands in them.</li>
+  </ul>
+  <p>Tasks flow left-to-right through the columns you arrange. There are no roles or hierarchies; the column is the unit of orchestration.</p>
+
+  <h2 id="add-an-agent-column">Add an Agent Column</h2>
+  <p>Click <strong>New Column</strong>. Give it a clear name like "Implement" or "Triage" &mdash; this is the name people and agents will use in <code>@</code>-mentions. Set the <strong>transition policy</strong> to <em>agent</em> to reveal the adapter and prompt fields.</p>
+  <p>Fill in a <strong>job spec</strong> describing what should happen to a task while it sits in this column, and <strong>success criteria</strong> the agent should check before declaring the task done. Both go into the system prompt the agent receives on every run.</p>
+  <p>Optionally attach <strong>skills</strong> from the project library to give the agent specific capabilities, and set a per-month <strong>budget</strong> in cents to cap spend.</p>
 
   <h2 id="configure-an-adapter">Configure an Adapter</h2>
-  <p>A role without an adapter is just a position on the org chart. To make it a live agent, configure an adapter:</p>
+  <p>Pick an adapter for the column:</p>
   <ul>
-    <li><strong>Claude Code</strong> — run Claude CLI locally with streaming output and session resumption. Set the model (e.g., <code>claude-sonnet-4-6</code>) and you're ready.</li>
-    <li><strong>HTTP API</strong> — point to any cloud-hosted agent endpoint.</li>
-    <li><strong>OpenCode</strong> — use OpenCode CLI with any supported provider (OpenAI, Gemini, Groq, etc.).</li>
-    <li><strong>Codex</strong> — run OpenAI Codex CLI locally, targeting OpenAI or Ollama, with per-role sandbox and approval policies.</li>
-    <li><strong>Shell Command</strong> — run a custom script or CLI tool.</li>
+    <li><strong>Claude Code</strong> &mdash; run Claude CLI locally with streaming output and resumable sessions. Set the model (e.g., <code>claude-sonnet-4-6</code>) and you're ready.</li>
+    <li><strong>HTTP API</strong> &mdash; point to any cloud-hosted agent endpoint.</li>
+    <li><strong>OpenCode</strong> &mdash; use OpenCode CLI with any supported provider (OpenAI, Gemini, Groq, etc.).</li>
+    <li><strong>Codex</strong> &mdash; run OpenAI Codex CLI locally, targeting OpenAI or Ollama, with per-column sandbox and approval policies.</li>
+    <li><strong>Shell Command</strong> &mdash; run a custom script or CLI tool.</li>
   </ul>
   <p>For this quick start, Claude Code is the fastest path. Set the model and optionally configure a working directory where the agent will operate.</p>
 
-  <h2 id="define-a-mission">Define a Mission</h2>
-  <p>In Master of Puppets, a <strong>mission</strong> is simply a <em>root task</em> — a task with no parent that describes what you want accomplished at a high level. Go to <strong>Goals</strong> and create one — for example, "Set up project scaffolding". Assign it to your new role.</p>
-  <p>When you assign a mission to a role that is online, Master of Puppets automatically wakes the agent to start working on it. As subtasks are completed, the mission's progress rolls up automatically, and Master of Puppets evaluates each completed subtask against the mission's intent with an AI quality gate.</p>
-
-  <h2 id="assign-a-task">Assign a Task</h2>
-  <p>Create a task under your mission — something concrete like "Initialize the repository with a README". Assign it to your role. Tasks are the actual units of work: the agent picks them up, executes them, and reports back.</p>
-  <p>Set a priority if needed. Tasks are sorted by priority descending by default, so urgent tasks are handled first.</p>
+  <h2 id="drop-in-a-task">Drop in a Task</h2>
+  <p>Create a task and place it in your new agent column &mdash; either by creating it there directly, or by moving it across the board. The moment the task enters an agent-driven column, the adapter starts running. There is no separate "dispatch" step.</p>
+  <p>Set a priority if needed. Tasks within a column are sorted by position by default.</p>
 
   <h2 id="watch-it-run">Watch It Run</h2>
-  <p>Once the task is assigned, Master of Puppets dispatches it to the agent. Navigate to the role's detail page to see the <strong>role run</strong> — streaming output appears in real time as the agent works.</p>
-  <p>When the agent finishes, the task moves to <strong>pending review</strong> (if the creator is a top-level role) or <strong>completed</strong>. Check the task's messages for output, and the role run for cost and timing details.</p>
-  <p>From here, you can create more roles, build out an org chart with parent-child hierarchies, set budgets, and configure approval gates. See the guides section for deeper walkthroughs.</p>
+  <p>Open the column to see its <strong>runs</strong> &mdash; streaming output appears in real time as the agent works. When the agent finishes, it advances the task to the next column, rejects it back, or blocks it &mdash; with a stated reason recorded in the audit log.</p>
+  <p>From here you can chain more agent columns together, insert manual <em>review</em> columns where humans approve or reject results, and set budgets to govern spend. See the guides for deeper walkthroughs.</p>
 </div>

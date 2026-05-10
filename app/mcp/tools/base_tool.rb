@@ -28,6 +28,19 @@ module Tools
       Run.find_by(column: column, task: task, status: Run::ACTIVE_STATUSES)
     end
 
+    def column_payload(col, task_count:)
+      {
+        id: col.id,
+        name: col.name,
+        position: col.position,
+        transition_policy: col.transition_policy,
+        kind: col.kind,
+        terminal: col.terminal?,
+        system_key: col.system_key,
+        task_count: task_count
+      }
+    end
+
     def perform_transition(task_id:, kind:, reason: nil, feedback: nil, target_column_name: nil)
       task = project.tasks.find(task_id)
       run = active_run_for(task)

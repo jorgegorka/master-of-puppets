@@ -1,11 +1,11 @@
 import { Controller } from "@hotwired/stimulus"
 
 // @-mention picker. Watches the textarea for an "@token" preceded by whitespace
-// or start-of-input, queries /roles.json?q=token, and lets the user pick a role
-// to insert as "@Role Title " (matching the substring rule in Triggerable).
+// or start-of-input, queries /columns.json?q=token, and lets the user pick a
+// column to insert as "@Column Name " (matching the substring rule in Triggerable).
 export default class extends Controller {
   static targets = ["input", "panel", "list", "empty"]
-  static values = { url: { type: String, default: "/roles.json" }, debounce: { type: Number, default: 120 } }
+  static values = { url: { type: String, default: "/columns.json" }, debounce: { type: Number, default: 120 } }
 
   connect() {
     this.results = []
@@ -137,13 +137,13 @@ export default class extends Controller {
     }
 
     if (this.hasEmptyTarget) this.emptyTarget.hidden = true
-    results.forEach((role, idx) => {
+    results.forEach((item, idx) => {
       const button = document.createElement("button")
       button.type = "button"
       button.className = "mention-autocomplete__item"
       button.dataset.action = "mousedown->mention-autocomplete#onSelect"
       button.dataset.index = idx
-      button.textContent = role.title
+      button.textContent = item.title
       this.listTarget.appendChild(button)
     })
     this.activeIndex = 0
@@ -151,13 +151,13 @@ export default class extends Controller {
     this.panelTarget.hidden = false
   }
 
-  applyResult(role) {
-    if (!role) return
+  applyResult(item) {
+    if (!item) return
     const value = this.inputTarget.value
     const cursor = this.inputTarget.selectionStart ?? value.length
     const before = value.slice(0, this.mentionStart)
     const after = value.slice(cursor)
-    const insert = `@${role.title} `
+    const insert = `@${item.title} `
 
     this.inputTarget.value = before + insert + after
     const newCursor = before.length + insert.length

@@ -1,14 +1,15 @@
-<% content_for :title, "Your First Agent — Master of Puppets Docs" %>
+<% content_for :title, "Your First Column — Master of Puppets Docs" %>
 
 <% content_for :toc do %>
   <span class="docs-toc__title">On this page</span>
   <ul class="docs-toc__list">
     <li><a href="#overview" class="docs-toc__link">Overview</a></li>
-    <li><a href="#define-the-role" class="docs-toc__link">Define the Role</a></li>
+    <li><a href="#configure-the-column" class="docs-toc__link">Configure the Column</a></li>
+    <li><a href="#choose-a-policy" class="docs-toc__link">Choose a Policy</a></li>
     <li><a href="#write-a-job-spec" class="docs-toc__link">Write a Job Spec</a></li>
+    <li><a href="#define-success-criteria" class="docs-toc__link">Define Success Criteria</a></li>
     <li><a href="#assign-skills" class="docs-toc__link">Assign Skills</a></li>
     <li><a href="#connect-an-adapter" class="docs-toc__link">Connect an Adapter</a></li>
-    <li><a href="#set-a-working-directory" class="docs-toc__link">Set a Working Directory</a></li>
     <li><a href="#give-it-work" class="docs-toc__link">Give It Work</a></li>
     <li><a href="#review-the-results" class="docs-toc__link">Review the Results</a></li>
   </ul>
@@ -16,60 +17,69 @@
 
 <div class="docs-content__header">
   <span class="docs-content__eyebrow">Guides</span>
-  <h1 class="docs-content__title">Your First Agent</h1>
-  <p class="docs-content__description">A step-by-step walkthrough of creating a role, configuring it as a live agent, and running your first task.</p>
+  <h1 class="docs-content__title">Configure your first column</h1>
+  <p class="docs-content__description">A step-by-step walkthrough of creating an agent-driven column on the board, configuring it, and watching a task flow through.</p>
 </div>
 
 <div class="prose">
   <h2 id="overview">Overview</h2>
-  <p>In Master of Puppets, an "agent" is a <strong>role</strong> with an <strong>adapter</strong> configured. The role defines <em>who</em> the agent is (title, job spec, skills), and the adapter defines <em>how</em> it executes (which AI model, what connection method). This guide walks you through setting both up.</p>
+  <p>In Master of Puppets, work flows across a board of <strong>columns</strong>. Each column is either <em>manual</em> (humans drag tasks in and out) or <em>agent-driven</em> (an AI adapter executes a task whenever it lands in the column, and either advances, rejects, or blocks it). The columns themselves &mdash; not roles or hierarchies &mdash; are the units of orchestration.</p>
+  <p>Every project is seeded with the system columns <code>backlog</code>, <code>in_progress</code>, <code>review</code>, <code>done</code>, <code>cancelled</code>, and <code>blocked</code>. You'll typically add your own agent-driven columns in between.</p>
 
-  <h2 id="define-the-role">Define the Role</h2>
-  <p>Navigate to <strong>Roles</strong> and create a new role. Choose a <strong>role category</strong> — categories are department templates (Engineering, Research, Operations, etc.) that provide a starting context for the role.</p>
-  <p>Give the role a descriptive <strong>title</strong> like "Backend Engineer" or "Documentation Writer". The title is unique within the project and becomes part of the agent's identity in the system prompt.</p>
+  <h2 id="configure-the-column">Configure the Column</h2>
+  <p>Open the board and click <strong>New Column</strong>. Give it a clear, mention-friendly <strong>name</strong> like "Implement" or "Review Tests" &mdash; agents and humans will reference columns by name in messages (e.g. <code>@Implement please pick this up</code>).</p>
+  <p>Add a <strong>description</strong> that explains, in one or two sentences, what work belongs in this column. The description is shown in the column header and in the prompt the agent receives.</p>
+
+  <h2 id="choose-a-policy">Choose a Policy</h2>
+  <p>The <strong>transition policy</strong> determines who moves tasks out of this column.</p>
+  <ul>
+    <li><strong>Manual</strong> &mdash; humans drag tasks across the board. Use this for staging, queues, or reviewer-only steps.</li>
+    <li><strong>Agent</strong> &mdash; an adapter runs as soon as a task enters the column. The agent decides whether to <em>advance</em>, <em>reject</em>, or <em>block</em> the task when it finishes.</li>
+  </ul>
+  <p>If you choose <em>Agent</em>, the form reveals adapter, job spec, and success criteria fields &mdash; all required before the column can run.</p>
 
   <h2 id="write-a-job-spec">Write a Job Spec</h2>
-  <p>The <strong>job spec</strong> is the most important field for shaping agent behavior. It is included in the system prompt the agent receives on every execution. Write it as if you're briefing a new team member:</p>
+  <p>The <strong>job spec</strong> is the most important field for shaping agent behavior. It is included in the system prompt the agent receives every time it picks up a task. Write it as if you're briefing a teammate stepping into a single role:</p>
   <ul>
-    <li>What is this role responsible for?</li>
-    <li>What standards should it follow?</li>
-    <li>What should it avoid doing?</li>
-    <li>How should it communicate results?</li>
+    <li>What happens to a task in this column?</li>
+    <li>What standards or conventions should be followed?</li>
+    <li>What's explicitly out of scope?</li>
+    <li>How should results be communicated?</li>
   </ul>
-  <p>Be specific. Vague job specs produce vague agent behavior. A good job spec reads like a role description in a real engineering organization.</p>
+  <p>Be specific. Vague job specs produce vague agent behavior.</p>
+
+  <h2 id="define-success-criteria">Define Success Criteria</h2>
+  <p>The <strong>success criteria</strong> tell the agent how to know it is done. They become part of the prompt and they're also what the agent checks against before calling <code>advance_task</code>. Bullet lists work well:</p>
+  <ul>
+    <li>The change is committed and tests pass.</li>
+    <li>A short summary of the work is added as a task message.</li>
+    <li>No follow-up questions remain unanswered.</li>
+  </ul>
 
   <h2 id="assign-skills">Assign Skills</h2>
-  <p>Skills define <em>what</em> the agent can do. Browse the project's skill library and assign the relevant ones to your role. Each skill's markdown content is injected into the agent's context, giving it detailed instructions for specific capabilities.</p>
-  <p>Start with a focused set — 2 to 5 skills is typical for a single-purpose agent. You can always add more later as you refine the role's responsibilities.</p>
+  <p>Skills define <em>what</em> the column knows how to do. Browse the project's skill library and attach the relevant ones to this column. Each skill's markdown content is injected into the agent's context on every run, giving it detailed instructions for specific capabilities. 2&ndash;5 focused skills is a good starting point.</p>
 
   <h2 id="connect-an-adapter">Connect an Adapter</h2>
-  <p>Go to the role's adapter settings and choose a type. For a first agent, <strong>Claude Code</strong> is the simplest path:</p>
+  <p>Choose an adapter type for the column. For a first agent column, <strong>Claude Code</strong> is the simplest path:</p>
   <ol>
     <li>Set <strong>adapter type</strong> to Claude Code</li>
     <li>Set the <strong>model</strong> (e.g., <code>claude-sonnet-4-6</code>)</li>
-    <li>Optionally set <strong>max turns</strong> to limit how long the agent works per execution</li>
+    <li>Optionally set a <strong>working directory</strong> if the agent should operate against a specific local path</li>
+    <li>Optionally cap <strong>max concurrent runs</strong> and the per-month <strong>budget</strong></li>
   </ol>
-  <p>Master of Puppets automatically configures an MCP server for the agent, giving it the ability to call back into Master of Puppets's API — reporting progress, creating subtasks, or asking questions through task messages.</p>
-
-  <h2 id="set-a-working-directory">Set a Working Directory</h2>
-  <p>Local adapters (Claude Code, OpenCode, and Codex) need a <strong>working directory</strong> — the filesystem path where the agent operates. Set this to the root of the codebase or project the agent will work on.</p>
-  <p>If this role is a child of another role, it inherits the parent's working directory by default. You only need to set it explicitly if this role should work in a different location.</p>
+  <p>Master of Puppets automatically issues an MCP API token for the column, so the agent can call back through the Director server &mdash; reporting progress, advancing tasks, asking questions through messages.</p>
 
   <h2 id="give-it-work">Give It Work</h2>
-  <p>Your agent is ready. There are two ways to trigger it:</p>
-  <ul>
-    <li><strong>Assign a task</strong> — create a task and assign it to this role. If the role is online, Master of Puppets dispatches it immediately.</li>
-    <li><strong>Assign a mission</strong> — create a root task (one with no parent) and assign it to the role. Master of Puppets wakes the agent and gives it the mission context so it can break the work into subtasks and drive them to completion.</li>
-  </ul>
-  <p>The agent receives a system prompt built from its role identity, job spec, mission context (the task's root ancestor), and all assigned skills. It then executes the task using its configured adapter.</p>
+  <p>Drop a task into your new column &mdash; either by creating one directly there, or by moving an existing task across the board. As soon as the task lands, the column's adapter runs against it. There is no separate dispatch step.</p>
+  <p>If the column has <strong>resumable session</strong> enabled, repeated runs share a session id so the agent can pick up where it left off.</p>
 
   <h2 id="review-the-results">Review the Results</h2>
-  <p>After execution, check the <strong>role run</strong> on the role's detail page. You'll see:</p>
+  <p>Each execution produces a <strong>run</strong> attached to the column. From the column's runs page you'll see:</p>
   <ul>
-    <li><strong>Output</strong> — the agent's streaming output, captured in real time</li>
-    <li><strong>Exit code</strong> — whether the execution succeeded (0) or failed</li>
-    <li><strong>Cost</strong> — how much the execution cost in API usage</li>
-    <li><strong>Duration</strong> — how long the agent ran</li>
+    <li><strong>Streaming output</strong> &mdash; captured in real time as the adapter works</li>
+    <li><strong>Final disposition</strong> &mdash; advance, reject, or block, with the agent's stated reason</li>
+    <li><strong>Cost</strong> &mdash; how much the run consumed in API usage, charged against the column's budget</li>
+    <li><strong>Duration</strong> &mdash; wall-clock time the agent spent</li>
   </ul>
-  <p>If the task was created by a top-level role (no parent), it appears in the <strong>human approvals queue</strong> on the dashboard. Review the work and either approve or reject it with feedback.</p>
+  <p>If the next column is a <em>review</em> column with manual policy, a human picks up the task there and decides whether to advance it again or reject it back. Otherwise it keeps flowing through agent-driven columns until it lands somewhere terminal.</p>
 </div>

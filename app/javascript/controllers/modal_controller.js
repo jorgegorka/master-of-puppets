@@ -9,9 +9,9 @@ import { Controller } from "@hotwired/stimulus"
 //    and on close() we empty the parent frame so the next trigger refetches.
 //
 // 2. Static on the page — the dialog is rendered on initial page load and
-//    opened programmatically by another controller calling open() (see
-//    org_chart_controller#openGoalModal). In this mode the dialog is not
-//    inside a turbo-frame, so close() is a plain dialog.close().
+//    opened programmatically by another controller calling open(). In this
+//    mode the dialog is not inside a turbo-frame, so close() is a plain
+//    dialog.close().
 export default class extends Controller {
   initialize() {
     this.onDialogClose = () => this.parentFrame?.replaceChildren()
