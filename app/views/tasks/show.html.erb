@@ -107,63 +107,21 @@
       </div>
     <% end %>
 
-    <% if @detail.task_evaluations.any? %>
-      <div class="task-detail__section">
-        <h2>Task Evaluations</h2>
-        <div class="eval-history">
-          <% @detail.task_evaluations.each do |evaluation| %>
-            <div class="eval-history__item eval-history__item--<%= evaluation.result %>">
-              <div class="eval-history__header">
-                <span class="eval-item__badge eval-item__badge--<%= evaluation.result %>">
-                  <%= evaluation.result.upcase %>
-                </span>
-                <span class="eval-history__attempt">Attempt <%= evaluation.attempt_number %>/<%= TaskEvaluation::MAX_ATTEMPTS %></span>
-                <time class="eval-history__time"><%= evaluation.created_at.strftime("%b %d, %Y at %H:%M") %></time>
-              </div>
-              <div class="eval-history__feedback"><%= markdown(evaluation.feedback) %></div>
-              <div class="eval-history__meta">
-                <span>Root task: <%= link_to evaluation.root_task.title, goal_path(evaluation.root_task) %></span>
-                <% if evaluation.cost_cents.present? %>
-                  <span>Cost: <%= format_cents_as_dollars(evaluation.cost_cents) %></span>
-                <% end %>
-              </div>
-            </div>
-          <% end %>
-        </div>
-      </div>
-    <% end %>
-
     <div class="task-detail__section">
-      <h2>Conversation (<%= @task.messages.size %>)</h2>
-      <div class="message-thread">
-        <% @detail.messages.each do |message| %>
-          <%= render partial: "messages/thread", locals: { message: message, task: @task } %>
-        <% end %>
-        <% if @detail.messages.empty? %>
-          <p class="task-detail__empty-note">No messages yet. Start the conversation below.</p>
-        <% end %>
-      </div>
+      <h2>Activity</h2>
       <%= render "messages/form", task: @task, parent_id: nil %>
-    </div>
-
-    <div class="task-detail__section">
-      <h2>Audit Trail</h2>
-      <% if @detail.audit_events.any? %>
-        <ol class="audit-trail">
-          <% @detail.audit_events.each do |event| %>
-            <li class="audit-trail__event">
-              <span class="audit-trail__action"><%= audit_event_description(event) %></span>
-              <span class="audit-trail__meta">
-                by <strong><%= event.actor.try(:email_address) || event.actor.try(:title) || "Unknown" %></strong>
-              </span>
-              <time class="audit-trail__time" datetime="<%= event.created_at.iso8601 %>">
-                <%= time_ago_in_words(event.created_at) %> ago
-              </time>
-            </li>
-          <% end %>
+      <% timeline = @detail.timeline_entries %>
+      <% if timeline.entries.any? %>
+        <ol id="task_timeline_entries" class="timeline">
+          <%= render partial: "shared/timeline_entry", collection: timeline.entries, as: :entry %>
         </ol>
+        <div id="task_timeline_loader">
+          <%= render "shared/timeline_loader",
+                timeline: timeline,
+                url: task_timeline_entries_path(@task) %>
+        </div>
       <% else %>
-        <p class="task-detail__empty-note">No audit events recorded yet.</p>
+        <p class="task-detail__empty-note timeline__empty">No activity yet &mdash; send a message above to start the conversation.</p>
       <% end %>
     </div>
   </div>

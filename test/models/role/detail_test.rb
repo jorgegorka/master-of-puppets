@@ -18,17 +18,6 @@ class Role::DetailTest < ActiveSupport::TestCase
     assert_same @detail.recent_heartbeats, @detail.recent_heartbeats
   end
 
-  test "recent_runs returns role runs ordered by most recent" do
-    runs = @detail.recent_runs
-    assert_kind_of ActiveRecord::Relation, runs
-    assert runs.size <= 5
-    assert runs.all? { |r| r.role_id == @role.id }
-  end
-
-  test "recent_runs is memoized" do
-    assert_same @detail.recent_runs, @detail.recent_runs
-  end
-
   test "project_skills returns skills ordered by category and name" do
     skills = @detail.project_skills
     assert_kind_of ActiveRecord::Relation, skills
@@ -84,20 +73,6 @@ class Role::DetailTest < ActiveSupport::TestCase
     assert_equal first_call, @detail.eval_pass_count
   end
 
-  test "recent_evaluations returns evaluations with task and root_task eager loaded" do
-    evaluations = @detail.recent_evaluations
-    assert evaluations.size <= 5
-    assert evaluations.all? { |e| e.role_id == @role.id }
-    evaluations.each do |evaluation|
-      assert evaluation.association(:task).loaded?
-      assert evaluation.association(:root_task).loaded?
-    end
-  end
-
-  test "recent_evaluations is memoized" do
-    assert_same @detail.recent_evaluations, @detail.recent_evaluations
-  end
-
   test "any_evaluations? returns true when evaluations exist" do
     assert @detail.eval_total > 0
     assert @detail.any_evaluations?
@@ -128,5 +103,21 @@ class Role::DetailTest < ActiveSupport::TestCase
   test "exposes role and project via attr_reader" do
     assert_equal @role, @detail.role
     assert_equal @project, @detail.project
+  end
+
+  test "timeline_entries returns a Timeline" do
+    assert_kind_of Timeline, @detail.timeline_entries
+  end
+
+  test "timeline_entries excludes heartbeat events" do
+    types = @detail.timeline_entries.entries.map(&:class).map(&:name)
+    assert_not_includes types, "HeartbeatEvent"
+  end
+
+  test "timeline_entries respects the before cursor" do
+    timeline = @detail.timeline_entries
+    cursor = timeline.entries.first.created_at
+    older = @detail.timeline_entries(before: cursor).entries
+    assert older.all? { |e| e.created_at < cursor }
   end
 end

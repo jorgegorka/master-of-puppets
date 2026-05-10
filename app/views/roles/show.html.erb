@@ -146,33 +146,21 @@
         <% end %>
       </div>
 
-      <%# Recent Runs %>
+      <%# Activity %>
       <div class="role-detail__card">
-        <h2 class="role-detail__card-title">Recent Runs</h2>
-        <% if @detail.recent_runs.any? %>
-          <table class="heartbeat-table">
-            <thead>
-              <tr>
-                <th>Run</th>
-                <th>Status</th>
-                <th>Duration</th>
-                <th>Started</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% @detail.recent_runs.each do |run| %>
-                <tr>
-                  <td><%= link_to "##{run.id}", role_role_run_path(@role, run) %></td>
-                  <td><%= role_run_status_badge(run) %></td>
-                  <td><%= role_run_duration(run) %></td>
-                  <td><%= run.started_at ? time_ago_in_words(run.started_at) + " ago" : "Queued" %></td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-          <%= link_to "View all runs", role_role_runs_path(@role), class: "btn btn--ghost btn--sm" %>
+        <h2 class="role-detail__card-title">Activity</h2>
+        <% timeline = @detail.timeline_entries %>
+        <% if timeline.entries.any? %>
+          <ol id="role_timeline_entries" class="timeline">
+            <%= render partial: "shared/timeline_entry", collection: timeline.entries, as: :entry %>
+          </ol>
+          <div id="role_timeline_loader">
+            <%= render "shared/timeline_loader",
+                  timeline: timeline,
+                  url: role_timeline_entries_path(@role) %>
+          </div>
         <% else %>
-          <p class="role-detail__empty-note">No execution runs yet. Runs appear when the role is triggered.</p>
+          <p class="role-detail__empty-note timeline__empty">No activity yet. Events appear when the role runs, is audited, or is evaluated.</p>
         <% end %>
       </div>
 
@@ -254,20 +242,6 @@
               </div>
             </dl>
 
-            <h3 class="role-detail__card-subtitle">Recent Evaluations</h3>
-            <div class="eval-list">
-              <% @detail.recent_evaluations.each do |evaluation| %>
-                <div class="eval-item eval-item--<%= evaluation.result %>">
-                  <span class="eval-item__badge eval-item__badge--<%= evaluation.result %>">
-                    <%= evaluation.result.upcase %>
-                  </span>
-                  <span class="eval-item__task">
-                    <%= link_to evaluation.task.title, task_path(evaluation.task) %>
-                  </span>
-                  <time class="eval-item__time"><%= time_ago_in_words(evaluation.created_at) %> ago</time>
-                </div>
-              <% end %>
-            </div>
           <% end %>
         </div>
       <% end %>

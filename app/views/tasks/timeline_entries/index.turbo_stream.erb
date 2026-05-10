@@ -1,0 +1,10 @@
+<%= turbo_stream.append "task_timeline_entries" do %>
+  <%= render partial: "shared/timeline_entry", collection: @timeline.entries, as: :entry %>
+<% end %>
+<%= turbo_stream.replace "task_timeline_loader" do %>
+  <div id="task_timeline_loader">
+    <%= render "shared/timeline_loader",
+          timeline: @timeline,
+          url: task_timeline_entries_path(@task) %>
+  </div>
+<% end %>

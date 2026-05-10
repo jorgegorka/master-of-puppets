@@ -1,0 +1,17 @@
+<li class="timeline__entry timeline__entry--evaluation" id="<%= dom_id(task_evaluation) %>">
+  <div class="timeline__header">
+    <span class="timeline__type">Evaluation</span>
+    <span class="eval-item__badge eval-item__badge--<%= task_evaluation.result %>"><%= task_evaluation.result.upcase %></span>
+    <span class="timeline__actor">Attempt <%= task_evaluation.attempt_number %>/<%= TaskEvaluation::MAX_ATTEMPTS %></span>
+    <time class="timeline__time" datetime="<%= task_evaluation.created_at.iso8601 %>">
+      <%= time_ago_in_words(task_evaluation.created_at) %> ago
+    </time>
+  </div>
+  <div class="timeline__body"><%= markdown(task_evaluation.feedback) %></div>
+  <div class="timeline__meta">
+    <span>Root task: <%= link_to task_evaluation.root_task.title, goal_path(task_evaluation.root_task) %></span>
+    <% if task_evaluation.cost_cents.present? %>
+      <span>Cost: <%= format_cents_as_dollars(task_evaluation.cost_cents) %></span>
+    <% end %>
+  </div>
+</li>

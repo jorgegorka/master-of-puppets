@@ -1,0 +1,8 @@
+<% if timeline.more_available? %>
+  <div class="timeline__loader">
+    <%= link_to "Load older",
+          "#{url}?before=#{timeline.next_cursor.iso8601}",
+          class: "btn btn--ghost btn--sm",
+          data: { turbo_stream: true } %>
+  </div>
+<% end %>

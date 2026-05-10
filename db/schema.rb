@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_14_122530) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_10_091913) do
   create_table "approval_gates", force: :cascade do |t|
     t.string "action_type", null: false
     t.datetime "created_at", null: false
@@ -384,9 +384,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_14_122530) do
     t.integer "task_id", null: false
     t.datetime "updated_at", null: false
     t.index ["project_id"], name: "index_task_evaluations_on_project_id"
+    t.index ["role_id", "created_at"], name: "index_task_evaluations_on_role_id_and_created_at"
     t.index ["role_id"], name: "index_task_evaluations_on_role_id"
     t.index ["root_task_id"], name: "index_task_evaluations_on_root_task_id"
     t.index ["task_id", "attempt_number"], name: "index_task_evaluations_on_task_id_and_attempt_number", unique: true
+    t.index ["task_id", "created_at"], name: "index_task_evaluations_on_task_id_and_created_at"
     t.index ["task_id"], name: "index_task_evaluations_on_task_id"
   end
 

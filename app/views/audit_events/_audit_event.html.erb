@@ -1,0 +1,10 @@
+<li class="timeline__entry timeline__entry--audit" id="<%= dom_id(audit_event) %>">
+  <div class="timeline__header">
+    <span class="timeline__type">Audit</span>
+    <span class="timeline__actor"><%= audit_event.actor.try(:email_address) || audit_event.actor.try(:title) || "Unknown" %></span>
+    <time class="timeline__time" datetime="<%= audit_event.created_at.iso8601 %>">
+      <%= time_ago_in_words(audit_event.created_at) %> ago
+    </time>
+  </div>
+  <p class="timeline__action"><%= audit_event_description(audit_event) %></p>
+</li>

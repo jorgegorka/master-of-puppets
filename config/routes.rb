@@ -50,6 +50,7 @@ Rails.application.routes.draw do
       resource :pause,       only: [ :create, :destroy ]
       resource :termination, only: [ :create ]
       resource :approval,    only: [ :create, :destroy ]
+      resources :timeline_entries, only: [ :index ]
     end
 
     member do
@@ -80,6 +81,9 @@ Rails.application.routes.draw do
     resources :messages, only: [ :create ]
     resource :approval, only: [ :update ], controller: "tasks/approvals"
     resource :rejection, only: [ :update ], controller: "tasks/rejections"
+    scope module: :tasks do
+      resources :timeline_entries, only: [ :index ]
+    end
     member do
       post :delegate, to: "task_delegations#create"
       post :escalate, to: "task_escalations#create"

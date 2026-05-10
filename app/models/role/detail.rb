@@ -10,10 +10,6 @@ class Role::Detail
     @recent_heartbeats ||= role.heartbeat_events.reverse_chronological.limit(5)
   end
 
-  def recent_runs
-    @recent_runs ||= role.role_runs.order(created_at: :desc).limit(5)
-  end
-
   def project_skills
     @project_skills ||= project.skills.order(:category, :name)
   end
@@ -34,10 +30,6 @@ class Role::Detail
     @eval_pass_count ||= role.task_evaluations.passed.count
   end
 
-  def recent_evaluations
-    @recent_evaluations ||= role.task_evaluations.order(created_at: :desc).limit(5).includes(:task, :root_task)
-  end
-
   def any_evaluations?
     eval_total > 0
   end
@@ -45,5 +37,19 @@ class Role::Detail
   def eval_pass_rate
     return 0 if eval_total.zero?
     (eval_pass_count.to_f / eval_total * 100).round
+  end
+
+  def timeline_entries(before: nil)
+    Timeline.new(sources: timeline_sources, before: before)
+  end
+
+  private
+
+  def timeline_sources
+    [
+      role.audit_events.includes(:actor),
+      role.role_runs.includes(:task),
+      role.task_evaluations.includes(:root_task)
+    ]
   end
 end

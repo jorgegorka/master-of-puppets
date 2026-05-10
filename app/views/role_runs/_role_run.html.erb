@@ -1,0 +1,17 @@
+<li class="timeline__entry timeline__entry--run" id="<%= dom_id(role_run) %>">
+  <div class="timeline__header">
+    <span class="timeline__type">Run</span>
+    <%= link_to "##{role_run.id}", role_role_run_path(role_run.role, role_run), class: "timeline__actor" %>
+    <%= role_run_status_badge(role_run) %>
+    <span class="timeline__meta"><%= role_run_duration(role_run) %></span>
+    <time class="timeline__time" datetime="<%= role_run.created_at.iso8601 %>">
+      <%= time_ago_in_words(role_run.created_at) %> ago
+    </time>
+  </div>
+  <% if role_run.task.present? %>
+    <p class="timeline__body">Task: <%= link_to role_run.task.title, task_path(role_run.task) %></p>
+  <% end %>
+  <% if role_run.error_message.present? %>
+    <p class="timeline__body"><%= role_run.error_message.truncate(200) %></p>
+  <% end %>
+</li>

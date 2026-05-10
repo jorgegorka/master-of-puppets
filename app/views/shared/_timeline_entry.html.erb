@@ -1,0 +1,15 @@
+<% case entry
+   when Message %>
+  <li class="timeline__entry timeline__entry--message" id="<%= dom_id(entry) %>">
+    <div class="timeline__header">
+      <span class="timeline__type">Message</span>
+    </div>
+    <%= render "messages/thread", message: entry, task: entry.task %>
+  </li>
+<% when AuditEvent %>
+  <%= render partial: "audit_events/audit_event", locals: { audit_event: entry } %>
+<% when TaskEvaluation %>
+  <%= render partial: "task_evaluations/task_evaluation", locals: { task_evaluation: entry } %>
+<% when RoleRun %>
+  <%= render partial: "role_runs/role_run", locals: { role_run: entry } %>
+<% end %>
