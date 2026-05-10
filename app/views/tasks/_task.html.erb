@@ -17,23 +17,18 @@
     <span class="task-card__parent">Subtask of <%= link_to task.parent_task.title, task_path(task.parent_task) %></span>
   <% end %>
   <div class="task-card__meta">
-    <%= task_status_badge(task) %>
     <%= task_priority_badge(task) %>
-    <span class="task-card__assignee">
-      <% if task.assignee.present? %>
-        <%= link_to task.assignee.title, role_path(task.assignee) %>
-      <% else %>
-        <span class="task-card__unassigned">Unassigned</span>
-      <% end %>
-    </span>
     <% if task.creator.present? %>
-      <span class="task-card__creator">by <%= task.creator.title %></span>
+      <span class="task-card__creator">by <%= task.creator.email_address %></span>
     <% end %>
     <% if task.due_at.present? %>
       <span class="task-card__due">Due <%= task.due_at.strftime("%b %d, %Y") %></span>
     <% end %>
     <% count = task.try(:messages_count) || task.messages.size %>
     <span class="task-card__messages"><%= count %> <%= "message".pluralize(count) %></span>
+    <% if last = task_card_last_activity(task) %>
+      <span class="task-card__last-run"><%= last %></span>
+    <% end %>
     <% if task.cost_cents.present? %>
       <span class="task-card__cost task-cost"><%= format_cents_as_dollars(task.cost_cents) %></span>
     <% end %>

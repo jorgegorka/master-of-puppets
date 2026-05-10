@@ -8,19 +8,16 @@ unless api_token.present?
   exit 1
 end
 
-role = Role.find_by(api_token: api_token)
+column = Column.find_by(api_token: api_token)
 
-unless role
-  $stderr.puts "No role found for the provided API token"
+unless column
+  $stderr.puts "No column found for the provided API token"
   exit 1
 end
 
-# The tool scope determines which tool set this MCP instance exposes. The
-# orchestrator runs in :orchestrator scope; each sub-agent subprocess passes
-# its own scope (e.g. :sub_agent_review_task) via the MCP config env block.
-scope = (ENV["DIRECTOR_TOOL_SCOPE"].presence || "orchestrator").to_sym
+scope = (ENV["DIRECTOR_TOOL_SCOPE"].presence || "agent").to_sym
 
-$stderr.puts "Director MCP server started for role: #{role.title} (#{role.project.name}) in #{scope} scope"
+$stderr.puts "Director MCP server started for column: #{column.name} (#{column.project.name}) in #{scope} scope"
 
-server = DirectorServer.new(role, tool_scope: scope)
+server = DirectorServer.new(column, tool_scope: scope)
 server.run

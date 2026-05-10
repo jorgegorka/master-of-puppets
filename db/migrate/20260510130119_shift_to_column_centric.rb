@@ -38,11 +38,11 @@ class ShiftToColumnCentric < ActiveRecord::Migration[8.1]
       remove_foreign_key :sub_agent_invocations, :role_runs
     end
 
-    remove_index :tasks, column: [:assignee_id, :status], if_exists: true
+    remove_index :tasks, column: [ :assignee_id, :status ], if_exists: true
     remove_index :tasks, column: :assignee_id, if_exists: true
     remove_index :tasks, column: :creator_id, if_exists: true
     remove_index :tasks, column: :reviewed_by_id, if_exists: true
-    remove_index :tasks, column: [:project_id, :status], if_exists: true
+    remove_index :tasks, column: [ :project_id, :status ], if_exists: true
 
     remove_column :tasks, :assignee_id, :bigint
     remove_column :tasks, :creator_id, :bigint
@@ -84,13 +84,13 @@ class ShiftToColumnCentric < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :columns, [:project_id, :position], unique: true
-    add_index :columns, [:project_id, :name], unique: true
-    add_index :columns, [:project_id, :system_key],
+    add_index :columns, [ :project_id, :position ], unique: true
+    add_index :columns, [ :project_id, :name ], unique: true
+    add_index :columns, [ :project_id, :system_key ],
               unique: true,
               where: "system_key IS NOT NULL",
               name: "index_columns_on_project_and_system_key"
-    add_index :columns, [:project_id, :transition_policy]
+    add_index :columns, [ :project_id, :transition_policy ]
     add_index :columns, :api_token,
               unique: true,
               where: "api_token IS NOT NULL",
@@ -117,12 +117,12 @@ class ShiftToColumnCentric < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :runs, [:column_id, :status]
-    add_index :runs, [:project_id, :status]
-    add_index :runs, [:task_id, :created_at]
+    add_index :runs, [ :column_id, :status ]
+    add_index :runs, [ :project_id, :status ]
+    add_index :runs, [ :task_id, :created_at ]
     add_index :runs, :claude_session_id
-    add_index :runs, [:status, :last_activity_at]
-    add_index :runs, [:column_id, :task_id],
+    add_index :runs, [ :status, :last_activity_at ]
+    add_index :runs, [ :column_id, :task_id ],
               unique: true,
               where: "status IN ('queued', 'throttled', 'running')",
               name: "index_active_runs_on_column_and_task"
@@ -136,7 +136,7 @@ class ShiftToColumnCentric < ActiveRecord::Migration[8.1]
       t.timestamps
     end
 
-    add_index :column_skills, [:column_id, :skill_id], unique: true
+    add_index :column_skills, [ :column_id, :skill_id ], unique: true
   end
 
   def reshape_tasks_table
@@ -147,8 +147,8 @@ class ShiftToColumnCentric < ActiveRecord::Migration[8.1]
     add_reference :tasks, :creator_user, null: false, foreign_key: { to_table: :users }
     add_reference :tasks, :reviewed_by_user, foreign_key: { to_table: :users }
 
-    add_index :tasks, [:column_id, :position]
-    add_index :tasks, [:project_id, :column_id]
+    add_index :tasks, [ :column_id, :position ]
+    add_index :tasks, [ :project_id, :column_id ]
   end
 
   def reshape_messages_table
@@ -165,19 +165,19 @@ class ShiftToColumnCentric < ActiveRecord::Migration[8.1]
     add_reference :task_evaluations, :evaluator_column, null: false, foreign_key: { to_table: :columns }
     add_reference :task_evaluations, :evaluator_run, foreign_key: { to_table: :runs }
 
-    remove_index :task_evaluations, column: [:role_id, :created_at], if_exists: true
+    remove_index :task_evaluations, column: [ :role_id, :created_at ], if_exists: true
     remove_index :task_evaluations, column: :role_id, if_exists: true
     remove_column :task_evaluations, :role_id, :integer
 
-    add_index :task_evaluations, [:evaluator_column_id, :created_at]
+    add_index :task_evaluations, [ :evaluator_column_id, :created_at ]
   end
 
   def reshape_sub_agent_invocations_table
     add_reference :sub_agent_invocations, :parent_run, null: false, foreign_key: { to_table: :runs }
-    remove_index :sub_agent_invocations, column: [:role_run_id, :created_at], if_exists: true
+    remove_index :sub_agent_invocations, column: [ :role_run_id, :created_at ], if_exists: true
     remove_index :sub_agent_invocations, column: :role_run_id, if_exists: true
     remove_column :sub_agent_invocations, :role_run_id, :integer
 
-    add_index :sub_agent_invocations, [:parent_run_id, :created_at]
+    add_index :sub_agent_invocations, [ :parent_run_id, :created_at ]
   end
 end

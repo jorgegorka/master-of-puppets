@@ -4,9 +4,9 @@
   <% end %>
   <div class="message-form__field mention-autocomplete"
        data-controller="mention-autocomplete"
-       data-mention-autocomplete-url-value="<%= roles_path(format: :json) %>">
+       data-mention-autocomplete-url-value="<%= columns_path(format: :json) %>">
     <%= f.text_area :body,
-          placeholder: "Write a message... use @ to mention a role",
+          placeholder: "Write a message... use @ to mention a column",
           required: true,
           rows: 3,
           class: "message-form__textarea",
@@ -18,7 +18,7 @@
          data-mention-autocomplete-target="panel"
          hidden>
       <div class="mention-autocomplete__list" data-mention-autocomplete-target="list" role="listbox"></div>
-      <div class="mention-autocomplete__empty" data-mention-autocomplete-target="empty" hidden>No matching roles</div>
+      <div class="mention-autocomplete__empty" data-mention-autocomplete-target="empty" hidden>No matching columns</div>
     </div>
   </div>
   <div class="message-form__actions">

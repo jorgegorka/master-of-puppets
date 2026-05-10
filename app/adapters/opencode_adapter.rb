@@ -15,8 +15,6 @@ class OpencodeAdapter < BaseAdapter
     { required: %w[model], optional: %w[max_turns working_directory provider base_url] }
   end
 
-  # Environment variables to forward to the tmux session.
-  # OpenCode supports various provider API keys via environment.
   FORWARDED_ENV_VARS = %w[
     HOME PATH
     ANTHROPIC_API_KEY OPENAI_API_KEY GEMINI_API_KEY
@@ -28,21 +26,17 @@ class OpencodeAdapter < BaseAdapter
 
   OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434/v1".freeze
 
-  # Returns `-e KEY=value` flags for tmux new-session. When the role's
-  # adapter_config has provider=ollama, OpenCode is pointed at the local
-  # Ollama server via OPENAI_BASE_URL (Ollama exposes an OpenAI-compatible
-  # API at /v1), avoiding any edit to the user's ~/.config/opencode/opencode.json.
-  def self.env_flags(role)
-    provider = role.adapter_config&.dig("provider").to_s
-    provider == "ollama" ? ollama_env_flags(role) : default_env_flags
+  def self.env_flags(column)
+    provider = column.adapter_config&.dig("provider").to_s
+    provider == "ollama" ? ollama_env_flags(column) : default_env_flags
   end
 
   def self.default_env_flags
     forward_env_flags(FORWARDED_ENV_VARS).join(" ")
   end
 
-  def self.ollama_env_flags(role)
-    base_url = role.adapter_config&.dig("base_url").presence || OLLAMA_DEFAULT_BASE_URL
+  def self.ollama_env_flags(column)
+    base_url = column.adapter_config&.dig("base_url").presence || OLLAMA_DEFAULT_BASE_URL
 
     flags = forward_env_flags(%w[HOME PATH])
     flags << "-e OPENAI_BASE_URL=#{base_url.shellescape}"
@@ -50,14 +44,12 @@ class OpencodeAdapter < BaseAdapter
     flags.join(" ")
   end
 
-  # Hook for TmuxAdapterRunner: returns the opencode CLI invocation string.
-  def self.build_agent_command(role, context, temp_files)
-    prompt_file = build_prompt_file(role, context, temp_files)
-    mcp_config  = build_mcp_config(role, temp_files)
-    build_opencode_command(role, prompt_file, mcp_config)
+  def self.build_agent_command(column:, run:, prompt:, session_id: nil, temp_files:)
+    prompt_file = build_prompt_file(prompt, temp_files)
+    mcp_config  = build_mcp_config(column, temp_files)
+    build_opencode_command(column, prompt_file, mcp_config)
   end
 
-  # Hook for TmuxAdapterRunner: parses opencode's json output.
   def self.parse_result(accumulated_lines)
     cost_cents = nil
     exit_code = 0
@@ -71,7 +63,6 @@ class OpencodeAdapter < BaseAdapter
         next
       end
 
-      # Extract cost if present in the output
       if event["cost_usd"].present?
         cost_cents = (event["cost_usd"].to_f * 100).round
       elsif event["total_cost_usd"].present?
@@ -80,7 +71,6 @@ class OpencodeAdapter < BaseAdapter
         cost_cents = (event["usage"]["cost_usd"].to_f * 100).round
       end
 
-      # Check for error status
       if event["error"].present? || event["status"] == "error"
         exit_code = 1
         error_message = event["error"] || event["message"]
@@ -90,18 +80,16 @@ class OpencodeAdapter < BaseAdapter
     { exit_code: exit_code, cost_cents: cost_cents, error_message: error_message }
   end
 
-  private_class_method def self.build_prompt_file(role, context, temp_files)
-    prompt = role.compose_unified_prompt(context)
-
+  private_class_method def self.build_prompt_file(prompt, temp_files)
     file = Tempfile.new([ "opencode_prompt", ".txt" ])
-    file.write(prompt)
+    file.write(prompt.to_s)
     file.flush
     temp_files << file
     file
   end
 
-  private_class_method def self.build_opencode_command(role, prompt_file, mcp_config)
-    config = role.adapter_config
+  private_class_method def self.build_opencode_command(column, prompt_file, mcp_config)
+    config = column.adapter_config || {}
 
     parts = [ "opencode" ]
     parts << "-f json"
@@ -109,7 +97,6 @@ class OpencodeAdapter < BaseAdapter
     parts << "-p"
     parts << "$(cat #{prompt_file.path.shellescape})"
 
-    # OpenCode uses --model flag for model selection
     parts << "--model #{config['model'].shellescape}" if config["model"].present?
     parts << "--max-turns #{config['max_turns'].to_i}" if config["max_turns"].present?
     parts << "--mcp-config #{mcp_config.path.shellescape}" if mcp_config
@@ -117,8 +104,8 @@ class OpencodeAdapter < BaseAdapter
     parts.join(" ")
   end
 
-  private_class_method def self.build_mcp_config(role, temp_files)
-    return nil unless role.api_token.present?
+  private_class_method def self.build_mcp_config(column, temp_files)
+    return nil unless column.api_token.present?
 
     bin_path = Rails.root.join("bin", "director-mcp").to_s
     config = {
@@ -126,7 +113,7 @@ class OpencodeAdapter < BaseAdapter
         director: {
           type: "stdio",
           command: bin_path,
-          env: { "DIRECTOR_API_TOKEN" => role.api_token }
+          env: { "DIRECTOR_API_TOKEN" => column.api_token }
         }
       }
     }

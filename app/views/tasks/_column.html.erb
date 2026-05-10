@@ -1,21 +1,28 @@
 <% count ||= tasks.size %>
 <% limit ||= nil %>
-<div class="kanban__column"
-     data-status="<%= status %>"
-     data-kanban-target="column"
-     data-action="dragover->kanban#dragOver dragenter->kanban#dragEnter dragleave->kanban#dragLeave drop->kanban#drop">
-  <header class="kanban__column-header">
-    <span class="status-badge status-badge--<%= status %>"><%= status.humanize %></span>
-    <span class="kanban__column-count" data-kanban-target="count"><%= count %></span>
-  </header>
-  <div class="kanban__column-body">
-    <% tasks.each do |task| %>
-      <%= render "task", task: task %>
-    <% end %>
-    <% if limit && count > tasks.size %>
-      <p class="kanban__column-truncated">
-        Showing first <%= tasks.size %> of <%= count %>. Refine filters to see more.
-      </p>
-    <% end %>
+<%= turbo_frame_tag "kanban-column-#{column.id}" do %>
+  <div class="kanban__column"
+       data-column-id="<%= column.id %>"
+       data-policy="<%= column.transition_policy %>"
+       data-kanban-target="column"
+       data-action="dragover->kanban#dragOver dragenter->kanban#dragEnter dragleave->kanban#dragLeave drop->kanban#drop">
+    <header class="kanban__column-header">
+      <span class="kanban__column-tag kanban__column-tag--<%= column.transition_policy %>"><%= column.name %></span>
+      <span class="kanban__column-count" data-kanban-target="count"><%= count %></span>
+      <%= link_to "⚙", edit_column_path(column), class: "kanban__column-gear", title: "Edit column" %>
+      <% if column.agent? && column.runnable? %>
+        <%= button_to "Run", column_activity_path(column), method: :post, class: "btn btn--xs", form: { class: "kanban__run-form" } %>
+      <% end %>
+    </header>
+    <div class="kanban__column-body">
+      <% tasks.each do |task| %>
+        <%= render "task", task: task %>
+      <% end %>
+      <% if limit && count > tasks.size %>
+        <p class="kanban__column-truncated">
+          Showing first <%= tasks.size %> of <%= count %>. Refine filters to see more.
+        </p>
+      <% end %>
+    </div>
   </div>
-</div>
+<% end %>

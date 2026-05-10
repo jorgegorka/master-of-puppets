@@ -12,7 +12,6 @@
     <span class="docs-sidebar__heading">Core Concepts</span>
     <ul class="docs-sidebar__list">
       <li><%= link_to "Projects", documentation_projects_path, class: "docs-sidebar__link #{('docs-sidebar__link--active' if current_page?(documentation_projects_path))}" %></li>
-      <li><%= link_to "Roles", documentation_roles_path, class: "docs-sidebar__link #{('docs-sidebar__link--active' if current_page?(documentation_roles_path))}" %></li>
       <li><%= link_to "Adapters", documentation_adapters_path, class: "docs-sidebar__link #{('docs-sidebar__link--active' if current_page?(documentation_adapters_path))}" %></li>
       <li><%= link_to "Tasks & Missions", documentation_tasks_path, class: "docs-sidebar__link #{('docs-sidebar__link--active' if current_page?(documentation_tasks_path))}" %></li>
       <li><%= link_to "Skills", documentation_skills_path, class: "docs-sidebar__link #{('docs-sidebar__link--active' if current_page?(documentation_skills_path))}" %></li>
@@ -23,8 +22,7 @@
   <div class="docs-sidebar__group">
     <span class="docs-sidebar__heading">Guides</span>
     <ul class="docs-sidebar__list">
-      <li><%= link_to "Your First Agent", docs_page_path(path: "first-agent"), class: "docs-sidebar__link #{('docs-sidebar__link--active' if current_page?(docs_page_path(path: 'first-agent')))}" %></li>
-      <li><%= link_to "Org Chart Setup", docs_page_path(path: "org-chart"), class: "docs-sidebar__link #{('docs-sidebar__link--active' if current_page?(docs_page_path(path: 'org-chart')))}" %></li>
+      <li><%= link_to "Your First Column", docs_page_path(path: "first-agent"), class: "docs-sidebar__link #{('docs-sidebar__link--active' if current_page?(docs_page_path(path: 'first-agent')))}" %></li>
       <li><%= link_to "Budgets & Governance", docs_page_path(path: "budgets"), class: "docs-sidebar__link #{('docs-sidebar__link--active' if current_page?(docs_page_path(path: 'budgets')))}" %></li>
     </ul>
   </div>

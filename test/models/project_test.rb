@@ -55,8 +55,8 @@ class ProjectTest < ActiveSupport::TestCase
     expected = %w[backlog in_progress review done blocked cancelled]
     assert_equal expected, columns.map(&:system_key)
     assert_equal %w[manual agent manual manual manual manual], columns.map(&:transition_policy)
-    assert_equal [false, false, false, true, false, true], columns.map(&:terminal)
-    assert_equal [false, false, false, false, true, true], columns.map(&:hidden_by_default)
+    assert_equal [ false, false, false, true, false, true ], columns.map(&:terminal)
+    assert_equal [ false, false, false, false, true, true ], columns.map(&:hidden_by_default)
   end
 
   test "seed_default_columns! is idempotent" do

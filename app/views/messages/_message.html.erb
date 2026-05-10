@@ -1,11 +1,14 @@
 <div class="message <%= "message--reply" if message.parent_id.present? %>" id="message_<%= message.id %>">
   <div class="message__header">
     <span class="message__author">
-      <% if message.author.is_a?(Role) %>
-        <%= message.author.title %>
-        <span class="message__author-type">Role</span>
+      <% case message.author
+         when Column %>
+        <%= message.author.name %>
+        <span class="message__author-type">Column</span>
+      <% when User %>
+        <%= message.author.email_address %>
       <% else %>
-        <%= message.author.try(:email_address) || "Unknown" %>
+        <%= message.author.try(:email_address) || message.author_type %>
       <% end %>
     </span>
     <% if message.question? %>

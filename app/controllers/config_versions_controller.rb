@@ -53,8 +53,8 @@ class ConfigVersionsController < ApplicationController
 
   def find_versionable
     case @versionable_type
-    when "Role"
-      Current.project.roles.find_by(id: @versionable_id)
+    when "Column"
+      Current.project.columns.find_by(id: @versionable_id)
     else
       nil
     end

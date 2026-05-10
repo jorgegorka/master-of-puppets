@@ -35,17 +35,6 @@ class ProjectsController < ApplicationController
     end
   end
 
-  def emergency_stop
-    project = Current.user.projects.find(params[:id])
-    unless project == Current.project
-      redirect_to projects_path, alert: "Cannot control roles for a project you are not viewing."
-      return
-    end
-
-    paused_count = Roles::EmergencyStop.call!(project: project, user: Current.user)
-    redirect_to roles_path, notice: "Emergency stop activated. #{paused_count} role(s) paused."
-  end
-
   private
 
   def project_params

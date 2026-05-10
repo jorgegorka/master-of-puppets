@@ -5,32 +5,28 @@
     <div>
       <h1><%= @task.title %></h1>
       <div class="task-detail__badges">
-        <%= task_status_badge(@task) %>
+        <%= task_column_badge(@task) %>
         <%= task_priority_badge(@task) %>
       </div>
     </div>
     <div class="task-detail__actions">
-      <%= link_to "Edit", edit_task_path(@task),
-            class: "btn btn--ghost btn--sm",
-            data: { turbo_frame: "task_form_modal" } %>
-      <%= link_to "New Subtask", new_task_path(parent_task_id: @task.id),
-            class: "btn btn--ghost btn--sm",
-            data: { turbo_frame: "task_form_modal" } %>
+      <%= link_to "Edit", edit_task_path(@task), class: "btn btn--ghost btn--sm" %>
+      <%= link_to "New Subtask", new_task_path(parent_task_id: @task.id), class: "btn btn--ghost btn--sm" %>
       <%= button_to "Delete", @task, method: :delete, class: "btn btn--ghost btn--sm task-detail__delete",
             data: { turbo_confirm: "Delete '#{@task.title}'? This cannot be undone." } %>
     </div>
   </div>
 
-  <%= turbo_frame_tag "task_form_modal" %>
-
   <% if @task.pending_review? %>
     <div class="task-detail__review-banner">
-      <p>This task is <strong>pending review</strong>. Approve to mark complete, or reject with feedback.</p>
+      <p>This task is <strong>pending review</strong>. Approve to advance, or reject with feedback.</p>
       <div class="task-detail__review-actions">
         <%= button_to "Approve", task_approval_path(@task), method: :patch, class: "btn btn--primary btn--sm",
               data: { turbo_confirm: "Approve this task?" } %>
-        <%= button_to "Reject", task_rejection_path(@task), method: :patch, class: "btn btn--danger btn--sm",
-              data: { turbo_confirm: "Reject this task?" } %>
+        <%= form_with url: task_rejection_path(@task), method: :patch, class: "task-detail__reject-form" do |f| %>
+          <%= f.text_area :feedback, placeholder: "Required: feedback", required: true %>
+          <%= f.submit "Reject", class: "btn btn--danger btn--sm" %>
+        <% end %>
       </div>
     </div>
   <% end %>
@@ -47,19 +43,13 @@
       <h2>Details</h2>
       <dl class="task-detail__meta">
         <div class="task-detail__meta-row">
-          <dt>Assignee</dt>
-          <dd>
-            <% if @task.assignee.present? %>
-              <%= link_to @task.assignee.title, role_path(@task.assignee) %>
-            <% else %>
-              <span class="task-detail__unassigned">Unassigned</span>
-            <% end %>
-          </dd>
+          <dt>Column</dt>
+          <dd><%= link_to @task.column.name, column_path(@task.column) %></dd>
         </div>
         <% if @task.creator.present? %>
           <div class="task-detail__meta-row">
             <dt>Created by</dt>
-            <dd><%= link_to @task.creator.title, role_path(@task.creator) %></dd>
+            <dd><%= @task.creator.email_address %></dd>
           </div>
         <% end %>
         <div class="task-detail__meta-row">
@@ -84,6 +74,12 @@
             <dd><strong class="task-cost"><%= format_cents_as_dollars(@task.cost_cents) %></strong></dd>
           </div>
         <% end %>
+        <% if @task.reviewer_feedback.present? %>
+          <div class="task-detail__meta-row">
+            <dt>Reviewer feedback</dt>
+            <dd><%= @task.reviewer_feedback %></dd>
+          </div>
+        <% end %>
       </dl>
     </div>
 
@@ -95,17 +91,6 @@
             link_path: task_task_documents_path(@task),
             unlink_path_helper: ->(task, td) { task_task_document_path(task, td) } %>
     </div>
-
-    <% if @task.assignee.present? %>
-      <div class="task-detail__section task-detail__workflow">
-        <h2>Workflow Actions</h2>
-        <%= render "task_delegations/form", task: @task %>
-        <%= render "task_escalations/form", task: @task %>
-        <% if delegation_targets_for(@task).empty? && !can_escalate?(@task) %>
-          <p class="task-detail__empty-note">No delegation or escalation targets available for this assignee's position.</p>
-        <% end %>
-      </div>
-    <% end %>
 
     <div class="task-detail__section">
       <h2>Activity</h2>

@@ -1,6 +1,5 @@
 class Onboarding::AdaptersController < ApplicationController
   include Onboarding::Wizardable
-  include RolesHelper
   before_action :require_onboarding_project!
 
   def new
@@ -9,8 +8,7 @@ class Onboarding::AdaptersController < ApplicationController
   def create
     onboarding_project.cascade_adapter_config!(
       adapter_type: params[:adapter_type],
-      adapter_config: adapter_config_params.to_h,
-      working_directory: params[:working_directory]
+      adapter_config: adapter_config_params.to_h
     )
 
     redirect_to new_onboarding_completion_path

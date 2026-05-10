@@ -13,11 +13,11 @@ module AgentApiAuthenticatable
   private
 
   def current_actor
-    @current_role || Current.user
+    @current_column || Current.user
   end
 
   def agent_api_request?
-    @current_role.present?
+    @current_column.present?
   end
 
   def require_session_or_agent_token
@@ -30,9 +30,9 @@ module AgentApiAuthenticatable
 
     token = extract_bearer_token
     if token.present?
-      @current_role = Role.find_by(api_token: token)
-      if @current_role
-        Current.project = @current_role.project
+      @current_column = Column.find_by(api_token: token)
+      if @current_column
+        Current.project = @current_column.project
         return
       end
     end
@@ -54,19 +54,18 @@ module AgentApiAuthenticatable
     @task = Current.project.tasks.find(params[:task_id] || params[:id])
   end
 
-  def current_actor_role
-    current_actor.is_a?(Role) ? current_actor : nil
+  def current_actor_column
+    current_actor.is_a?(Column) ? current_actor : nil
   end
 
-  def require_pending_review
-    unless @task.pending_review?
-      respond_error(@task, "Task is not pending review.")
-    end
+  def active_run_for(task)
+    return nil unless current_actor_column
+    Run.find_by(column: current_actor_column, task: task, status: Run::ACTIVE_STATUSES)
   end
 
   def respond_success(task, message, **extra)
     respond_to do |format|
-      format.json { render json: { status: "ok", task_id: task.id, assignee_id: task.assignee_id, message: message, **extra }, status: :ok }
+      format.json { render json: { status: "ok", task_id: task.id, column_id: task.column_id, message: message, **extra }, status: :ok }
       format.html { redirect_to task, notice: message }
     end
   end

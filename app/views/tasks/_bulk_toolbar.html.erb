@@ -3,9 +3,8 @@
     <span data-kanban-target="selectedCount">0</span> selected
   </span>
 
-  <%= render "bulk_select", attribute: "status",      options: options_for_task_status,      prompt: "Set status…" %>
-  <%= render "bulk_select", attribute: "assignee_id", options: options_for_role_pill_select, prompt: "Set assignee…" %>
-  <%= render "bulk_select", attribute: "priority",    options: options_for_task_priority,    prompt: "Set priority…" %>
+  <%= render "bulk_select", attribute: "column_id", options: options_for_column_select,    prompt: "Move to column…" %>
+  <%= render "bulk_select", attribute: "priority",  options: options_for_task_priority,    prompt: "Set priority…" %>
 
   <%= form_with url: bulk_update_path, method: :delete,
                 class: "bulk-toolbar__action",

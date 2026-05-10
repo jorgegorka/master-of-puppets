@@ -4,12 +4,11 @@ class Onboarding::CompletionsController < ApplicationController
 
   def new
     @project = onboarding_project
-    @roles = @project.roles.includes(:role_category).order(:id)
-    @template = RoleTemplates::Registry.find(onboarding_state["template_key"]) if onboarding_state["template_key"]
+    @columns = @project.columns.ordered
   end
 
   def create
     session.delete(:onboarding)
-    redirect_to roles_path, notice: "Your project is ready!"
+    redirect_to columns_path, notice: "Your project is ready!"
   end
 end

@@ -1,0 +1,21 @@
+<% content_for(:title, "#{@column.name} runs") %>
+
+<h1><%= @column.name %> runs</h1>
+
+<table class="runs-table">
+  <thead>
+    <tr><th>ID</th><th>Task</th><th>Status</th><th>Cost</th><th>Started</th><th>Finished</th></tr>
+  </thead>
+  <tbody>
+    <% @runs.each do |run| %>
+      <tr>
+        <td><%= link_to "##{run.id}", run_path(run) %></td>
+        <td><%= run.task&.title %></td>
+        <td><%= run_status_badge(run) %></td>
+        <td><%= format_cents_as_dollars(run.cost_cents) %></td>
+        <td><%= run.started_at&.strftime("%b %d %H:%M") %></td>
+        <td><%= run.finished_at&.strftime("%b %d %H:%M") %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

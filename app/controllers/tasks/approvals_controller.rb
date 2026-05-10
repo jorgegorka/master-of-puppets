@@ -1,17 +1,24 @@
 class Tasks::ApprovalsController < ApplicationController
-  include AgentApiAuthenticatable
+  before_action :require_project!
   before_action :set_task
-  before_action :require_pending_review
 
   def update
-    @task.update!(status: :completed, reviewed_by: current_actor_role, reviewed_at: Time.current)
+    unless @task.pending_review?
+      redirect_to @task, alert: "Task is not pending review.", status: :see_other
+      return
+    end
 
-    @task.record_audit_event!(
-      actor: current_actor,
-      action: "approved",
-      metadata: { reviewed_by: current_actor_role&.title || current_actor.try(:email_address) }
-    )
+    begin
+      @task.approve_by!(Current.user)
+      redirect_to tasks_path, notice: "Task approved."
+    rescue Tasks::Reviewing::ReviewError => e
+      redirect_to @task, alert: e.message, status: :see_other
+    end
+  end
 
-    respond_success(@task, "Task approved and marked as completed.")
+  private
+
+  def set_task
+    @task = Current.project.tasks.find(params[:task_id])
   end
 end

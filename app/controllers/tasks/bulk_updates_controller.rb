@@ -2,7 +2,7 @@ class Tasks::BulkUpdatesController < ApplicationController
   before_action :require_project!
   before_action :load_tasks
 
-  ALLOWED_ATTRIBUTES = %w[ status assignee_id priority ].freeze
+  ALLOWED_ATTRIBUTES = %w[column_id priority].freeze
 
   def create
     attribute = bulk_params[:attribute]
@@ -23,26 +23,20 @@ class Tasks::BulkUpdatesController < ApplicationController
   private
 
   def apply_bulk_change(task, attribute, value)
-    old = task.public_send(attribute)
-    return false unless task.update(attribute => value)
+    if attribute == "column_id"
+      target = Current.project.columns.find_by(id: value)
+      return false unless target
 
-    task.record_audit_event!(
-      actor: Current.user,
-      action: audit_action_for(attribute),
-      metadata: audit_metadata_for(task, attribute, old, value)
-    )
-    true
-  end
+      transition = Columns::Transition.new(task: task, actor: Current.user, kind: :manual_move, target_column: target)
+      return false unless transition.valid?
 
-  def audit_action_for(attribute)
-    attribute == "assignee_id" ? "assigned" : "#{attribute}_changed"
-  end
-
-  def audit_metadata_for(task, attribute, old, value)
-    if attribute == "assignee_id"
-      { assignee_id: value, assignee_name: task.assignee&.title }
+      task.enter_column!(transition.target_column, actor: Current.user, kind: :manual_move)
+      true
     else
-      { from: old, to: value }
+      old = task.public_send(attribute)
+      return false unless task.update(attribute => value)
+      task.record_audit_event!(actor: Current.user, action: "#{attribute}_changed", metadata: { from: old, to: value })
+      true
     end
   end
 
@@ -57,6 +51,6 @@ class Tasks::BulkUpdatesController < ApplicationController
   end
 
   def redirect_filters
-    params.slice(:assignee_id, :parent_task_id, :overdue, :show_cancelled).to_unsafe_h
+    params.slice(:parent_task_id, :overdue, :show_cancelled, :show_blocked).to_unsafe_h
   end
 end

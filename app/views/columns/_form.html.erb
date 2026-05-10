@@ -1,0 +1,81 @@
+<%= form_with(model: column, class: "column-form", data: { controller: "column-form" }) do |f| %>
+  <% if column.errors.any? %>
+    <div class="form__errors" role="alert">
+      <p><strong><%= pluralize(column.errors.count, "error") %> prohibited this column from being saved:</strong></p>
+      <ul>
+        <% column.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="form__field">
+    <%= f.label :name %>
+    <%= f.text_field :name, required: true %>
+  </div>
+
+  <div class="form__field">
+    <%= f.label :description %>
+    <%= f.text_area :description, rows: 3 %>
+  </div>
+
+  <div class="form__field">
+    <%= f.label :transition_policy, "Policy" %>
+    <%= f.select :transition_policy,
+          [["Manual (humans move tasks)", "manual"], ["Agent (an agent moves tasks)", "agent"]],
+          {},
+          data: { action: "change->column-form#togglePolicy" } %>
+  </div>
+
+  <div class="form__field">
+    <%= f.label :position %>
+    <%= f.number_field :position, min: 1 %>
+  </div>
+
+  <div class="form__field">
+    <%= f.check_box :terminal %>
+    <%= f.label :terminal %>
+  </div>
+
+  <div data-policy-section="agent" data-column-form-target="agentSection" <%= "hidden" unless column.agent? %>>
+    <h3>Agent configuration</h3>
+
+    <div class="form__field">
+      <%= f.label :adapter_type %>
+      <%= f.select :adapter_type,
+            AdapterRegistry.adapter_types.map { |t| [AdapterRegistry.for(t).display_name, t] },
+            { include_blank: "Select adapter…" } %>
+    </div>
+
+    <div class="form__field">
+      <%= f.label :job_spec, "Job spec" %>
+      <%= f.text_area :job_spec, rows: 6, placeholder: "Describe what work this column does." %>
+    </div>
+
+    <div class="form__field">
+      <%= f.label :success_criteria %>
+      <%= f.text_area :success_criteria, rows: 4, placeholder: "When is a task ready to advance?" %>
+    </div>
+
+    <div class="form__field">
+      <%= f.label :budget_cents, "Monthly budget (cents)" %>
+      <%= f.number_field :budget_cents, min: 0 %>
+    </div>
+
+    <div class="form__field">
+      <%= f.label :max_concurrent_runs, "Max concurrent runs" %>
+      <%= f.number_field :max_concurrent_runs, min: 0 %>
+    </div>
+
+    <div class="form__field">
+      <%= f.check_box :resumable_session %>
+      <%= f.label :resumable_session, "Reuse session for the same (column, task)" %>
+    </div>
+  </div>
+
+  <div class="form__footer">
+    <%= f.submit class: "btn btn--primary" %>
+    <%= link_to "Cancel", columns_path, class: "btn btn--ghost" %>
+  </div>
+<% end %>

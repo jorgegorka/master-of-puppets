@@ -5,7 +5,7 @@
 
   <div class="form-card glass">
     <h1>Create your project</h1>
-    <p class="form-card__subtitle">A project is an isolated workspace where your AI roles operate.</p>
+    <p class="form-card__subtitle">A project is an isolated workspace where you'll configure a Kanban pipeline for your work.</p>
 
     <%= form_with(model: @project, url: onboarding_project_path, class: "form") do |f| %>
       <% if @project.errors.any? %>

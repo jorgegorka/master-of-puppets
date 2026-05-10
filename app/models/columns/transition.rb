@@ -80,11 +80,11 @@ module Columns
       return unless task && source_column
 
       resolved = case kind
-                 when "advance" then resolve_advance_target
-                 when "reject"  then resolve_reject_target
-                 when "block"   then resolve_block_target
-                 when "cancel"  then resolve_cancel_target
-                 when "manual_move" then resolve_manual_target
+      when "advance" then resolve_advance_target
+      when "reject"  then resolve_reject_target
+      when "block"   then resolve_block_target
+      when "cancel"  then resolve_cancel_target
+      when "manual_move" then resolve_manual_target
       end
 
       if resolved.nil?

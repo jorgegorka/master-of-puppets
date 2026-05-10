@@ -13,54 +13,21 @@
         <% if @project.description.present? %>
           <p class="onboarding__summary-description"><%= @project.description %></p>
         <% end %>
-
-        <dl class="onboarding__summary-details">
-          <div class="onboarding__summary-row">
-            <dt>Template</dt>
-            <dd><%= @template&.name || "From scratch" %></dd>
-          </div>
-          <div class="onboarding__summary-row">
-            <dt>Roles</dt>
-            <dd><%= pluralize(@roles.size, "role") %></dd>
-          </div>
-        </dl>
       </div>
 
-      <% if @roles.any? %>
-        <div class="onboarding__summary-card">
-          <h3>Role Hierarchy</h3>
-          <div class="hierarchy-tree">
-            <% children_map = @roles.group_by(&:parent_id) %>
-            <% root_roles = @roles.select { |r| r.parent_id.nil? } %>
-            <% render_tree = ->(roles, prefix) do %>
-              <% roles.each_with_index do |role, index| %>
-                <% is_last = index == roles.size - 1 %>
-                <% connector = prefix.empty? ? "" : (is_last ? "&#9492;&#9472;&#9472; " : "&#9500;&#9472;&#9472; ") %>
-                <div class="hierarchy-tree__node">
-                  <span class="hierarchy-tree__connector"><%= raw(prefix + connector) %></span>
-                  <div class="hierarchy-tree__role">
-                    <strong class="hierarchy-tree__title"><%= role.title %></strong>
-                    <% if role.role_category %>
-                      <span class="role-category-badge role-category-badge--<%= role.role_category.name.downcase %>"><%= role.role_category.name %></span>
-                    <% end %>
-                  </div>
-                </div>
-                <% child_roles = children_map[role.id] || [] %>
-                <% if child_roles.any? %>
-                  <% new_prefix = prefix + (is_last ? "&nbsp;&nbsp;&nbsp;&nbsp;" : "&#9474;&nbsp;&nbsp;&nbsp;") %>
-                  <% render_tree.call(child_roles, new_prefix) %>
-                <% end %>
-              <% end %>
-            <% end %>
-            <% render_tree.call(root_roles, "") %>
-          </div>
-        </div>
-      <% end %>
+      <div class="onboarding__summary-card">
+        <h3>Default Columns</h3>
+        <ul>
+          <% @columns.each do |column| %>
+            <li><strong><%= column.name %></strong> — <%= column.transition_policy %></li>
+          <% end %>
+        </ul>
+      </div>
     </div>
 
     <%= form_with(url: onboarding_completion_path, method: :post) do |f| %>
       <div class="form__actions">
-        <%= f.submit "Go to Org Chart", class: "btn btn--primary" %>
+        <%= f.submit "Go to Board", class: "btn btn--primary" %>
       </div>
     <% end %>
   </div>

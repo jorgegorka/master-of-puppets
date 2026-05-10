@@ -6,11 +6,7 @@
       <h1><%= @dashboard.name %></h1>
       <p class="dashboard__subtitle">Project command center</p>
     </div>
-    <% if Current.project.roles.exists? %>
-      <%= link_to "New Goal", new_goal_path,
-            class: "btn btn--primary btn--sm",
-            data: { turbo_frame: "goal_form_modal" } %>
-    <% end %>
+    <%= link_to "New Goal", new_goal_path, class: "btn btn--primary btn--sm" %>
   </div>
 
   <section id="dashboard-attention">
@@ -28,15 +24,8 @@
     </div>
     <% unless @dashboard.goals.any? %>
       <p class="dashboard-empty" id="goals-empty">
-        <% if Current.project.roles.exists? %>
-          No goals yet. <%= link_to "Create a goal", new_goal_path,
-            data: { turbo_frame: "goal_form_modal" } %> to get started.
-        <% else %>
-          No goals yet. <%= link_to "Create a role", new_role_path %> first to get started.
-        <% end %>
+        No goals yet. <%= link_to "Create a goal", new_goal_path %> to get started.
       </p>
     <% end %>
   </section>
-
-  <%= turbo_frame_tag "goal_form_modal" %>
 </section>

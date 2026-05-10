@@ -4,175 +4,24 @@
   <%= render "onboarding/progress" %>
 
   <div class="form-card form-card--wide glass">
-    <h1>How will your agents run?</h1>
-    <p class="form-card__subtitle">Choose a connection type. All roles in your project will use this adapter.</p>
+    <h1>Configure your default agent</h1>
+    <p class="form-card__subtitle">
+      Pick an adapter for the project's agent column. You can fine-tune each agent column's adapter later.
+    </p>
 
-    <%= form_with(url: onboarding_adapter_path, method: :post, class: "form", data: { controller: "adapter-config" }) do |f| %>
+    <%= form_with(url: onboarding_adapter_path, method: :post, class: "form") do |f| %>
       <div class="form__field">
-        <%= f.label :adapter_type, "Connection type" %>
-        <%= f.select :adapter_type, adapter_type_options, {}, {
-          class: "form__select",
-          data: { adapter_config_select: "", action: "change->adapter-config#toggle" }
-        } %>
+        <%= f.label :adapter_type, "Adapter" %>
+        <%= f.select :adapter_type,
+              AdapterRegistry.adapter_types.map { |t| [AdapterRegistry.for(t).display_name, t] },
+              { include_blank: "Select an adapter…" },
+              { class: "form__select" } %>
       </div>
 
       <div class="form__field">
-        <%= f.label :working_directory, "Working directory" %>
-        <%= f.text_field :working_directory, placeholder: "/path/to/project" %>
-        <p class="form__hint">Filesystem path where agents operate.</p>
+        <%= label_tag "adapter_config_model", "Model" %>
+        <%= text_field_tag "adapter_config[model]", "claude-sonnet-4-20250514" %>
       </div>
-
-      <!-- HTTP adapter config fields -->
-      <fieldset class="form__fieldset" data-adapter-config-target="configGroup" data-adapter-type="http">
-        <legend>HTTP API Configuration</legend>
-        <div class="form__field">
-          <%= label_tag "adapter_config_url", "Endpoint URL" %>
-          <%= text_field_tag "adapter_config[url]", nil,
-                placeholder: "https://api.example.com/agent",
-                id: "adapter_config_url" %>
-        </div>
-        <div class="form__field">
-          <%= label_tag "adapter_config_method", "HTTP Method" %>
-          <%= select_tag "adapter_config[method]",
-                options_for_select([ "POST", "PUT" ], "POST"),
-                id: "adapter_config_method",
-                class: "form__select" %>
-        </div>
-      </fieldset>
-
-      <!-- Process adapter config fields -->
-      <fieldset class="form__fieldset" data-adapter-config-target="configGroup" data-adapter-type="process">
-        <legend>Shell Command Configuration</legend>
-        <div class="form__field">
-          <%= label_tag "adapter_config_command", "Command" %>
-          <%= text_field_tag "adapter_config[command]", nil,
-                placeholder: "/usr/local/bin/my-agent.sh",
-                id: "adapter_config_command" %>
-        </div>
-      </fieldset>
-
-      <!-- Claude Local adapter config fields -->
-      <fieldset class="form__fieldset" data-adapter-config-target="configGroup" data-adapter-type="claude_local">
-        <legend>Claude Code Configuration</legend>
-        <div class="form__field">
-          <%= label_tag "adapter_config_provider", "Provider" %>
-          <%= select_tag "adapter_config[provider]",
-                options_for_select([
-                  [ "Anthropic (hosted API)", "anthropic" ],
-                  [ "Ollama (local)", "ollama" ]
-                ], "anthropic"),
-                id: "adapter_config_provider",
-                class: "form__select",
-                data: { provider_select: "", action: "change->adapter-config#toggleProvider" } %>
-        </div>
-
-        <div data-provider-value="anthropic">
-          <div class="form__field">
-            <%= label_tag "adapter_config_model", "Model" %>
-            <%= select_tag "adapter_config[model]",
-                  options_for_select(claude_model_options, default_claude_model),
-                  id: "adapter_config_model",
-                  class: "form__select" %>
-          </div>
-        </div>
-
-        <div data-provider-value="ollama">
-          <div class="form__field">
-            <%= label_tag "adapter_config_base_url", "Ollama base URL" %>
-            <%= text_field_tag "adapter_config[base_url]",
-                  "http://localhost:11434",
-                  id: "adapter_config_base_url" %>
-          </div>
-          <div class="form__field">
-            <%= label_tag "adapter_config_model_ollama", "Model" %>
-            <%= text_field_tag "adapter_config[model]", nil,
-                  placeholder: "e.g. qwen3-coder",
-                  id: "adapter_config_model_ollama" %>
-          </div>
-        </div>
-      </fieldset>
-
-      <!-- OpenCode adapter config fields -->
-      <fieldset class="form__fieldset" data-adapter-config-target="configGroup" data-adapter-type="opencode">
-        <legend>OpenCode Configuration</legend>
-        <div class="form__field">
-          <%= label_tag "adapter_config_opencode_provider", "Provider" %>
-          <%= select_tag "adapter_config[provider]",
-                options_for_select([
-                  [ "Hosted providers (Anthropic, OpenAI, etc.)", "default" ],
-                  [ "Ollama (local)", "ollama" ]
-                ], "default"),
-                id: "adapter_config_opencode_provider",
-                class: "form__select",
-                data: { provider_select: "", action: "change->adapter-config#toggleProvider" } %>
-        </div>
-
-        <div data-provider-value="default">
-          <div class="form__field">
-            <%= label_tag "adapter_config_opencode_model", "Model" %>
-            <%= select_tag "adapter_config[model]",
-                  options_for_select(opencode_model_options, default_claude_model),
-                  id: "adapter_config_opencode_model",
-                  class: "form__select" %>
-          </div>
-        </div>
-
-        <div data-provider-value="ollama">
-          <div class="form__field">
-            <%= label_tag "adapter_config_opencode_base_url", "Ollama base URL" %>
-            <%= text_field_tag "adapter_config[base_url]",
-                  "http://localhost:11434/v1",
-                  id: "adapter_config_opencode_base_url" %>
-          </div>
-          <div class="form__field">
-            <%= label_tag "adapter_config_opencode_model_ollama", "Model" %>
-            <%= text_field_tag "adapter_config[model]", nil,
-                  placeholder: "e.g. openai/qwen3-coder",
-                  id: "adapter_config_opencode_model_ollama" %>
-          </div>
-        </div>
-      </fieldset>
-
-      <!-- Codex adapter config fields -->
-      <fieldset class="form__fieldset" data-adapter-config-target="configGroup" data-adapter-type="codex">
-        <legend>OpenAI Codex Configuration</legend>
-        <div class="form__field">
-          <%= label_tag "adapter_config_codex_provider", "Provider" %>
-          <%= select_tag "adapter_config[provider]",
-                options_for_select([
-                  [ "OpenAI (hosted API)", "openai" ],
-                  [ "Ollama (local, OpenAI-compatible)", "ollama" ]
-                ], "openai"),
-                id: "adapter_config_codex_provider",
-                class: "form__select",
-                data: { provider_select: "", action: "change->adapter-config#toggleProvider" } %>
-        </div>
-
-        <div data-provider-value="openai">
-          <div class="form__field">
-            <%= label_tag "adapter_config_codex_model", "Model" %>
-            <%= select_tag "adapter_config[model]",
-                  options_for_select(codex_model_options, default_codex_model),
-                  id: "adapter_config_codex_model",
-                  class: "form__select" %>
-          </div>
-        </div>
-
-        <div data-provider-value="ollama">
-          <div class="form__field">
-            <%= label_tag "adapter_config_codex_base_url", "Ollama base URL" %>
-            <%= text_field_tag "adapter_config[base_url]",
-                  "http://localhost:11434/v1",
-                  id: "adapter_config_codex_base_url" %>
-          </div>
-          <div class="form__field">
-            <%= label_tag "adapter_config_codex_model_ollama", "Model" %>
-            <%= text_field_tag "adapter_config[model]", nil,
-                  placeholder: "e.g. gpt-oss-20b",
-                  id: "adapter_config_codex_model_ollama" %>
-          </div>
-        </div>
-      </fieldset>
 
       <div class="form__actions">
         <%= link_to "Back", new_onboarding_template_path, class: "btn btn--ghost" %>

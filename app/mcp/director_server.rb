@@ -1,68 +1,33 @@
 class DirectorServer
   PROTOCOL_VERSION = "2024-11-05"
 
-  # Each sub-agent runs in its own claude CLI subprocess with its own
-  # director-mcp child, scoped to a narrow tool set. Selecting the scope is
-  # purely a server-side concern -- the CLI picks a scope via the
-  # DIRECTOR_TOOL_SCOPE env var set in the MCP config written by
-  # SubAgents::Runner.
   TOOL_SCOPES = {
-    orchestrator: [
-      # Agentic operations are sub-agent wrappers -- calling them spawns a
-      # focused claude subprocess instead of mutating directly.
-      Tools::CreateTaskAgent,
-      Tools::ReviewTaskAgent,
-      Tools::HireRoleAgent,
-      Tools::SummarizeTaskAgent,
-
-      # Mechanical tools stay direct.
-      Tools::UpdateTaskStatus,
-      Tools::ListMyTasks,
-      Tools::ListAvailableRoles,
-      Tools::ListHirableRoles,
+    agent: [
+      Tools::AdvanceTask,
+      Tools::RejectTask,
+      Tools::BlockTask,
+      Tools::CreateTask,
       Tools::AddMessage,
+      Tools::ListMyTasks,
       Tools::GetTaskDetails,
       Tools::SearchDocuments,
-      Tools::GetDocument,
-
-      # Poll tools for the sub-agent background jobs the orchestrator kicks
-      # off above. Sub-agent wrappers return a queued handle; these let the
-      # orchestrator check the outcome on later turns without blocking.
-      Tools::GetSubAgentInvocation,
-      Tools::ListSubAgentInvocations
-    ],
-    sub_agent_create_task: [
-      Tools::GetTaskDetails,
-      Tools::ListAvailableRoles,
-      Tools::CreateTask # the direct mutation, not the sub-agent wrapper
-    ],
-    sub_agent_review_task: [
-      Tools::GetTaskDetails,
-      Tools::SubmitReviewDecision
-    ],
-    sub_agent_hire_role: [
-      Tools::ListHirableRoles,
-      Tools::HireRole # the direct mutation, not the sub-agent wrapper
-    ],
-    sub_agent_summarize_task: [
-      Tools::GetTaskDetails,
-      Tools::UpdateTaskSummary # the direct mutation, not the sub-agent wrapper
+      Tools::GetDocument
     ]
   }.freeze
 
-  attr_reader :role, :tool_scope
+  attr_reader :column, :tool_scope
 
-  def initialize(role, tool_scope: :orchestrator)
-    @role = role
+  def initialize(column, tool_scope: :agent)
+    @column = column
     @tool_scope = tool_scope.to_sym
-    @tools = DirectorServer.tool_classes_for(@tool_scope).map { |klass| klass.new(role) }
+    @tools = DirectorServer.tool_classes_for(@tool_scope).map { |klass| klass.new(column) }
   end
 
   def run
     $stdin.each_line do |line|
       request = JSON.parse(line.strip)
       response = handle(request)
-      $stdout.puts(response.to_json)
+      $stdout.puts(response.to_json) if response
       $stdout.flush
     rescue JSON::ParserError
       $stdout.puts(error_response(nil, -32700, "Parse error").to_json)
@@ -76,9 +41,8 @@ class DirectorServer
     end
   end
 
-  # Back-compat: old tests reference `tool_classes` for the default scope.
   def self.tool_classes
-    tool_classes_for(:orchestrator)
+    tool_classes_for(:agent)
   end
 
   private
@@ -91,7 +55,7 @@ class DirectorServer
     when "initialize"
       handle_initialize(id)
     when "notifications/initialized"
-      nil # No response needed for notifications
+      nil
     when "tools/list"
       handle_tools_list(id)
     when "tools/call"

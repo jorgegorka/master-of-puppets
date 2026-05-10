@@ -1,9 +1,9 @@
 module Tools
   class BaseTool
-    attr_reader :role
+    attr_reader :column
 
-    def initialize(role)
-      @role = role
+    def initialize(column)
+      @column = column
     end
 
     def name
@@ -21,7 +21,11 @@ module Tools
     private
 
     def project
-      role.project
+      column.project
+    end
+
+    def active_run_for(task)
+      Run.find_by(column: column, task: task, status: Run::ACTIVE_STATUSES)
     end
   end
 end

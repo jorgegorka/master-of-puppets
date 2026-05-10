@@ -1,36 +1,16 @@
-<% content_for(:title, "Choose a Template") %>
+<% content_for(:title, "Continue") %>
 
 <section class="onboarding">
   <%= render "onboarding/progress" %>
 
   <div class="onboarding__step">
-    <h1>Choose a template</h1>
-    <p class="onboarding__subtitle">Start with a pre-built department hierarchy, or build your own from scratch.</p>
+    <h1>Your default columns are ready</h1>
+    <p class="onboarding__subtitle">
+      We've seeded your project with Backlog, In Progress, Review, Done, Blocked, and Cancelled columns.
+      You can configure them after onboarding.
+    </p>
 
     <%= form_with(url: onboarding_template_path, method: :post, class: "form") do |f| %>
-      <div class="template-picker">
-        <label class="template-picker__card template-picker__card--scratch">
-          <%= f.radio_button :template_key, "scratch", class: "template-picker__radio" %>
-          <div class="template-picker__content">
-            <h2 class="template-card__name">Start from scratch</h2>
-            <p class="template-card__description">Create your own roles and hierarchy manually.</p>
-          </div>
-        </label>
-
-        <% @templates.each do |template| %>
-          <label class="template-picker__card">
-            <%= f.radio_button :template_key, template.key, class: "template-picker__radio" %>
-            <div class="template-picker__content">
-              <h2 class="template-card__name"><%= template.name %></h2>
-              <p class="template-card__description"><%= template.description %></p>
-              <div class="template-card__meta">
-                <span class="template-card__role-count"><%= pluralize(template.roles.size, "role") %></span>
-              </div>
-            </div>
-          </label>
-        <% end %>
-      </div>
-
       <div class="form__actions">
         <%= link_to "Back", new_onboarding_project_path, class: "btn btn--ghost" %>
         <%= f.submit "Continue", class: "btn btn--primary" %>

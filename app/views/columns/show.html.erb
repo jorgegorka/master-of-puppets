@@ -1,0 +1,34 @@
+<% content_for(:title, @column.name) %>
+
+<header class="column-show__header">
+  <h1><%= @column.name %></h1>
+  <p class="column-show__meta">
+    <span class="kanban__column-tag kanban__column-tag--<%= @column.transition_policy %>"><%= @column.transition_policy %></span>
+    <% if @column.terminal? %>
+      <span class="kanban__column-tag kanban__column-tag--terminal">terminal</span>
+    <% end %>
+  </p>
+  <%= link_to "Edit", edit_column_path(@column), class: "btn btn--secondary btn--sm" %>
+</header>
+
+<% if @column.description.present? %>
+  <p class="column-show__description"><%= @column.description %></p>
+<% end %>
+
+<% if @column.agent? %>
+  <h3>Recent runs</h3>
+  <table class="runs-table">
+    <thead><tr><th>ID</th><th>Task</th><th>Status</th><th>Cost</th><th>Started</th></tr></thead>
+    <tbody>
+      <% @runs.each do |run| %>
+        <tr>
+          <td><%= link_to "##{run.id}", run_path(run) %></td>
+          <td><%= link_to run.task&.title || "(deleted)", run.task ? task_path(run.task) : "#" %></td>
+          <td><%= run_status_badge(run) %></td>
+          <td><%= format_cents_as_dollars(run.cost_cents) %></td>
+          <td><%= run.started_at&.strftime("%b %d %H:%M") %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

@@ -2,7 +2,6 @@
   <%= link_to "Master of Puppets", root_path, class: "sidebar__brand" %>
 
   <div class="sidebar__nav">
-    <%# Dashboard %>
     <div class="sidebar__section" data-sidebar-target="section" data-section-id="dashboard">
       <button class="sidebar__toggle" data-action="click->sidebar#toggle" type="button">
         Dashboard
@@ -13,51 +12,27 @@
       <div class="sidebar__submenu">
         <div class="sidebar__submenu-inner">
           <%= link_to "Overview", dashboard_path, class: "sidebar__link" %>
-          <%= link_to "Tasks", tasks_path, class: "sidebar__link" %>
           <%= link_to "Activity", audit_logs_path, class: "sidebar__link" %>
-          <% if safe_roles_path %>
-            <%= link_to "Org Chart", safe_roles_path, class: "sidebar__link" %>
-          <% end %>
           <%= link_to "Goals", goals_path, class: "sidebar__link" %>
         </div>
       </div>
     </div>
 
-    <%# Roles %>
-    <div class="sidebar__section" data-sidebar-target="section" data-section-id="roles">
+    <div class="sidebar__section" data-sidebar-target="section" data-section-id="board">
       <button class="sidebar__toggle" data-action="click->sidebar#toggle" type="button">
-        Roles
+        Board
         <svg class="sidebar__chevron" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
           <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
         </svg>
       </button>
       <div class="sidebar__submenu">
         <div class="sidebar__submenu-inner">
-          <% if safe_roles_path %>
-            <%= link_to "All Roles", safe_roles_path, class: "sidebar__link" %>
-          <% end %>
-          <%= link_to "Categories", role_categories_path, class: "sidebar__link" %>
-          <%= link_to "Role Templates", role_templates_path, class: "sidebar__link" %>
+          <%= link_to "Board", tasks_path, class: "sidebar__link" %>
+          <%= link_to "Columns", columns_path, class: "sidebar__link" %>
         </div>
       </div>
     </div>
 
-    <%# Tasks %>
-    <div class="sidebar__section" data-sidebar-target="section" data-section-id="tasks">
-      <button class="sidebar__toggle" data-action="click->sidebar#toggle" type="button">
-        Tasks
-        <svg class="sidebar__chevron" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-          <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
-        </svg>
-      </button>
-      <div class="sidebar__submenu">
-        <div class="sidebar__submenu-inner">
-          <%= link_to "All Tasks", tasks_path, class: "sidebar__link" %>
-        </div>
-      </div>
-    </div>
-
-    <%# Skills %>
     <div class="sidebar__section" data-sidebar-target="section" data-section-id="skills">
       <button class="sidebar__toggle" data-action="click->sidebar#toggle" type="button">
         Skills
@@ -72,7 +47,6 @@
       </div>
     </div>
 
-    <%# Documents %>
     <div class="sidebar__section" data-sidebar-target="section" data-section-id="documents">
       <button class="sidebar__toggle" data-action="click->sidebar#toggle" type="button">
         Documents
@@ -87,7 +61,6 @@
       </div>
     </div>
 
-    <%# Audit Log (direct link, no sub-items) %>
     <%= link_to "Audit Log", audit_logs_path, class: "sidebar__direct-link" %>
   </div>
 </nav>

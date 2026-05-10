@@ -7,30 +7,24 @@ module Tools
     def definition
       {
         name: name,
-        description: "List tasks assigned to your role, optionally filtered by status.",
+        description: "List tasks currently in this column.",
         inputSchema: {
           type: "object",
-          properties: {
-            status: { type: "string", enum: %w[open in_progress blocked completed cancelled pending_review], description: "Filter by status" }
-          }
+          properties: {}
         }
       }
     end
 
     def call(arguments)
-      scope = role.assigned_tasks
-      scope = scope.where(status: arguments["status"]) if arguments["status"].present?
-
-      tasks = scope.order(priority: :desc, created_at: :desc).map do |task|
+      tasks = column.tasks.order(:position).map do |task|
         {
           id: task.id,
           title: task.title,
           description: task.description,
-          status: task.status,
           priority: task.priority,
           parent_task_id: task.parent_task_id,
           completion_percentage: task.completion_percentage,
-          creator_id: task.creator_id
+          creator_id: task.creator_user_id
         }
       end
 

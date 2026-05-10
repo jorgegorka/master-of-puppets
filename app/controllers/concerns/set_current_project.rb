@@ -34,10 +34,4 @@ module SetCurrentProject
   def require_project!
     redirect_to new_onboarding_project_path unless Current.project
   end
-
-  def require_roles!
-    return if Current.project.roles.exists?
-
-    redirect_to roles_path, notice: "You need to create at least one role first."
-  end
 end

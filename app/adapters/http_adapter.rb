@@ -1,15 +1,11 @@
 class HttpAdapter < BaseAdapter
-  # Error raised for 4xx responses -- permanent, no retry.
   class PermanentError < StandardError; end
-
-  # Error raised for 5xx responses and network timeouts/connection failures
-  # after all retries are exhausted -- transient but ultimately unrecoverable.
   class TransientError < StandardError; end
 
-  OPEN_TIMEOUT = 5    # seconds, connect timeout
-  READ_TIMEOUT = 30   # seconds, read timeout
-  MAX_RETRIES  = 3    # total attempts for transient failures
-  BASE_BACKOFF = 1    # seconds, base for exponential backoff (1s, 2s, 4s)
+  OPEN_TIMEOUT = 5
+  READ_TIMEOUT = 30
+  MAX_RETRIES  = 3
+  BASE_BACKOFF = 1
 
   def self.display_name
     "HTTP API"
@@ -23,15 +19,13 @@ class HttpAdapter < BaseAdapter
     { required: %w[url], optional: %w[method headers auth_token timeout] }
   end
 
-  # Sends a POST request to the agent's configured URL with task context as a
-  # JSON payload. Returns a result hash on success. Raises PermanentError for
-  # 4xx responses and TransientError for 5xx/timeout after MAX_RETRIES attempts.
-  def self.execute(role, context)
-    url = role.adapter_config["url"]
+  def self.execute(run:, prompt:, session_id: nil)
+    column = run.column
+    url = column.adapter_config["url"]
     raise PermanentError, "No URL configured" if url.blank?
 
-    payload = build_payload(role, context)
-    response = deliver_with_retries(url, payload, role.adapter_config)
+    payload = build_payload(run: run, prompt: prompt, session_id: session_id)
+    response = deliver_with_retries(url, payload, column.adapter_config)
 
     {
       exit_code: 0,
@@ -40,30 +34,25 @@ class HttpAdapter < BaseAdapter
     }
   end
 
-  # Overridable hook for backoff sleep -- enables zero-sleep in tests.
   def self.backoff_sleep(seconds)
     sleep(seconds)
   end
 
-  private_class_method def self.build_payload(role, context)
+  private_class_method def self.build_payload(run:, prompt:, session_id:)
+    column = run.column
+    task = run.task
     {
-      role_id: role.id,
-      role_title: role.title,
-      run_id: context[:run_id],
-      trigger_type: context[:trigger_type],
-      task: context[:task_id] ? {
-        id: context[:task_id],
-        title: context[:task_title],
-        description: context[:task_description],
-        documents: context[:task_documents]
+      column_id: column.id,
+      column_name: column.name,
+      run_id: run.id,
+      trigger_type: run.trigger_type,
+      task: task ? {
+        id: task.id,
+        title: task.title,
+        description: task.description
       }.compact : nil,
-      root_task: context[:root_task_id] ? {
-        id: context[:root_task_id],
-        title: context[:root_task_title],
-        description: context[:root_task_description]
-      } : nil,
-      skills: context[:skills].presence,
-      resume_session_id: context[:resume_session_id],
+      prompt: prompt,
+      session_id: session_id,
       delivered_at: Time.current.iso8601
     }.compact
   end
@@ -75,7 +64,6 @@ class HttpAdapter < BaseAdapter
     http.open_timeout = OPEN_TIMEOUT
     http.read_timeout = READ_TIMEOUT
 
-    # Allow per-agent timeout override (capped at 120s).
     if config["timeout"].present?
       http.read_timeout = [ config["timeout"].to_i, 120 ].min
     end
@@ -96,7 +84,6 @@ class HttpAdapter < BaseAdapter
         elsif response.is_a?(Net::HTTPClientError)
           raise PermanentError, "HTTP #{response.code}: #{response.body&.truncate(200)}"
         else
-          # 5xx or unexpected non-success -- treat as transient
           last_error = TransientError.new("HTTP #{response.code}: #{response.body&.truncate(200)}")
         end
       rescue PermanentError

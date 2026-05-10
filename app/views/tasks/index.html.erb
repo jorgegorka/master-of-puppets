@@ -1,44 +1,33 @@
-<% content_for(:title, "Tasks") %>
+<% content_for(:title, "Board") %>
 
 <section class="tasks-board"
          data-controller="kanban"
-         data-kanban-update-url-value="<%= bulk_update_path %>">
+         data-kanban-update-url-value="<%= bulk_update_path %>"
+         data-controller-target="board">
 
   <header class="tasks-board__header">
-    <h1>Tasks</h1>
-    <% if Current.project.roles.exists? %>
-      <%= link_to "New Task", new_task_path,
-            class: "btn btn--primary btn--sm",
-            data: { turbo_frame: "task_form_modal" } %>
-    <% end %>
+    <h1>Board</h1>
+    <%= link_to "New Task", new_task_path, class: "btn btn--primary btn--sm" %>
   </header>
 
   <%= render "filters" %>
   <%= render "bulk_toolbar" %>
 
-  <% if @tasks_by_status.values.any?(&:any?) || request.query_parameters.any? %>
+  <% if @tasks_by_column.values.any?(&:any?) || request.query_parameters.any? %>
+    <%= turbo_stream_from "project_#{Current.project.id}_board" %>
     <div class="kanban">
-      <% @visible_columns.each do |status| %>
+      <% @columns.each do |column| %>
         <%= render "column",
-              status: status,
-              tasks: @tasks_by_status[status] || [],
-              count: @counts_by_status[status] || 0,
+              column: column,
+              tasks: @tasks_by_column[column] || [],
+              count: @counts_by_column[column.id] || 0,
               limit: @kanban_column_limit %>
       <% end %>
     </div>
   <% else %>
     <div class="tasks-page__empty">
-      <% if Current.project.roles.exists? %>
-        <p>No tasks yet. Create your first task to get started.</p>
-        <%= link_to "Create a task", new_task_path,
-              class: "btn btn--primary",
-              data: { turbo_frame: "task_form_modal" } %>
-      <% else %>
-        <p>No tasks yet. Create a role first to get started.</p>
-        <%= link_to "Create role", new_role_path, class: "btn btn--primary" %>
-      <% end %>
+      <p>No tasks yet. Create your first task to get started.</p>
+      <%= link_to "Create a task", new_task_path, class: "btn btn--primary" %>
     </div>
   <% end %>
-
-  <%= turbo_frame_tag "task_form_modal" %>
 </section>

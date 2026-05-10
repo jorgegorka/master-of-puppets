@@ -53,10 +53,6 @@
               <path d="M16.5 12.5A7 7 0 017.5 3.5a7 7 0 109 9z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
             </svg>
           </button>
-          <%= button_to "Emergency Stop", emergency_stop_project_path(Current.project),
-                method: :post,
-                class: "btn btn--sm emergency-stop-btn",
-                data: { turbo_confirm: "EMERGENCY STOP: This will pause ALL active roles in #{Current.project.name}. Continue?" } %>
           <%= render "layouts/project_switcher" %>
         </header>
 

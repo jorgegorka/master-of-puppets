@@ -1,0 +1,33 @@
+<% content_for(:title, "Board Settings") %>
+
+<section class="columns-page">
+  <header class="columns-page__header">
+    <h1>Columns</h1>
+    <%= link_to "New column", new_column_path, class: "btn btn--primary btn--sm" %>
+  </header>
+
+  <table class="columns-page__table">
+    <thead>
+      <tr>
+        <th>Position</th>
+        <th>Name</th>
+        <th>Policy</th>
+        <th>Kind</th>
+        <th>Tasks</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @columns.each do |column| %>
+        <tr>
+          <td><%= column.position %></td>
+          <td><strong><%= link_to column.name, column_path(column) %></strong></td>
+          <td><%= column.transition_policy %></td>
+          <td><%= column.kind || "-" %></td>
+          <td><%= column.tasks.size %></td>
+          <td><%= link_to "Edit", edit_column_path(column), class: "btn btn--ghost btn--sm" %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</section>

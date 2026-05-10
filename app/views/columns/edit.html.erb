@@ -1,0 +1,16 @@
+<% content_for(:title, "Edit #{@column.name}") %>
+
+<h1>Edit <%= @column.name %></h1>
+<%= render "form", column: @column %>
+
+<% if @column.agent? %>
+  <section class="column-token">
+    <h3>API token</h3>
+    <p class="column-token__value"><code><%= @column.api_token %></code></p>
+    <%= button_to "Rotate token", column_api_token_path(@column), method: :patch, class: "btn btn--secondary btn--sm" %>
+  </section>
+<% end %>
+
+<% if @column.system_key.blank? %>
+  <%= button_to "Delete column", column_path(@column), method: :delete, data: { turbo_confirm: "Are you sure?" }, class: "btn btn--danger btn--sm" %>
+<% end %>

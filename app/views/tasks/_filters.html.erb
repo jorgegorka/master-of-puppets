@@ -2,16 +2,6 @@
               data: { controller: "auto-submit" } do |f| %>
   <%= render "tasks/pill",
         form: f,
-        attribute: :assignee_id,
-        icon: task_pill_icon(:assignee),
-        placeholder: "Any assignee",
-        options: options_for_role_pill_select,
-        searchable: true,
-        current_value: params[:assignee_id],
-        selected_label: @assignee_filter&.title %>
-
-  <%= render "tasks/pill",
-        form: f,
         attribute: :parent_task_id,
         icon: task_pill_icon(:parent_task),
         placeholder: "Any parent",
@@ -28,6 +18,11 @@
   <label class="filter-toggle">
     <%= check_box_tag :show_cancelled, "1", @show_cancelled, data: { action: "change->auto-submit#submit" } %>
     Show cancelled
+  </label>
+
+  <label class="filter-toggle">
+    <%= check_box_tag :show_blocked, "1", @show_blocked, data: { action: "change->auto-submit#submit" } %>
+    Show blocked
   </label>
 
   <% if request.query_string.present? %>

@@ -3,11 +3,11 @@ module AuditLogsHelper
     css_class = case action
     when *AuditEvent::GOVERNANCE_ACTIONS
                   "audit-badge--governance"
-    when "created", "assigned"
+    when "created", "task_advanced"
                   "audit-badge--info"
-    when "status_changed", "updated"
+    when "task_manual_moved", "updated"
                   "audit-badge--change"
-    when "destroyed"
+    when "destroyed", "task_blocked", "task_rejected", "task_cancelled"
                   "audit-badge--danger"
     else
                   "audit-badge--default"
@@ -23,8 +23,10 @@ module AuditLogsHelper
     case event.auditable_type
     when "Task"
       link_to_if(event.auditable, event.auditable&.title || "Deleted task", event.auditable)
-    when "Role"
-      link_to_if(event.auditable, event.auditable&.title || "Deleted role", event.auditable)
+    when "Column"
+      link_to_if(event.auditable, event.auditable&.name || "Deleted column", event.auditable ? column_path(event.auditable) : "#")
+    when "Run"
+      link_to_if(event.auditable, "Run ##{event.auditable_id}", event.auditable ? run_path(event.auditable) : "#")
     when "Project"
       label = event.auditable&.name || "Project"
       if event.action == "destroyed" && event.metadata["destroyed_type"].present?

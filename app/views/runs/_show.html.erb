@@ -1,0 +1,17 @@
+<%= turbo_stream_from "run_#{run.id}" %>
+
+<header class="run-show__header">
+  <h1>Run #<%= run.id %></h1>
+  <p class="run-show__meta">
+    <strong>Column:</strong> <%= link_to run.column.name, column_path(run.column) %>
+    | <strong>Task:</strong> <%= link_to run.task.title, task_path(run.task) %>
+    | <%= run_status_badge(run) %>
+    <% if run.cost_cents.positive? %>| <%= format_cents_as_dollars(run.cost_cents) %><% end %>
+  </p>
+
+  <% if run.active? %>
+    <%= button_to "Cancel run", run_cancellation_path(run), method: :post, class: "btn btn--danger btn--sm" %>
+  <% end %>
+</header>
+
+<pre class="run-show__output" id="run-output"><%= run.log_output %></pre>

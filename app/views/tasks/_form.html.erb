@@ -1,9 +1,3 @@
-<%#
-  Linear-style task form. Rendered inside a lazy-loaded <dialog> modal: the
-  /tasks/new and /tasks/:id/edit views wrap this partial in a turbo_frame_tag
-  + shared/modal. Submits with turbo_frame: "_top" so the create/update
-  redirect escapes the frame cleanly.
-%>
 <%= form_with(model: task, class: "task-form", data: { turbo_frame: "_top" }) do |f| %>
   <% if task.errors.any? %>
     <div class="form__errors" role="alert">
@@ -28,10 +22,8 @@
         placeholder: "Add a description…" %>
 
   <%
-    role_options = options_for_role_pill_select
     pills = [
-      { attribute: :assignee_id,    icon: :assignee,    placeholder: "Unassigned",   options: role_options,                         searchable: true },
-      { attribute: :creator_id,     icon: :creator,     placeholder: "No owner",     options: role_options,                         searchable: true },
+      { attribute: :column_id,      icon: :parent_task, placeholder: "No column",    options: options_for_column_select },
       { attribute: :priority,       icon: :priority,    placeholder: "No priority",  options: options_for_task_priority },
       { attribute: :parent_task_id, icon: :parent_task, placeholder: "No parent",    options: options_for_parent_task_select(task), searchable: true }
     ]
@@ -49,13 +41,6 @@
 
     <%= render "tasks/due_date_pill", form: f %>
   </div>
-
-  <% if task.persisted? %>
-    <div class="task-form__status">
-      <span class="task-form__status-label">Status</span>
-      <%= f.select :status, options_for_task_status, {}, class: "form__select" %>
-    </div>
-  <% end %>
 
   <div class="task-form__footer">
     <button type="button" class="btn btn--ghost" data-action="modal#close">Cancel</button>

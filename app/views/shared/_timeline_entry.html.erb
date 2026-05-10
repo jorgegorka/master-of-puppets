@@ -10,6 +10,4 @@
   <%= render partial: "audit_events/audit_event", locals: { audit_event: entry } %>
 <% when TaskEvaluation %>
   <%= render partial: "task_evaluations/task_evaluation", locals: { task_evaluation: entry } %>
-<% when RoleRun %>
-  <%= render partial: "role_runs/role_run", locals: { role_run: entry } %>
 <% end %>

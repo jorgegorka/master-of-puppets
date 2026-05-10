@@ -1,7 +1,7 @@
-<div id="<%= dom_id(goal, :goal_card) %>" class="goal-card goal-card--<%= goal.status %> <%= "goal-card--completed" if goal.completed? %>">
+<div id="<%= dom_id(goal, :goal_card) %>" class="goal-card <%= "goal-card--completed" if goal.completed? %>">
   <div class="goal-card__header">
     <%= link_to goal.title, goal_path(goal), class: "goal-card__title" %>
-    <%= task_status_badge(goal) %>
+    <%= task_column_badge(goal) %>
   </div>
 
   <% if goal.description.present? %>
@@ -9,22 +9,10 @@
   <% end %>
 
   <div class="goal-card__progress">
-    <% percentage = goal.completion_percentage %>
-    <%= render "shared/progress_bar", percentage: percentage %>
+    <%= render "shared/progress_bar", percentage: goal.completion_percentage %>
   </div>
 
   <div class="goal-card__meta">
-    <span class="goal-card__agent">
-      <% if goal.assignee.present? %>
-        <% if goal.assignee.online? %>
-          <span class="goal-card__agent-indicator"></span>
-        <% end %>
-        <%= goal.assignee.title %>
-      <% else %>
-        <span class="goal-card__agent--unassigned">Unassigned</span>
-      <% end %>
-    </span>
-
     <% completed_count = goal.subtasks.select(&:completed?).size %>
     <% total_count = goal.subtasks.size %>
     <% if total_count > 0 %>

@@ -11,7 +11,7 @@ module Tools
         inputSchema: {
           type: "object",
           properties: {
-            task_id: { type: "integer", description: "ID of the task" }
+            task_id: { type: "integer" }
           },
           required: [ "task_id" ]
         }
@@ -22,9 +22,14 @@ module Tools
       task = project.tasks.find(arguments["task_id"])
 
       messages = task.messages.includes(:author).chronological.map do |msg|
+        author_label = case msg.author
+        when Column then msg.author.name
+        when User   then msg.author.email_address
+        else msg.author_type
+        end
         {
           id: msg.id,
-          author: msg.author.respond_to?(:title) ? msg.author.title : msg.author.email_address,
+          author: author_label,
           author_type: msg.author_type,
           body: msg.body,
           message_type: msg.message_type,
@@ -32,8 +37,8 @@ module Tools
         }
       end
 
-      subtasks = task.subtasks.map do |st|
-        { id: st.id, title: st.title, status: st.status, assignee_id: st.assignee_id }
+      subtasks = task.subtasks.includes(:column).map do |st|
+        { id: st.id, title: st.title, column: st.column&.name, completion_percentage: st.completion_percentage }
       end
 
       {
@@ -41,15 +46,13 @@ module Tools
         title: task.title,
         description: task.description,
         summary: task.summary,
-        status: task.status,
         priority: task.priority,
-        creator_id: task.creator_id,
-        creator_title: task.creator&.title,
-        assignee_id: task.assignee_id,
-        assignee_title: task.assignee&.title,
+        creator_user_id: task.creator_user_id,
+        column: task.column&.name,
+        column_id: task.column_id,
         parent_task_id: task.parent_task_id,
         completion_percentage: task.completion_percentage,
-        reviewed_by_id: task.reviewed_by_id,
+        reviewer_id: task.reviewed_by_user_id,
         reviewed_at: task.reviewed_at&.iso8601,
         cost_cents: task.cost_cents,
         created_at: task.created_at.iso8601,

@@ -7,34 +7,50 @@ module Tools
     def definition
       {
         name: name,
-        description: "Create a new task and optionally assign it to a role. Assignee must be a subordinate or sibling of your role.",
+        description: "Create a new task in the project, optionally as a subtask, and optionally targeted at a specific column.",
         inputSchema: {
           type: "object",
           properties: {
-            title: { type: "string", description: "Task title" },
-            description: { type: "string", description: "Task description" },
-            priority: { type: "string", enum: %w[low medium high urgent], description: "Task priority" },
-            assignee_role_id: { type: "integer", description: "ID of the role to assign this task to" },
-            parent_task_id: { type: "integer", description: "ID of the parent task for subtask creation" }
+            title: { type: "string" },
+            description: { type: "string" },
+            priority: { type: "string", enum: %w[low medium high urgent] },
+            parent_task_id: { type: "integer" },
+            target_column_name: { type: "string", description: "Optional: column the new task should land in. Defaults to project's first non-terminal column." }
           },
-          required: [ "title", "assignee_role_id" ]
+          required: %w[title]
         }
       }
     end
 
     def call(arguments)
+      target_column = if arguments["target_column_name"].present?
+                        project.columns.where("LOWER(name) = ?", arguments["target_column_name"].to_s.downcase).first
+      else
+                        project.columns.non_terminal.ordered.first
+      end
+
+      raise ArgumentError, "No suitable target column" unless target_column
+
       task = project.tasks.new(
         title: arguments["title"],
         description: arguments["description"],
         priority: arguments["priority"] || "medium",
-        creator: role,
-        assignee_id: arguments["assignee_role_id"],
-        parent_task_id: arguments["parent_task_id"]
+        creator: creator_user,
+        column: target_column,
+        parent_task_id: arguments["parent_task_id"],
+        entered_column_at: Time.current
       )
 
       task.save!
 
-      { id: task.id, title: task.title, status: task.status, assignee_id: task.assignee_id }
+      { id: task.id, title: task.title, column: target_column.name }
+    end
+
+    private
+
+    def creator_user
+      run = column.runs.where.not(initiating_user_id: nil).order(:created_at).last
+      run&.initiating_user || project.memberships.where(role: :owner).first&.user || project.memberships.first&.user
     end
   end
 end

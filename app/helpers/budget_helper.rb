@@ -14,14 +14,14 @@ module BudgetHelper
     end
   end
 
-  def budget_status_text(role)
-    return "No budget set" unless role.budget_configured?
-    if role.budget_exhausted?
+  def budget_status_text(column)
+    return "No budget set" unless column.budget_configured?
+    if column.budget_exhausted?
       "Budget exhausted"
-    elsif role.budget_alert_threshold?
-      "Approaching limit (#{role.budget_utilization}%)"
+    elsif column.budget_alert_threshold?
+      "Approaching limit (#{column.budget_utilization}%)"
     else
-      "#{role.budget_utilization}% used"
+      "#{column.budget_utilization}% used"
     end
   end
 end
