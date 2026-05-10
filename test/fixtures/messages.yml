@@ -5,7 +5,9 @@ first_update:
 
 agent_reply:
   task: design_homepage
-  author: cto (Role)
+  author: acme_in_progress (Column)
+  column: acme_in_progress
+  run: running_run_for_fix_login_bug
   body: "I've analyzed the requirements and have some suggestions for the layout."
 
 threaded_reply:
@@ -21,13 +23,14 @@ bug_report_msg:
 
 question_msg:
   task: fix_login_bug
-  author: developer (Role)
+  author: acme_in_progress (Column)
+  column: acme_in_progress
   body: "Should I use bcrypt or argon2 for the password hashing fix?"
   message_type: 1
 
 answer_msg:
   task: fix_login_bug
-  author: cto (Role)
+  author: one (User)
   parent: question_msg
   body: "Use bcrypt — it's already our standard."
   message_type: 2

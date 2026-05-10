@@ -35,12 +35,12 @@ module Auditable
     actor = audit_actor
     return unless actor
 
-    record_destroy_audit_event!(actor: actor, metadata: { title: title })
+    record_destroy_audit_event!(actor: actor, metadata: { title: try(:title) || try(:name) })
   end
 
   private
 
   def audit_actor
-    Current.user || try(:assignee) || try(:creator) || try(:role)
+    Current.user || try(:creator) || try(:column)
   end
 end

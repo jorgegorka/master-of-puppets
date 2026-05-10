@@ -3,46 +3,40 @@ module Tasks
     extend ActiveSupport::Concern
 
     included do
-      after_commit :enqueue_task_alignment_evaluation, on: [ :create, :update ]
-      after_commit :recalculate_parent_task_completion, on: [ :create, :update, :destroy ]
+      after_commit :recalculate_parent_task_completion, on: %i[create update destroy]
       after_commit :sync_leaf_completion_percentage, on: :update
     end
 
     def recalculate_completion!
-      completed_status = Task.statuses[:completed]
-      total, done = subtasks.pick(
-        Arel.sql("COUNT(*)"),
-        Arel.sql("COUNT(CASE WHEN status = #{completed_status} THEN 1 END)")
-      )
+      total = subtasks.count
+      done = subtasks.completed.count
       pct = total > 0 ? ((done.to_f / total) * 100).round : 0
       update_column(:completion_percentage, pct) unless completion_percentage == pct
 
-      auto_transition_on_subtasks_completed! if pct == 100 && total > 0
+      auto_advance_on_subtasks_completed! if pct == 100 && total > 0
     end
 
     private
 
-    def auto_transition_on_subtasks_completed!
-      return unless in_progress? || open?
+    def auto_advance_on_subtasks_completed!
+      return if column.nil? || column.terminal?
 
-      if parent_task_id.present?
-        update!(status: :pending_review)
-      else
-        update!(status: :completed)
-      end
-    end
+      next_column =
+        if parent_task_id.present?
+          project.columns.ordered.where("position > ?", column.position).find_by(kind: "review") ||
+            project.columns.ordered.where("position > ?", column.position).first
+        else
+          project.columns.ordered.where("position > ?", column.position).find_by(kind: "done") ||
+            project.columns.terminal.find_by(kind: "done")
+        end
 
-    def enqueue_task_alignment_evaluation
-      return unless saved_change_to_status?
-      return unless completed?
-      return if parent_task_id.nil?
-      return if creator&.agent_configured?
+      return unless next_column
 
-      EvaluateTaskAlignmentJob.perform_later(id)
+      enter_column!(next_column, actor: creator, kind: :advance, reason: "subtasks completed")
     end
 
     def recalculate_parent_task_completion
-      return unless saved_change_to_status? || saved_change_to_parent_task_id? || previously_new_record? || destroyed?
+      return unless saved_change_to_column_id? || saved_change_to_parent_task_id? || previously_new_record? || destroyed?
 
       affected_id = parent_task_id || parent_task_id_before_last_save
       return unless affected_id
@@ -51,7 +45,7 @@ module Tasks
     end
 
     def sync_leaf_completion_percentage
-      return unless saved_change_to_status?
+      return unless saved_change_to_column_id?
       return if subtasks.exists?
 
       new_pct = completed? ? 100 : 0

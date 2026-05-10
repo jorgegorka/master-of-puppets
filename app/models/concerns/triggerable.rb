@@ -3,27 +3,17 @@ module Triggerable
 
   private
 
-  def trigger_role_wake(role:, trigger_type:, trigger_source:, context: {})
-    return if role.nil? || role.terminated?
-
-    Roles::Waking.call(
-      role: role,
-      trigger_type: trigger_type,
-      trigger_source: trigger_source,
-      context: context
-    )
-  end
-
-  # Uses substring matching to support multi-word role titles (e.g. "@API Bot")
+  # Substring matching to support multi-word column names (e.g. "@In Progress").
+  # Returns Column records mentioned in `text` for the given project.
   def detect_mentions(text, project)
     return [] if text.blank? || project.nil?
     return [] unless text.include?("@")
 
     text_downcased = text.downcase
-    matched_ids = project.roles.active.pluck(:id, :title).filter_map do |id, title|
-      id if text_downcased.include?("@#{title.downcase}")
+    matched_ids = project.columns.pluck(:id, :name).filter_map do |id, name|
+      id if text_downcased.include?("@#{name.downcase}")
     end
 
-    matched_ids.any? ? project.roles.where(id: matched_ids).to_a : []
+    matched_ids.any? ? project.columns.where(id: matched_ids).to_a : []
   end
 end

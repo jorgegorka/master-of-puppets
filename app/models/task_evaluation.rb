@@ -5,7 +5,8 @@ class TaskEvaluation < ApplicationRecord
 
   belongs_to :task
   belongs_to :root_task, class_name: "Task"
-  belongs_to :role
+  belongs_to :evaluator_column, class_name: "Column"
+  belongs_to :evaluator_run, class_name: "Run", optional: true
 
   enum :result, { pass: 0, fail: 1 }
 

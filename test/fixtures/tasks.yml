@@ -2,9 +2,10 @@ design_homepage:
   title: Design homepage
   description: "Create the main homepage design with responsive layout"
   project: acme
-  creator: ceo
-  assignee: cto
-  status: 1  # in_progress
+  creator: one
+  column: acme_in_progress
+  position: 1
+  entered_column_at: <%= 3.hours.ago.to_fs(:db) %>
   priority: 2  # high
   cost_cents: 1500
 
@@ -12,9 +13,10 @@ fix_login_bug:
   title: Fix login bug
   description: "Users cannot log in when using special characters in password"
   project: acme
-  creator: cto
-  assignee: developer
-  status: 0  # open
+  creator: one
+  column: acme_in_progress
+  position: 2
+  entered_column_at: <%= 2.hours.ago.to_fs(:db) %>
   priority: 3  # urgent
   cost_cents: 800
 
@@ -22,56 +24,64 @@ write_tests:
   title: Write unit tests
   description: "Add comprehensive test coverage for authentication module"
   project: acme
-  creator: ceo
-  status: 0  # open
+  creator: one
+  column: acme_backlog
+  position: 1
+  entered_column_at: <%= 2.hours.ago.to_fs(:db) %>
   priority: 1  # medium
-  # No assignee -- unassigned task
 
 completed_task:
   title: Set up CI pipeline
   description: "Configure GitHub Actions for automated testing"
   project: acme
-  creator: ceo
-  assignee: cto
-  status: 3  # completed
-  priority: 1  # medium
+  creator: one
+  column: acme_done
+  position: 1
+  entered_column_at: <%= 2.days.ago.to_fs(:db) %>
   completed_at: <%= 2.days.ago.to_fs(:db) %>
+  priority: 1  # medium
   cost_cents: 2200
 
 subtask_one:
   title: Design header component
   project: acme
-  creator: ceo
+  creator: one
   parent_task: design_homepage
-  status: 0  # open
+  column: acme_backlog
+  position: 2
+  entered_column_at: <%= 2.hours.ago.to_fs(:db) %>
   priority: 1  # medium
 
 eval_ready_task:
   title: Implement search feature
   description: "Add full-text search to the product catalog"
   project: acme
-  creator: ceo
-  assignee: cto
+  creator: one
   parent_task: design_homepage
-  status: 3  # completed
+  column: acme_done
+  position: 2
+  entered_column_at: <%= 1.hour.ago.to_fs(:db) %>
+  completed_at: <%= 1.hour.ago.to_fs(:db) %>
   priority: 1  # medium
   cost_cents: 1000
-  completed_at: <%= 1.hour.ago.to_fs(:db) %>
 
 pending_review_task:
   title: Draft marketing plan
   description: "Create Q2 marketing plan with budget breakdown"
   project: acme
-  creator: ceo  # top-level role (no parent) — requires human review
-  assignee: cto
+  creator: one
   parent_task: design_homepage
-  status: 5  # pending_review
+  column: acme_review
+  position: 1
+  entered_column_at: <%= 30.minutes.ago.to_fs(:db) %>
   priority: 2  # high
 
 widgets_task:
   title: Update widget catalog
   description: "Refresh the product catalog with new widgets"
   project: widgets
-  creator: widgets_lead
-  status: 0  # open
+  creator: one
+  column: widgets_backlog
+  position: 1
+  entered_column_at: <%= 1.hour.ago.to_fs(:db) %>
   priority: 0  # low

@@ -6,37 +6,29 @@ task_created:
   metadata:
     title: Design homepage
 
-task_assigned:
+task_advanced:
   auditable: design_homepage (Task)
-  actor: one (User)
-  action: assigned
+  actor: acme_in_progress (Column)
+  action: task_advanced
   project: acme
   metadata:
-    assignee_name: CTO
-    assignee_id: 1
+    from_column_id: 1
+    to_column_id: 2
+    reason: implementation complete
 
-task_status_changed:
-  auditable: design_homepage (Task)
-  actor: cto (Role)
-  action: status_changed
-  project: acme
-  metadata:
-    from: open
-    to: in_progress
-
-gate_approval_event:
-  auditable: cto (Role)
-  actor: one (User)
-  action: gate_approval
-  project: acme
-  metadata:
-    action_type: task_creation
-    agent_name: CTO
-
-emergency_stop_event:
+# Includes a system event with no actor — validates the nullability change.
+system_throttle_dispatched:
   auditable: acme (Project)
-  actor: one (User)
-  action: emergency_stop
+  action: throttle_dispatched
   project: acme
   metadata:
-    agents_paused: 3
+    promoted_run_id: 1
+
+column_created:
+  auditable: acme_in_progress (Column)
+  actor: one (User)
+  action: column_created
+  project: acme
+  metadata:
+    name: In Progress
+    transition_policy: agent

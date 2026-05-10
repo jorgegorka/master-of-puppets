@@ -1,0 +1,53 @@
+# Runs covering state machine + dispatch tests + active-run uniqueness invariant.
+# `acme_in_progress` column is the only agent column.
+
+queued_run_for_design_homepage:
+  column: acme_in_progress
+  task: design_homepage
+  project: acme
+  initiating_user: one
+  status: queued
+  trigger_type: task_entered
+
+running_run_for_fix_login_bug:
+  column: acme_in_progress
+  task: fix_login_bug
+  project: acme
+  initiating_user: one
+  status: running
+  trigger_type: manual
+  started_at: <%= 5.minutes.ago.to_fs(:db) %>
+  last_activity_at: <%= 1.minute.ago.to_fs(:db) %>
+
+throttled_run_for_write_tests:
+  column: acme_in_progress
+  task: write_tests
+  project: acme
+  initiating_user: one
+  status: throttled
+  trigger_type: task_entered
+
+# Terminal run for completed_task — coexists with future active runs (same column,task) per partial-unique-index
+completed_run_for_completed_task:
+  column: acme_in_progress
+  task: completed_task
+  project: acme
+  initiating_user: one
+  status: completed
+  trigger_type: task_entered
+  started_at: <%= 2.days.ago.to_fs(:db) %>
+  last_activity_at: <%= 2.days.ago.to_fs(:db) %>
+  finished_at: <%= 2.days.ago.to_fs(:db) %>
+  cost_cents: 1500
+
+failed_run_for_eval_ready_task:
+  column: acme_in_progress
+  task: eval_ready_task
+  project: acme
+  initiating_user: one
+  status: failed
+  trigger_type: task_entered
+  started_at: <%= 3.hours.ago.to_fs(:db) %>
+  finished_at: <%= 2.hours.ago.to_fs(:db) %>
+  error_class: StandardError
+  error_message: simulated failure

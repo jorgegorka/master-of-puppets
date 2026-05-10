@@ -1,0 +1,128 @@
+# Acme project columns — covers agent + manual + terminal + every kind + system_key
+acme_backlog:
+  project: acme
+  name: Backlog
+  description: "Tasks waiting to be picked up."
+  transition_policy: manual
+  position: 1
+  terminal: false
+  system_key: backlog
+  hidden_by_default: false
+  config_version: 1
+  adapter_config: {}
+  budget_cents: 0
+  max_concurrent_runs: 1
+  resumable_session: false
+
+acme_in_progress:
+  project: acme
+  name: In Progress
+  description: "Active work in progress."
+  transition_policy: agent
+  position: 2
+  terminal: false
+  system_key: in_progress
+  hidden_by_default: false
+  config_version: 1
+  adapter_type: claude_local
+  adapter_config: { "model": "claude-sonnet-4-20250514" }
+  job_spec: "Move tasks forward by completing the work described and calling advance_task when the success criteria are met."
+  success_criteria: "Task implementation is complete, tests pass, and acceptance criteria are met."
+  budget_cents: 5000
+  max_concurrent_runs: 2
+  resumable_session: true
+  api_token: acme_in_progress_token_xxxxxxxxxx
+
+acme_review:
+  project: acme
+  name: Review
+  description: "Tasks awaiting review."
+  transition_policy: manual
+  position: 3
+  terminal: false
+  kind: review
+  system_key: review
+  hidden_by_default: false
+  config_version: 1
+  adapter_config: {}
+  budget_cents: 0
+  max_concurrent_runs: 1
+  resumable_session: false
+
+acme_done:
+  project: acme
+  name: Done
+  description: "Completed tasks."
+  transition_policy: manual
+  position: 4
+  terminal: true
+  kind: done
+  system_key: done
+  hidden_by_default: false
+  config_version: 1
+  adapter_config: {}
+  budget_cents: 0
+  max_concurrent_runs: 1
+  resumable_session: false
+
+acme_blocked:
+  project: acme
+  name: Blocked
+  description: "Tasks flagged as blocked."
+  transition_policy: manual
+  position: 5
+  terminal: false
+  kind: blocked
+  system_key: blocked
+  hidden_by_default: true
+  config_version: 1
+  adapter_config: {}
+  budget_cents: 0
+  max_concurrent_runs: 1
+  resumable_session: false
+
+acme_cancelled:
+  project: acme
+  name: Cancelled
+  description: "Cancelled tasks."
+  transition_policy: manual
+  position: 6
+  terminal: true
+  kind: cancelled
+  system_key: cancelled
+  hidden_by_default: true
+  config_version: 1
+  adapter_config: {}
+  budget_cents: 0
+  max_concurrent_runs: 1
+  resumable_session: false
+
+# Widgets project columns — minimal
+widgets_backlog:
+  project: widgets
+  name: Backlog
+  transition_policy: manual
+  position: 1
+  terminal: false
+  system_key: backlog
+  hidden_by_default: false
+  config_version: 1
+  adapter_config: {}
+  budget_cents: 0
+  max_concurrent_runs: 1
+  resumable_session: false
+
+widgets_done:
+  project: widgets
+  name: Done
+  transition_policy: manual
+  position: 2
+  terminal: true
+  kind: done
+  system_key: done
+  hidden_by_default: false
+  config_version: 1
+  adapter_config: {}
+  budget_cents: 0
+  max_concurrent_runs: 1
+  resumable_session: false

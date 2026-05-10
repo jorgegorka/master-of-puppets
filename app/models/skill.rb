@@ -1,8 +1,8 @@
 class Skill < ApplicationRecord
   include Tenantable
 
-  has_many :role_skills, dependent: :destroy, inverse_of: :skill
-  has_many :roles, through: :role_skills
+  has_many :column_skills, dependent: :destroy, inverse_of: :skill
+  has_many :columns, through: :column_skills
 
   has_many :skill_documents, dependent: :destroy, inverse_of: :skill
   has_many :documents, through: :skill_documents

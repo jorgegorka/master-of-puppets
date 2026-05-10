@@ -1,6 +1,0 @@
-pending_planner_hire:
-  role: cmo
-  project: acme
-  template_role_title: "Marketing Planner"
-  budget_cents: 30000
-  status: 0  # pending

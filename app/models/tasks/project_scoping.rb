@@ -3,24 +3,15 @@ module Tasks
     extend ActiveSupport::Concern
 
     included do
-      validate :assignee_belongs_to_same_project
-      validate :creator_belongs_to_same_project
+      validate :column_belongs_to_same_project
       validate :parent_task_belongs_to_same_project
     end
 
     private
 
-    def assignee_belongs_to_same_project
-      if assignee.present? && assignee.project_id != project_id
-        errors.add(:assignee, "must belong to the same project")
-      end
-    end
-
-    def creator_belongs_to_same_project
-      return unless creator
-
-      if creator.project_id != project_id
-        errors.add(:creator, "must belong to the same project")
+    def column_belongs_to_same_project
+      if column.present? && column.project_id != project_id
+        errors.add(:column, "must belong to the same project")
       end
     end
 

@@ -2,7 +2,7 @@ eval_ready_task_pass:
   project: acme
   task: eval_ready_task
   root_task: design_homepage
-  role: cto
+  evaluator_column: acme_in_progress
   result: 0  # pass
   feedback: "Work meets the mission scope."
   attempt_number: 1

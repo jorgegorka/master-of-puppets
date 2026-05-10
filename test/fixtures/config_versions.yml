@@ -1,26 +1,26 @@
-role_edit_version:
+column_edit_version:
   project: acme
-  versionable: cto (Role)
+  versionable: acme_in_progress (Column)
   author: one (User)
   action: update
   snapshot:
-    title: CTO
-    description: Chief Technology Officer
-    job_spec: "Lead technology strategy and engineering"
+    name: In Progress
+    description: "Active work in progress."
+    job_spec: "Move tasks forward by completing the work described."
   changeset:
     description:
-      - "Chief Tech Officer"
-      - "Chief Technology Officer"
+      - "Active work."
+      - "Active work in progress."
 
-role_budget_version:
+column_budget_version:
   project: acme
-  versionable: cto (Role)
+  versionable: acme_in_progress (Column)
   author: one (User)
   action: update
   snapshot:
-    title: CTO
-    budget_cents: 50000
+    name: In Progress
+    budget_cents: 5000
   changeset:
     budget_cents:
-      - 25000
-      - 50000
+      - 2500
+      - 5000

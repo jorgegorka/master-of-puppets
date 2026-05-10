@@ -9,7 +9,7 @@ class Dashboard::GoalsDashboard
 
   def goals
     @goals ||= project.tasks.roots.by_priority
-      .includes(:assignee, :subtasks)
+      .includes(:column, :subtasks)
   end
 
   def attention

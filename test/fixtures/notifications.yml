@@ -1,35 +1,33 @@
-budget_alert_claude:
+column_budget_alert:
   project: acme
   recipient: one (User)
-  actor: cto (Role)
-  notifiable: cto (Role)
+  actor: acme_in_progress (Column)
+  notifiable: acme_in_progress (Column)
   action: budget_alert
   metadata:
-    agent_name: CTO
+    column_name: In Progress
     percentage: 80
-    budget_cents: 50000
-    spent_cents: 40000
+    budget_cents: 5000
+    spent_cents: 4000
   read_at:
 
-budget_exhausted_http:
+run_failed_notice:
   project: acme
   recipient: one (User)
-  actor: developer (Role)
-  notifiable: developer (Role)
-  action: budget_exhausted
+  actor: failed_run_for_eval_ready_task (Run)
+  notifiable: failed_run_for_eval_ready_task (Run)
+  action: run_failed
   metadata:
-    agent_name: Senior Developer
-    budget_cents: 100000
-    spent_cents: 100000
+    error_message: simulated failure
   read_at: <%= 1.hour.ago.to_fs(:db) %>
 
 read_notification:
   project: acme
   recipient: two (User)
-  actor: cto (Role)
-  notifiable: cto (Role)
+  actor: acme_in_progress (Column)
+  notifiable: acme_in_progress (Column)
   action: budget_alert
   metadata:
-    agent_name: CTO
+    column_name: In Progress
     percentage: 85
   read_at: <%= 2.hours.ago.to_fs(:db) %>

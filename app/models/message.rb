@@ -5,6 +5,8 @@ class Message < ApplicationRecord
   belongs_to :task
   belongs_to :author, polymorphic: true
   belongs_to :parent, class_name: "Message", optional: true
+  belongs_to :column, optional: true
+  belongs_to :run, optional: true
 
   has_many :replies, class_name: "Message", foreign_key: :parent_id, inverse_of: :parent, dependent: :destroy
 
@@ -17,7 +19,6 @@ class Message < ApplicationRecord
   scope :roots, -> { where(parent_id: nil) }
 
   after_commit :trigger_mention_wake, on: :create
-  after_commit :trigger_answer_wake, on: :create
 
   private
 
@@ -37,38 +38,10 @@ class Message < ApplicationRecord
     project = task&.project
     return unless project
 
-    mentioned_roles = detect_mentions(body, project)
-    mentioned_roles.each do |mentioned_role|
-      next if mentioned_role == author
-
-      trigger_role_wake(
-        role: mentioned_role,
-        trigger_type: :mention,
-        trigger_source: "Message##{id}",
-        context: {
-          message_id: id,
-          task_id: task_id,
-          mentioned_by: author_type == "User" ? "user" : "role"
-        }
-      )
+    mentioned_columns = detect_mentions(body, project)
+    mentioned_columns.each do |column|
+      next if column == author
+      column.trigger_for(task, trigger_type: :task_entered)
     end
-  end
-
-  def trigger_answer_wake
-    return unless answer? && parent&.question?
-    return unless parent.author_type == "Role"
-    return if parent.author == author
-
-    trigger_role_wake(
-      role: parent.author,
-      trigger_type: :question_answered,
-      trigger_source: "Message##{id}",
-      context: {
-        answer_message_id: id,
-        question_message_id: parent.id,
-        task_id: task_id,
-        answered_by: author_type == "User" ? "user" : "role"
-      }
-    )
   end
 end

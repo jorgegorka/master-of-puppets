@@ -173,8 +173,6 @@ module Tasks
         description: description,
         priority: priority,
         creator: creator,
-        assignee: assignee,
-        status: :open,
         completion_percentage: 0
       )
     end

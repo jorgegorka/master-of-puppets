@@ -19,11 +19,7 @@ module Tasks
       evaluation = record_evaluation(result)
 
       if evaluation.fail?
-        if evaluation.attempt_number >= TaskEvaluation::MAX_ATTEMPTS
-          block_task(evaluation)
-        else
-          reopen_task(evaluation)
-        end
+        block_task(evaluation) if evaluation.attempt_number >= TaskEvaluation::MAX_ATTEMPTS
       end
 
       evaluation
@@ -31,8 +27,8 @@ module Tasks
 
     private
 
-    def role
-      @role ||= task.assignee
+    def evaluator_column
+      @evaluator_column ||= task.column
     end
 
     def root_task
@@ -94,7 +90,7 @@ module Tasks
         project_id: task.project_id,
         task: task,
         root_task: root_task,
-        role: role,
+        evaluator_column: evaluator_column,
         result: result[:parsed]["result"],
         feedback: result[:parsed]["feedback"],
         attempt_number: attempt_number,
@@ -111,22 +107,17 @@ module Tasks
       task.update_column(:cost_cents, new_cost)
     end
 
-    def reopen_task(evaluation)
-      post_feedback_message(evaluation)
-      task.update!(status: :in_progress)
-      wake_role(evaluation)
-    end
-
     def block_task(evaluation)
       post_feedback_message(evaluation)
-      task.update!(status: :blocked)
+      blocked = task.project.columns.find_by(system_key: "blocked")
+      task.enter_column!(blocked, actor: evaluator_column, kind: :block, reason: evaluation.feedback) if blocked
       record_exhaustion_audit(evaluation)
     end
 
     def post_feedback_message(evaluation)
       Message.create!(
         task: task,
-        author: role,
+        author: evaluator_column,
         body: build_feedback_body(evaluation)
       )
     end
@@ -148,28 +139,9 @@ module Tasks
       parts.join("\n")
     end
 
-    def wake_role(evaluation)
-      return unless role
-      return if role.terminated?
-
-      Roles::Waking.call(
-        role: role,
-        trigger_type: :task_evaluation_failed,
-        trigger_source: "TaskEvaluation##{evaluation.id}",
-        context: {
-          task_id: task.id,
-          task_title: task.title,
-          root_task_id: root_task.id,
-          root_task_title: root_task.title,
-          attempt_number: evaluation.attempt_number,
-          feedback: evaluation.feedback
-        }
-      )
-    end
-
     def record_exhaustion_audit(evaluation)
       task.record_audit_event!(
-        actor: role,
+        actor: evaluator_column,
         action: "task_evaluation_exhausted",
         project: task.project,
         metadata: {

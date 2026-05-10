@@ -1,12 +1,8 @@
 default: &default
-  reap_stalled_role_runs:
-    class: ReapStalledRoleRunsJob
+  reap_stalled_runs:
+    class: ReapStalledRunsJob
     queue: default
     schedule: every minute
-  scan_role_heartbeats:
-    class: RoleHeartbeatScannerJob
-    queue: default
-    schedule: every 15 minutes
   scan_recurrent_tasks:
     class: RecurrentTaskScannerJob
     queue: default

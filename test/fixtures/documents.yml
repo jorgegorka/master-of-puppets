@@ -16,8 +16,8 @@ acme_agent_created_doc:
   project: acme
   title: Process Documentation
   body: "# Discovered Process\n\nThis process was documented by an agent during task execution."
-  author_type: Role
-  author_id: <%= ActiveRecord::FixtureSet.identify(:cto) %>
+  author_type: Column
+  author_id: <%= ActiveRecord::FixtureSet.identify(:acme_in_progress) %>
 
 widgets_doc:
   project: widgets

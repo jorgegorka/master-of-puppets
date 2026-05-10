@@ -2,41 +2,30 @@ module Tasks
   module Reviewing
     extend ActiveSupport::Concern
 
-    included do
-      after_commit :trigger_pending_review_wake, on: :update, if: :just_entered_pending_review?
-    end
-
     class ReviewError < StandardError; end
 
+    # Approve = move the task forward from a review column.
     def approve_by!(reviewer)
-      raise ReviewError, "Only the creator can approve a task" unless creator_id == reviewer.id
       raise ReviewError, "Task is not pending review" unless pending_review?
-      update!(status: :completed, reviewed_by: reviewer, reviewed_at: Time.current)
+
+      transition = Columns::Transition.new(task: self, actor: reviewer, kind: :advance)
+      raise ReviewError, transition.errors.full_messages.to_sentence unless transition.valid?
+
+      enter_column!(transition.target_column, actor: reviewer, kind: :advance)
     end
 
+    # Reject = send the task back to the previous non-terminal column with feedback.
     def reject_by!(reviewer, feedback:)
-      raise ReviewError, "Only the creator can reject a task" unless creator_id == reviewer.id
       raise ReviewError, "Task is not pending review" unless pending_review?
       raise ReviewError, "Feedback is required when rejecting a task" if feedback.blank?
-      transaction do
-        update!(status: :open)
+
+      transition = Columns::Transition.new(task: self, actor: reviewer, kind: :reject, feedback: feedback)
+      raise ReviewError, transition.errors.full_messages.to_sentence unless transition.valid?
+
+      ApplicationRecord.transaction do
+        enter_column!(transition.target_column, actor: reviewer, kind: :reject, feedback: feedback)
         messages.create!(author: reviewer, body: feedback, message_type: :comment)
       end
-    end
-
-    private
-
-    def just_entered_pending_review?
-      saved_change_to_status? && pending_review?
-    end
-
-    def trigger_pending_review_wake
-      trigger_role_wake(
-        role: creator,
-        trigger_type: :task_pending_review,
-        trigger_source: "Task##{id}",
-        context: { task_id: id, task_title: title, assignee_role_title: assignee&.title }
-      )
     end
   end
 end

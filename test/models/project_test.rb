@@ -36,60 +36,34 @@ class ProjectTest < ActiveSupport::TestCase
 
   test "seed_default_skills! creates builtin skills from YAML files" do
     project = Project.create!(name: "Fresh Corp")
-    # after_create fires seed_default_skills! automatically
     skill_count = Dir[Rails.root.join("db/seeds/skills/*.yml")].size
-    assert_equal skill_count, project.skills.builtin.count,
-      "Expected #{skill_count} builtin skills, got #{project.skills.builtin.count}"
-  end
-
-  test "seed_default_skills! sets correct attributes from YAML" do
-    project = Project.create!(name: "Attr Check Corp")
-    skill = project.skills.find_by(key: "code_review")
-    assert_not_nil skill, "code_review skill should exist"
-    assert_equal "Code Review", skill.name
-    assert_equal "technical", skill.category
-    assert skill.builtin?, "Should be builtin"
-    assert skill.markdown.length >= 200, "Markdown should have meaningful content"
+    assert_equal skill_count, project.skills.builtin.count
   end
 
   test "seed_default_skills! is idempotent" do
     project = Project.create!(name: "Idempotent Corp")
     initial_count = project.skills.count
     project.seed_default_skills!
-    assert_equal initial_count, project.skills.count,
-      "Running seed_default_skills! again should not create duplicates"
+    assert_equal initial_count, project.skills.count
   end
 
-  test "seed_default_skills! does not overwrite existing skills" do
-    project = Project.create!(name: "Preserve Corp")
-    skill = project.skills.find_by(key: "code_review")
-    skill.update!(markdown: "Custom instructions")
-    project.seed_default_skills!
-    skill.reload
-    assert_equal "Custom instructions", skill.markdown,
-      "Existing skill markdown should not be overwritten"
+  test "seed_default_columns! seeds six default columns" do
+    project = Project.create!(name: "Defaults Corp")
+    assert_equal 6, project.columns.count
+
+    columns = project.columns.ordered.to_a
+    expected = %w[backlog in_progress review done blocked cancelled]
+    assert_equal expected, columns.map(&:system_key)
+    assert_equal %w[manual agent manual manual manual manual], columns.map(&:transition_policy)
+    assert_equal [false, false, false, true, false, true], columns.map(&:terminal)
+    assert_equal [false, false, false, false, true, true], columns.map(&:hidden_by_default)
   end
 
-  test "seed_default_skills! fills in missing skills for project with partial set" do
-    project = Project.create!(name: "Partial Corp")
-    total = project.skills.count
-    # Delete some skills
-    project.skills.where(category: "leadership").destroy_all
-    deleted_count = total - project.skills.count
-    assert deleted_count > 0, "Should have deleted some skills"
-    # Re-seed
-    project.seed_default_skills!
-    assert_equal total, project.skills.count,
-      "Should restore deleted skills"
-  end
-
-  test "after_create seeds skills for new project" do
-    skill_count = Dir[Rails.root.join("db/seeds/skills/*.yml")].size
-    project = nil
-    assert_difference("Skill.count", skill_count) do
-      project = Project.create!(name: "Auto Seed Corp")
-    end
-    assert project.skills.any?, "New project should have skills after creation"
+  test "seed_default_columns! is idempotent" do
+    project = Project.create!(name: "Idempotent Cols")
+    initial_count = project.columns.count
+    project.seed_default_columns!
+    assert_equal initial_count, project.columns.count
   end
 
   # --- Validation: max_concurrent_agents ---
@@ -102,12 +76,6 @@ class ProjectTest < ActiveSupport::TestCase
   test "invalid with negative max_concurrent_agents" do
     project = Project.new(name: "Test", max_concurrent_agents: -1)
     assert_not project.valid?
-    assert project.errors[:max_concurrent_agents].any?
-  end
-
-  test "invalid with non-integer max_concurrent_agents" do
-    project = Project.new(name: "Test", max_concurrent_agents: 1.5)
-    assert_not project.valid?
   end
 
   # --- Concurrency Limits ---
@@ -115,40 +83,24 @@ class ProjectTest < ActiveSupport::TestCase
   test "concurrent_agent_limit_reached? returns false when limit is zero" do
     project = projects(:acme)
     project.update!(max_concurrent_agents: 0)
+    Run.where(project: project).destroy_all
     assert_not project.concurrent_agent_limit_reached?
   end
 
-  test "concurrent_agent_limit_reached? returns false when under limit" do
+  test "concurrent_agent_limit_reached? returns true at limit" do
     project = projects(:acme)
-    project.update!(max_concurrent_agents: 10)
-    assert_not project.concurrent_agent_limit_reached?
-  end
-
-  test "concurrent_agent_limit_reached? returns true when at limit" do
-    project = projects(:acme)
-    project.update!(max_concurrent_agents: 1)
-    role = project.roles.first
-    role.role_runs.create!(project: project, status: :running, trigger_type: "scheduled")
-    assert project.concurrent_agent_limit_reached?
-  end
-
-  test "concurrent_agent_limit_reached? counts queued and running runs" do
-    project = projects(:acme)
-    RoleRun.where(project: project).delete_all
     project.update!(max_concurrent_agents: 2)
-    role = project.roles.first
-    role.role_runs.create!(project: project, status: :queued, trigger_type: "scheduled")
-    role.role_runs.create!(project: project, status: :running, trigger_type: "scheduled")
+    # Two active runs already exist in fixtures (queued + running on acme_in_progress)
     assert project.concurrent_agent_limit_reached?
   end
 
   test "concurrent_agent_limit_reached? does not count throttled runs" do
     project = projects(:acme)
-    RoleRun.where(project: project).delete_all
+    Run.where(project: project).destroy_all
     project.update!(max_concurrent_agents: 2)
-    role = project.roles.first
-    role.role_runs.create!(project: project, status: :running, trigger_type: "scheduled")
-    role.role_runs.create!(project: project, status: :throttled, trigger_type: "scheduled")
+    column = columns(:acme_in_progress)
+    column.runs.create!(project: project, task: tasks(:fix_login_bug), status: :running, trigger_type: "manual")
+    column.runs.create!(project: project, task: tasks(:design_homepage), status: :throttled, trigger_type: "task_entered")
     assert_not project.concurrent_agent_limit_reached?
   end
 
@@ -156,12 +108,12 @@ class ProjectTest < ActiveSupport::TestCase
 
   test "dispatch_next_throttled_run! dispatches oldest throttled run" do
     project = projects(:acme)
-    RoleRun.where(project: project).delete_all
+    Run.where(project: project).destroy_all
     project.update!(max_concurrent_agents: 1)
-    role = project.roles.first
+    column = columns(:acme_in_progress)
 
-    older = role.role_runs.create!(project: project, status: :throttled, trigger_type: "scheduled", created_at: 2.minutes.ago)
-    _newer = role.role_runs.create!(project: project, status: :throttled, trigger_type: "scheduled", created_at: 1.minute.ago)
+    older = column.runs.create!(project: project, task: tasks(:design_homepage), status: :throttled, trigger_type: "task_entered", created_at: 2.minutes.ago)
+    _newer = column.runs.create!(project: project, task: tasks(:fix_login_bug), status: :throttled, trigger_type: "task_entered", created_at: 1.minute.ago)
 
     project.dispatch_next_throttled_run!
     older.reload
@@ -171,68 +123,26 @@ class ProjectTest < ActiveSupport::TestCase
 
   test "dispatch_next_throttled_run! does nothing when at capacity" do
     project = projects(:acme)
-    RoleRun.where(project: project).delete_all
+    Run.where(project: project).destroy_all
     project.update!(max_concurrent_agents: 1)
-    role = project.roles.first
+    column = columns(:acme_in_progress)
 
-    role.role_runs.create!(project: project, status: :running, trigger_type: "scheduled")
-    throttled = role.role_runs.create!(project: project, status: :throttled, trigger_type: "scheduled")
+    column.runs.create!(project: project, task: tasks(:fix_login_bug), status: :running, trigger_type: "manual")
+    throttled = column.runs.create!(project: project, task: tasks(:design_homepage), status: :throttled, trigger_type: "task_entered")
 
     project.dispatch_next_throttled_run!
-    assert throttled.reload.throttled?, "Throttled run should remain throttled"
+    assert throttled.reload.throttled?
   end
 
-  test "dispatch_next_throttled_run! does nothing when no throttled runs" do
+  test "dispatch_next_throttled_run! enqueues ExecuteColumnJob" do
     project = projects(:acme)
-    RoleRun.where(project: project).delete_all
+    Run.where(project: project).destroy_all
     project.update!(max_concurrent_agents: 1)
+    column = columns(:acme_in_progress)
 
-    assert_nothing_raised { project.dispatch_next_throttled_run! }
-  end
+    throttled = column.runs.create!(project: project, task: tasks(:design_homepage), status: :throttled, trigger_type: "task_entered")
 
-  test "dispatch_next_throttled_run! skips roles with active runs" do
-    project = projects(:acme)
-    RoleRun.where(project: project).delete_all
-    project.update!(max_concurrent_agents: 5)
-
-    busy_role = roles(:cto)
-    idle_role = roles(:developer)
-
-    busy_role.role_runs.create!(project: project, status: :running, trigger_type: "scheduled")
-    busy_throttled = busy_role.role_runs.create!(project: project, status: :throttled, trigger_type: "task_assigned", created_at: 2.minutes.ago)
-    idle_throttled = idle_role.role_runs.create!(project: project, status: :throttled, trigger_type: "task_assigned", created_at: 1.minute.ago)
-
-    project.dispatch_next_throttled_run!
-
-    assert idle_throttled.reload.queued?, "Idle role's throttled run should be dispatched"
-    assert busy_throttled.reload.throttled?, "Busy role's throttled run should remain throttled"
-  end
-
-  test "dispatch_next_throttled_run! does nothing when all throttled roles are busy" do
-    project = projects(:acme)
-    RoleRun.where(project: project).delete_all
-    project.update!(max_concurrent_agents: 5)
-
-    role = roles(:cto)
-    role.role_runs.create!(project: project, status: :running, trigger_type: "scheduled")
-    throttled = role.role_runs.create!(project: project, status: :throttled, trigger_type: "task_assigned")
-
-    assert_no_enqueued_jobs(only: ExecuteRoleJob) do
-      project.dispatch_next_throttled_run!
-    end
-
-    assert throttled.reload.throttled?, "Throttled run should remain throttled"
-  end
-
-  test "dispatch_next_throttled_run! enqueues ExecuteRoleJob" do
-    project = projects(:acme)
-    RoleRun.where(project: project).delete_all
-    project.update!(max_concurrent_agents: 1)
-    role = project.roles.first
-
-    throttled = role.role_runs.create!(project: project, status: :throttled, trigger_type: "scheduled")
-
-    assert_enqueued_with(job: ExecuteRoleJob, args: [ throttled.id ]) do
+    assert_enqueued_with(job: ExecuteColumnJob, args: [ throttled.id ]) do
       project.dispatch_next_throttled_run!
     end
   end

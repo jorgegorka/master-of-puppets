@@ -4,6 +4,9 @@ class User < ApplicationRecord
   has_many :memberships, dependent: :destroy
   has_many :projects, through: :memberships
   has_many :notifications, as: :recipient, dependent: :destroy
+  has_many :created_tasks, class_name: "Task", foreign_key: :creator_user_id, inverse_of: :creator, dependent: :restrict_with_error
+  has_many :reviewed_tasks, class_name: "Task", foreign_key: :reviewed_by_user_id, inverse_of: :reviewer, dependent: :nullify
+  has_many :initiated_runs, class_name: "Run", foreign_key: :initiating_user_id, inverse_of: :initiating_user, dependent: :nullify
 
   normalizes :email_address, with: ->(e) { e.strip.downcase }
 
