@@ -18,8 +18,17 @@ class TasksController < ApplicationController
     @columns = @columns.where("hidden_by_default = ? OR kind IN (?)", false, hidden_kinds) if hidden_kinds.empty?
     @counts_by_column = filtered_scope.group(:column_id).count
 
+    column_ids = @columns.pluck(:id)
+    grouped = filtered_scope.where(column_id: column_ids)
+                            .includes(:column, :creator, :parent_task)
+                            .by_priority
+                            .group_by(&:column_id)
+
+    all_tasks = grouped.flat_map { |column_id, tasks| tasks.first(KANBAN_COLUMN_LIMIT) }
+    annotate_messages_counts(all_tasks)
+
     @tasks_by_column = @columns.index_with do |column|
-      base_scope.where(column_id: column.id).limit(KANBAN_COLUMN_LIMIT).to_a
+      (grouped[column.id] || []).first(KANBAN_COLUMN_LIMIT)
     end
     @kanban_column_limit = KANBAN_COLUMN_LIMIT
   end
@@ -75,13 +84,10 @@ class TasksController < ApplicationController
     scope
   end
 
-  def base_scope
-    filtered_scope
-      .left_joins(:messages)
-      .includes(:column, :creator, :parent_task)
-      .select("tasks.*, COUNT(messages.id) AS messages_count")
-      .group("tasks.id")
-      .by_priority
+  def annotate_messages_counts(tasks)
+    return if tasks.empty?
+    counts = Message.where(task_id: tasks.map(&:id)).group(:task_id).count
+    tasks.each { |t| t.messages_count = counts[t.id] || 0 }
   end
 
   def boolean_param(key)

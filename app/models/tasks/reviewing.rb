@@ -8,10 +8,9 @@ module Tasks
     def approve_by!(reviewer)
       raise ReviewError, "Task is not pending review" unless pending_review?
 
-      transition = Columns::Transition.new(task: self, actor: reviewer, kind: :advance)
-      raise ReviewError, transition.errors.full_messages.to_sentence unless transition.valid?
-
-      enter_column!(transition.target_column, actor: reviewer, kind: :advance)
+      Columns::Transition.new(task: self, actor: reviewer, kind: :advance).call!
+    rescue ArgumentError => e
+      raise ReviewError, e.message
     end
 
     # Reject = send the task back to the previous non-terminal column with feedback.
@@ -19,13 +18,12 @@ module Tasks
       raise ReviewError, "Task is not pending review" unless pending_review?
       raise ReviewError, "Feedback is required when rejecting a task" if feedback.blank?
 
-      transition = Columns::Transition.new(task: self, actor: reviewer, kind: :reject, feedback: feedback)
-      raise ReviewError, transition.errors.full_messages.to_sentence unless transition.valid?
-
       ApplicationRecord.transaction do
-        enter_column!(transition.target_column, actor: reviewer, kind: :reject, feedback: feedback)
+        Columns::Transition.new(task: self, actor: reviewer, kind: :reject, feedback: feedback).call!
         messages.create!(author: reviewer, body: feedback, message_type: :comment)
       end
+    rescue ArgumentError => e
+      raise ReviewError, e.message
     end
   end
 end

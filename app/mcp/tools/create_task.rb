@@ -24,7 +24,7 @@ module Tools
 
     def call(arguments)
       target_column = if arguments["target_column_name"].present?
-                        project.columns.where("LOWER(name) = ?", arguments["target_column_name"].to_s.downcase).first
+                        project.columns.by_name_ci(arguments["target_column_name"]).first
       else
                         project.columns.non_terminal.ordered.first
       end

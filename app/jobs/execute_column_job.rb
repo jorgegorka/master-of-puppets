@@ -20,7 +20,7 @@ class ExecuteColumnJob < ApplicationJob
     session_id = run.resumable_session_id
 
     column.adapter_class.execute(run: run, prompt: prompt, session_id: session_id)
-  rescue StandardError, NotImplementedError => e
+  rescue StandardError => e
     if run && !run.terminal?
       run.finish!(status: :failed, error: e)
       run.task&.post_system_comment(

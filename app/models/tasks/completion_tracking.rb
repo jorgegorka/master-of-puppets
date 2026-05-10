@@ -8,8 +8,9 @@ module Tasks
     end
 
     def recalculate_completion!
-      total = subtasks.count
-      done = subtasks.completed.count
+      counts = subtasks.joins(:column).group("columns.kind").count
+      total = counts.values.sum
+      done = counts["done"] || 0
       pct = total > 0 ? ((done.to_f / total) * 100).round : 0
       update_column(:completion_percentage, pct) unless completion_percentage == pct
 
@@ -21,14 +22,10 @@ module Tasks
     def auto_advance_on_subtasks_completed!
       return if column.nil? || column.terminal?
 
-      next_column =
-        if parent_task_id.present?
-          project.columns.ordered.where("position > ?", column.position).find_by(kind: "review") ||
-            project.columns.ordered.where("position > ?", column.position).first
-        else
-          project.columns.ordered.where("position > ?", column.position).find_by(kind: "done") ||
-            project.columns.terminal.find_by(kind: "done")
-        end
+      forward_columns = project.columns.ordered.where("position > ?", column.position)
+      preferred_kind = parent_task_id.present? ? "review" : "done"
+      next_column = forward_columns.find_by(kind: preferred_kind) ||
+                    (parent_task_id.present? ? forward_columns.first : project.columns.terminal.find_by(kind: "done"))
 
       return unless next_column
 

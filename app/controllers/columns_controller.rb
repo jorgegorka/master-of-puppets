@@ -3,7 +3,8 @@ class ColumnsController < ApplicationController
   before_action :set_column, only: %i[show edit update destroy]
 
   def index
-    @columns = Current.project.columns.ordered.includes(:tasks)
+    @columns = Current.project.columns.ordered.includes(:tasks).to_a
+    Current.project.preload_monthly_spend(@columns)
   end
 
   def show

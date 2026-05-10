@@ -15,9 +15,16 @@ module Columns
     end
 
     def monthly_spend_cents
-      return 0 unless budget_configured?
-      period_start = Date.current.beginning_of_month.beginning_of_day
-      runs.where(created_at: period_start..).sum(:cost_cents)
+      return @monthly_spend_cents if defined?(@monthly_spend_cents)
+      @monthly_spend_cents =
+        if preloaded_monthly_spend_cents
+          preloaded_monthly_spend_cents
+        elsif budget_configured?
+          period_start = Date.current.beginning_of_month.beginning_of_day
+          runs.where(created_at: period_start..).sum(:cost_cents)
+        else
+          0
+        end
     end
 
     def budget_remaining_cents

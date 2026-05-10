@@ -10,10 +10,6 @@ module Triggerable
     return [] unless text.include?("@")
 
     text_downcased = text.downcase
-    matched_ids = project.columns.pluck(:id, :name).filter_map do |id, name|
-      id if text_downcased.include?("@#{name.downcase}")
-    end
-
-    matched_ids.any? ? project.columns.where(id: matched_ids).to_a : []
+    project.columns.select { |c| text_downcased.include?("@#{c.name.downcase}") }
   end
 end

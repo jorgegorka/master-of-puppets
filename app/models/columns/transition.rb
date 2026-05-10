@@ -28,18 +28,14 @@ module Columns
       task&.column
     end
 
-    def actor_for_audit
-      case actor
-      when User then actor
-      when Run  then actor.column
-      when Column then actor
-      else actor
-      end
-    end
-
     def call
       return false unless valid?
-      true
+      task.enter_column!(target_column, actor: actor, kind: kind, reason: reason, feedback: feedback)
+    end
+
+    def call!
+      raise ArgumentError, errors.full_messages.to_sentence unless valid?
+      task.enter_column!(target_column, actor: actor, kind: kind, reason: reason, feedback: feedback)
     end
 
     private
@@ -134,7 +130,7 @@ module Columns
     end
 
     def find_by_name(name)
-      project.columns.where("LOWER(name) = ?", name.to_s.downcase).first
+      project.columns.by_name_ci(name).first
     end
 
     def project

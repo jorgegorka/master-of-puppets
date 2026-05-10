@@ -13,12 +13,10 @@ class Tasks::TransitionsController < ApplicationController
       target_column: target
     )
 
-    unless transition.valid?
+    unless transition.call
       redirect_to @task, alert: transition.errors.full_messages.to_sentence, status: :see_other
       return
     end
-
-    @task.enter_column!(transition.target_column, actor: Current.user, kind: :manual_move, reason: params[:reason])
 
     respond_to do |format|
       format.html { redirect_to tasks_path, notice: "Task moved to #{target.name}." }

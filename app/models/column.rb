@@ -40,11 +40,7 @@ class Column < ApplicationRecord
   validates :job_spec, presence: true, if: :agent_configured?
   validates :success_criteria, presence: true, if: :agent_configured?
 
-  attr_writer :preloaded_monthly_spend_cents
-
-  def preloaded_monthly_spend_cents
-    @preloaded_monthly_spend_cents
-  end
+  attr_accessor :preloaded_monthly_spend_cents
 
   scope :agent_driven,  -> { where(transition_policy: :agent) }
   scope :manual_only,   -> { where(transition_policy: :manual) }
@@ -53,6 +49,7 @@ class Column < ApplicationRecord
   scope :ordered,       -> { order(:position) }
   scope :visible,       -> { where(hidden_by_default: false) }
   scope :for_system,    ->(key) { where(system_key: key) }
+  scope :by_name_ci,    ->(name) { where("LOWER(name) = ?", name.to_s.downcase) }
 
   before_validation :nullify_agent_fields_on_manual
   before_validation :ensure_api_token, if: :agent?
@@ -87,10 +84,6 @@ class Column < ApplicationRecord
   def regenerate_api_token!
     raise "Cannot rotate token on a manual column" unless agent?
     update!(api_token: self.class.generate_api_token)
-  end
-
-  def runs_eligible_tasks
-    tasks.includes(:column).select { |t| !t.column.terminal? }
   end
 
   def self.generate_api_token

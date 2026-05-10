@@ -10,7 +10,10 @@ class Tasks::BulkUpdatesController < ApplicationController
 
     return head :unprocessable_entity unless ALLOWED_ATTRIBUTES.include?(attribute)
 
-    updated = @tasks.select { |task| apply_bulk_change(task, attribute, value) }
+    target_column = attribute == "column_id" ? Current.project.columns.find_by(id: value) : nil
+    return head :unprocessable_entity if attribute == "column_id" && target_column.nil?
+
+    updated = @tasks.select { |task| apply_bulk_change(task, attribute, value, target_column: target_column) }
 
     redirect_to tasks_path(redirect_filters), notice: "#{updated.size} task(s) updated."
   end
@@ -22,16 +25,9 @@ class Tasks::BulkUpdatesController < ApplicationController
 
   private
 
-  def apply_bulk_change(task, attribute, value)
+  def apply_bulk_change(task, attribute, value, target_column: nil)
     if attribute == "column_id"
-      target = Current.project.columns.find_by(id: value)
-      return false unless target
-
-      transition = Columns::Transition.new(task: task, actor: Current.user, kind: :manual_move, target_column: target)
-      return false unless transition.valid?
-
-      task.enter_column!(transition.target_column, actor: Current.user, kind: :manual_move)
-      true
+      Columns::Transition.new(task: task, actor: Current.user, kind: :manual_move, target_column: target_column).call
     else
       old = task.public_send(attribute)
       return false unless task.update(attribute => value)

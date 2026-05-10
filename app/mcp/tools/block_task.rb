@@ -20,21 +20,11 @@ module Tools
     end
 
     def call(arguments)
-      task = project.tasks.find(arguments["task_id"])
-      run = active_run_for(task)
-      raise ArgumentError, "No active run for this column on task #{task.id}" unless run
-
-      transition = Columns::Transition.new(
-        task: task,
-        actor: run,
+      perform_transition(
+        task_id: arguments["task_id"],
         kind: :block,
         reason: arguments["reason"]
       )
-      raise ArgumentError, transition.errors.full_messages.to_sentence unless transition.valid?
-
-      task.enter_column!(transition.target_column, actor: run, kind: :block, reason: arguments["reason"])
-
-      { status: "ok", task_id: task.id, to_column: transition.target_column.name }
     end
   end
 end

@@ -2,6 +2,8 @@ module Columns
   module Broadcasting
     extend ActiveSupport::Concern
 
+    BOARD_PARTIAL_ATTRIBUTES = %w[name position kind hidden_by_default terminal transition_policy].freeze
+
     included do
       after_commit :broadcast_board_update, on: %i[create update]
       after_destroy_commit :broadcast_board_remove
@@ -14,6 +16,8 @@ module Columns
     private
 
     def broadcast_board_update
+      return unless previous_changes.keys.intersect?(BOARD_PARTIAL_ATTRIBUTES) || previously_new_record?
+
       Turbo::StreamsChannel.broadcast_replace_to(
         broadcast_stream,
         target: "kanban-column-#{id}",

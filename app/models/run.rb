@@ -42,9 +42,8 @@ class Run < ApplicationRecord
           .where(task_id: task_id)
           .where.not(id: id)
           .where.not(claude_session_id: nil)
-          .order(:created_at)
-          .last
-          &.claude_session_id
+          .order(created_at: :desc)
+          .pick(:claude_session_id)
   end
 
   def append_log!(text)

@@ -30,6 +30,8 @@ class Task < ApplicationRecord
   validates :position, numericality: { only_integer: true, greater_than: 0 }
   validates :entered_column_at, presence: true
 
+  attr_accessor :messages_count
+
   scope :active,                -> { joins(:column).where(columns: { terminal: false }) }
   scope :completed,             -> { joins(:column).where(columns: { kind: "done" }) }
   scope :cancelled,             -> { joins(:column).where(columns: { kind: "cancelled" }) }
