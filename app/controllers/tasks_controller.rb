@@ -14,8 +14,8 @@ class TasksController < ApplicationController
     hidden_kinds << "cancelled" unless @show_cancelled
     hidden_kinds << "blocked" unless @show_blocked
 
-    @columns = Current.project.columns.ordered.where.not(kind: hidden_kinds.empty? ? [ nil ] : hidden_kinds)
-    @columns = @columns.where("hidden_by_default = ? OR kind IN (?)", false, hidden_kinds) if hidden_kinds.empty?
+    @columns = Current.project.columns.ordered
+    @columns = @columns.where.not(kind: hidden_kinds) if hidden_kinds.any?
     @counts_by_column = filtered_scope.group(:column_id).count
 
     column_ids = @columns.pluck(:id)

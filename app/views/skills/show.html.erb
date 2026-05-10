@@ -45,19 +45,20 @@
     <%# ── Sidebar column ── %>
     <div class="skill-detail__sidebar">
       <div class="skill-detail__card">
-        <h2 class="skill-detail__card-title">Assigned Roles (<%= @roles.size %>)</h2>
-        <% if @roles.any? %>
+        <h2 class="skill-detail__card-title">Assigned Columns (<%= @columns.size %>)</h2>
+        <% if @columns.any? %>
           <ul class="skill-detail__roles-list">
-            <% @roles.each do |role| %>
+            <% @columns.each do |column| %>
               <li>
-                <span class="role-card__status-dot role-card__status-dot--<%= role.status %>"></span>
-                <%= link_to role.title, role %>
-                <%= role_status_badge(role) %>
+                <%= link_to column.name, column %>
+                <span class="kanban__column-tag kanban__column-tag--<%= column.transition_policy %>">
+                  <%= column.transition_policy %>
+                </span>
               </li>
             <% end %>
           </ul>
         <% else %>
-          <p class="skill-detail__empty-note">No roles have this skill assigned.</p>
+          <p class="skill-detail__empty-note">No columns have this skill assigned.</p>
         <% end %>
       </div>
 

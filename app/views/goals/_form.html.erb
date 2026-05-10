@@ -42,14 +42,6 @@
           placeholder: "No priority",
           options: options_for_task_priority %>
 
-    <%= render "tasks/pill",
-          form: f,
-          attribute: :creator_id,
-          icon: task_pill_icon(:creator),
-          placeholder: "No owner",
-          options: options_for_role_pill_select,
-          searchable: true %>
-
     <button type="button"
             class="pill-btn"
             data-goal-recurrence-target="trigger"

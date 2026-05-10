@@ -3,7 +3,6 @@
 # stable for users. Under the hood these are Task records.
 class GoalsController < ApplicationController
   before_action :require_project!
-  before_action :require_roles!, only: [ :new, :create ]
   before_action :set_root_task, only: [ :show, :edit, :update, :destroy ]
 
   def index
@@ -15,11 +14,11 @@ class GoalsController < ApplicationController
   end
 
   def new
-    @root_task = Current.project.tasks.new
+    @root_task = Current.project.tasks.new(creator: Current.user)
   end
 
   def create
-    @root_task = Current.project.tasks.new(root_task_params)
+    @root_task = Current.project.tasks.new(root_task_params.merge(creator: Current.user))
 
     if @root_task.save
       apply_recurrence_choice(@root_task)
@@ -64,7 +63,7 @@ class GoalsController < ApplicationController
   end
 
   def root_task_params
-    params.require(:root_task).permit(:title, :description, :creator_id, :priority)
+    params.require(:root_task).permit(:title, :description, :priority)
   end
 
   def apply_recurrence_choice(goal)

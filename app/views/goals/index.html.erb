@@ -3,11 +3,9 @@
 <section class="goals-page">
   <div class="goals-page__header">
     <h1>Goals</h1>
-    <% if Current.project.roles.exists? %>
-      <%= link_to "New Goal", new_goal_path,
-            class: "btn btn--primary btn--sm",
-            data: { turbo_frame: "goal_form_modal" } %>
-    <% end %>
+    <%= link_to "New Goal", new_goal_path,
+          class: "btn btn--primary btn--sm",
+          data: { turbo_frame: "goal_form_modal" } %>
   </div>
 
   <% if @root_tasks.any? %>

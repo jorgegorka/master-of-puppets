@@ -6,7 +6,7 @@
       <div>
         <h1 class="goal-detail__title"><%= @root_task.title %></h1>
         <div class="goal-detail__badges">
-          <%= task_status_badge(@root_task) %>
+          <%= task_column_badge(@root_task) %>
           <% if @root_task.completed_at.present? %>
             <span class="goal-detail__completed-at">
               Completed <%= @root_task.completed_at.strftime("%b %d, %Y at %H:%M") %>
@@ -22,7 +22,7 @@
     </div>
 
     <% percentage = @root_task.completion_percentage %>
-    <% subtasks = @root_task.subtasks.by_priority.includes(:parent_task, :assignee, :creator) %>
+    <% subtasks = @root_task.subtasks.by_priority.includes(:parent_task, :column, :creator) %>
     <% completed_count = @root_task.subtasks.completed.count %>
     <div class="goal-detail__progress-card">
       <div class="goal-detail__progress-info">
@@ -34,11 +34,6 @@
         <span><%= percentage %>% complete &middot; <%= completed_count %> of <%= subtasks.size %> tasks done</span>
       </div>
     </div>
-    <% if @root_task.assignee.present? %>
-      <div class="goal-detail__role">
-        <span>Assigned to: <%= link_to @root_task.assignee.title, role_path(@root_task.assignee) %></span>
-      </div>
-    <% end %>
     <% if @root_task.recurring? %>
       <div class="goal-detail__recurrence">
         <span><%= Tasks::RecurrenceDescriber.new(@root_task).to_sentence %></span>

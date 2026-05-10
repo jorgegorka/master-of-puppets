@@ -3,14 +3,14 @@ class SkillsController < ApplicationController
   before_action :set_skill, only: [ :show, :edit, :update, :destroy ]
 
   def index
-    @skills = Current.project.skills.includes(:roles).order(:name)
+    @skills = Current.project.skills.includes(:columns).order(:name)
     @skills = @skills.by_category(params[:category]) if params[:category].present?
     @current_category = params[:category]
     @categories = Current.project.skills.where.not(category: [ nil, "" ]).distinct.pluck(:category).sort
   end
 
   def show
-    @roles = @skill.roles.order(:title)
+    @columns = @skill.columns.ordered
     @skill_document_links = @skill.skill_documents.joins(:document).includes(:document).order("documents.title")
   end
 

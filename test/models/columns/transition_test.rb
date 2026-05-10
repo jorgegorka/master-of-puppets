@@ -46,5 +46,19 @@ module Columns
       Columns::Transition.new(task: task, actor: run, kind: :advance).valid?
       assert_equal original_column_id, task.reload.column_id
     end
+
+    test "advance from review column with User actor is valid" do
+      task = tasks(:pending_review_task)
+      transition = Columns::Transition.new(task: task, actor: users(:one), kind: :advance)
+      assert transition.valid?, transition.errors.full_messages.inspect
+      assert_equal columns(:acme_done), transition.target_column
+    end
+
+    test "reject from review column with User actor is valid" do
+      task = tasks(:pending_review_task)
+      transition = Columns::Transition.new(task: task, actor: users(:one), kind: :reject, feedback: "needs more")
+      assert transition.valid?, transition.errors.full_messages.inspect
+      assert_equal columns(:acme_in_progress), transition.target_column
+    end
   end
 end

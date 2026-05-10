@@ -1,11 +1,11 @@
 module Columns
   class Transition
     include ActiveModel::Model
-    include ActiveModel::Attributes
 
     KINDS = %w[advance reject block manual_move cancel].freeze
 
-    attr_accessor :task, :actor, :kind, :reason, :feedback, :target_column, :target_column_name
+    attr_accessor :task, :actor, :reason, :feedback, :target_column, :target_column_name
+    attr_reader :kind
 
     validates :task, presence: true
     validates :actor, presence: true
@@ -14,14 +14,8 @@ module Columns
     validate :validate_actor_compatibility
     validate :resolve_target_column
 
-    def initialize(task:, actor:, kind:, reason: nil, feedback: nil, target_column: nil, target_column_name: nil)
-      @task = task
-      @actor = actor
-      @kind = kind.to_s
-      @reason = reason
-      @feedback = feedback
-      @target_column = target_column
-      @target_column_name = target_column_name
+    def kind=(value)
+      @kind = value&.to_s
     end
 
     def source_column
@@ -44,12 +38,26 @@ module Columns
       return unless task && source_column
 
       case kind
-      when "advance", "reject", "block"
+      when "advance", "reject"
+        # Agent flow: Run/Column actor on agent-policy source column.
+        # Reviewer flow: User actor on a review-kind column (manual policy).
+        if source_column.agent?
+          unless actor_runs_on_column?
+            errors.add(:actor, "agent transitions require a Run actor on the source agent column")
+          end
+        elsif source_column.kind == "review"
+          unless actor.is_a?(User)
+            errors.add(:actor, "review transitions require a User actor")
+          end
+        else
+          errors.add(:kind, "#{kind} only allowed from agent or review columns")
+        end
+      when "block"
         unless actor_runs_on_column?
           errors.add(:actor, "agent transitions require a Run actor on the source agent column")
         end
         unless source_column.agent?
-          errors.add(:kind, "#{kind} only allowed from agent-policy columns")
+          errors.add(:kind, "block only allowed from agent-policy columns")
         end
       when "manual_move", "cancel"
         unless actor.is_a?(User)
