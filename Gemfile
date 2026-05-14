@@ -41,7 +41,7 @@ gem "thruster", require: false
 gem "image_processing", "~> 1.2"
 
 # Render user-authored markdown in goals and tasks
-gem "commonmarker", "~> 2.0"
+gem "commonmarker", "~> 2.8"
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
