@@ -445,10 +445,12 @@ Pseudocode (full implementation is a Phase 1 task):
 module Message::Streamable
   extend ActiveSupport::Concern
 
-  def advance!
-    transaction do
-      update!(status: :streaming) unless streaming?
-    end
+  MAX_TOOL_ITERATIONS = 10  # bound on the recursive tool loop; see Task 1.9
+
+  def advance!(iteration: 1)
+    raise Llm::ToolLoopExceeded if iteration > MAX_TOOL_ITERATIONS
+
+    transition_to_streaming!  # also strips half-streamed tool_use blocks left from prior attempts
 
     adapter = Llm::Client.for(provider: provider)
     usage = adapter.stream(messages: prompt_messages, tools: available_tools, model: model) do |event|
@@ -458,7 +460,7 @@ module Message::Streamable
 
     if needs_tool_loop?
       run_tool_calls!                       # synchronously executes each tool_use block
-      advance!                              # recurse — next LLM turn after tool_results
+      advance!(iteration: iteration + 1)    # recurse — next LLM turn after tool_results
     else
       finalize!(usage)
     end
@@ -473,7 +475,7 @@ module Message::Streamable
 end
 ```
 
-**Tool-call loop stays inside `advance!`.** When the LLM emits `tool_use`, the model synchronously calls `tool_call.execute` (which records start/finish, writes `track_event :invoked` inside its transaction), persists the `tool_result` block, and recurses. One user-visible turn = one outer call to `advance!`, regardless of N tool calls.
+**Tool-call loop stays inside `advance!`.** When the LLM emits `tool_use`, the model synchronously calls `tool_call.execute` (which records start/finish, writes `track_event :invoked` inside its transaction), persists the `tool_result` block, and recurses. One user-visible turn = one outer call to `advance!`, regardless of N tool calls — but bounded by `MAX_TOOL_ITERATIONS` so a tool that never reaches `:succeeded` cannot loop forever (Phase 1 hardening — see review issue #1).
 
 **`ChatStreamJob`** (renamed `Message::AdvanceJob` for clarity — see § 8) is a 3-line wrapper: `def perform(message) = message.advance!`.
 
@@ -1253,6 +1255,19 @@ class UserTest < ActiveSupport::TestCase
     u = User.create!(email: "a@b.com", password: "supersecret123")
     assert u.authenticate("supersecret123")
   end
+
+  test "first user is promoted to admin (single-user bootstrap)" do
+    User.destroy_all
+    u = User.create!(email: "first@example.test", password: "supersecret123")
+    assert u.admin?
+    assert u.single_user_bootstrap
+  end
+
+  test "subsequent users default to member role" do
+    User.create!(email: "first@example.test",  password: "supersecret123")
+    u = User.create!(email: "second@example.test", password: "supersecret123")
+    assert u.member?
+  end
 end
 ```
 
@@ -1289,8 +1304,17 @@ class User < ApplicationRecord
   enum :role, member: 0, admin: 1
   validates :email, presence: true, uniqueness: { case_sensitive: false }
 
+  # The first user (the single-user bootstrap) is admin. § 15.1 makes this
+  # the default install shape; the admin column gates settings/providers etc.
+  before_validation :promote_bootstrap_to_admin, on: :create
   after_create :create_default_settings
   private
+    def promote_bootstrap_to_admin
+      return if User.exists?
+      self.single_user_bootstrap = true if respond_to?(:single_user_bootstrap=)
+      self.role = :admin
+    end
+
     def create_default_settings
       create_user_setting!(theme: "claude-official", accent: "indigo")
     end
@@ -1368,6 +1392,14 @@ class ApplicationController < ActionController::Base
     def require_sign_in
       redirect_to new_session_path unless Current.user
     end
+
+    # Subclasses opt-in with `before_action :require_admin`. § 15.1 plus the
+    # `User.role` enum from Task 1.4 are the seat for this; review issue #3
+    # (Settings::ProvidersController was wide open) is fixed by adding the
+    # before_action where API keys live (Task 1.12).
+    def require_admin
+      redirect_to root_path, alert: "Admin only." unless Current.user&.admin?
+    end
 end
 ```
 
@@ -1378,7 +1410,14 @@ end
 one:
   email: jorge@example.test
   password_digest: <%= BCrypt::Password.create("supersecret123") %>
-  role: 0
+  role: 1                 # admin (single-user bootstrap)
+  single_user_bootstrap: true
+
+member:
+  email: member@example.test
+  password_digest: <%= BCrypt::Password.create("supersecret123") %>
+  role: 0                 # non-admin; used by admin-gate tests in Task 1.12
+  single_user_bootstrap: false
 ```
 
 `test/fixtures/sessions.yml`:
@@ -1395,6 +1434,20 @@ one:
 class ActiveSupport::TestCase
   fixtures :all
   setup { Current.session = sessions(:one) if defined?(sessions) }
+end
+
+# Used by controller tests to authenticate over the HTTP boundary
+# (controller tests bypass the cookie-signing path that ApplicationController
+# relies on, so we mint a Session and set the signed cookie directly).
+module ControllerSignInHelpers
+  def sign_in_as(user)
+    session = user.sessions.create!(user_agent: "test", ip_address: "127.0.0.1", last_seen_at: Time.current)
+    cookies.signed[:session_id] = session.id
+  end
+end
+
+class ActionDispatch::IntegrationTest
+  include ControllerSignInHelpers
 end
 ```
 
@@ -1895,6 +1948,9 @@ class Llm::RateLimited < StandardError
   attr_reader :retry_after
   def initialize(retry_after:, message: nil) = (super(message || "rate limited"); @retry_after = retry_after)
 end
+
+# app/services/llm/tool_loop_exceeded.rb
+class Llm::ToolLoopExceeded < StandardError; end
 ```
 
 - [ ] **Step 4: Implement `Llm::Anthropic`**
@@ -2035,20 +2091,74 @@ class Message::StreamableTest < ActiveSupport::TestCase
     assert_enqueued_with(job: Message::AdvanceJob) { assistant.advance! }
     assert_equal "rate_limited", assistant.reload.status
   end
+
+  # Review issue #2 — guards the rate-limit retry path. If `transition_to_streaming!`
+  # did not strip half-streamed tool_use blocks, the retry would ship a malformed
+  # tool_use (with `input_partial` still present) to the provider.
+  test "advance! drops half-streamed tool_use blocks before retry" do
+    session   = chat_sessions(:one)
+    assistant = session.messages.create!(
+      role: :assistant, status: :rate_limited, model: session.model, provider: "anthropic",
+      content_blocks: [
+        { "type" => "text",     "text" => "let me check" },
+        { "type" => "tool_use", "id" => "toolu_abc", "name" => "read_file", "input_partial" => '{"pa' }, # half-streamed
+      ],
+    )
+    Llm::Anthropic.any_instance.stubs(:stream).returns({ prompt_tokens: 1, completion_tokens: 1 })
+    assistant.advance!
+    refute assistant.reload.content_blocks.any? { |b| b["type"] == "tool_use" && b.key?("input_partial") },
+      "half-streamed tool_use must be dropped on retry"
+  end
+
+  # Review issue #1 — guards the unbounded recursion path. A tool that never
+  # transitions to `:succeeded` would otherwise loop forever and burn cost.
+  test "advance! raises Llm::ToolLoopExceeded past MAX_TOOL_ITERATIONS" do
+    session   = chat_sessions(:one)
+    assistant = session.messages.create!(role: :assistant, status: :pending, model: session.model, provider: "anthropic")
+    assistant.stubs(:needs_tool_loop?).returns(true)
+    assistant.stubs(:run_tool_calls!)
+    Llm::Anthropic.any_instance.stubs(:stream).returns({ prompt_tokens: 0, completion_tokens: 0 })
+    assert_raises(Llm::ToolLoopExceeded) { assistant.advance! }
+    assert_equal "failed", assistant.reload.status
+  end
+
+  # Review issue #6 — covers the entire recursive arm end-to-end (stream → tool_call
+  # → tool_result → second stream → finalize) which the other tests skip by stubbing
+  # `needs_tool_loop? = false`. Without this, fixes #1 and #2 are unverifiable.
+  test "advance! completes a tool-call round trip" do
+    VCR.use_cassette("anthropic_tool_call") do
+      session = chat_sessions(:one)
+      session.messages.create!(role: :user, content_blocks: [{ type: "text", text: "read /tmp/x" }], status: :completed)
+      assistant = session.messages.create!(role: :assistant, status: :pending, model: session.model, provider: "anthropic")
+      Tool::Internal.stubs(:lookup).with("read_file").returns(stub(invoke: { result: "ok" }))
+      assistant.advance!
+      assert_equal "completed", assistant.reload.status
+      assert assistant.tool_calls.where(name: "read_file", status: :succeeded).exists?
+      assert assistant.content_blocks.any? { |b| b["type"] == "tool_result" }
+    end
+  end
 end
 ```
+
+The two new VCR cassettes (`anthropic_tool_call` for the round-trip, and an extension to `anthropic_streaming`) are recorded once with `VCR_RECORD=new_episodes bin/rails test/models/message/streamable_test.rb` and committed to `test/fixtures/vcr/`. Record them after Step 2 lands so the assertions resolve against real provider shapes.
 
 Run: `bin/rails test test/models/message/streamable_test.rb`
 Expected: FAIL (`NotImplementedError: implemented in Task 1.9`).
 
 - [ ] **Step 2: Implement `Message::Streamable#advance!` and helpers**
 
+`MAX_TOOL_ITERATIONS` caps the recursive `advance!` loop so a misbehaving tool (one that never reaches `succeeded`) cannot burn unbounded inference cost — see review issue #1. The iteration counter is passed positionally, not persisted; on rate-limit retry the job re-enters at iteration 1, which is fine because retries replay the assistant turn from scratch (see retry-safety note below).
+
 ```ruby
 # app/models/message/streamable.rb
 module Message::Streamable
   extend ActiveSupport::Concern
 
-  def advance!
+  MAX_TOOL_ITERATIONS = 10
+
+  def advance!(iteration: 1)
+    raise Llm::ToolLoopExceeded, "exceeded #{MAX_TOOL_ITERATIONS} tool iterations" if iteration > MAX_TOOL_ITERATIONS
+
     transition_to_streaming!
 
     usage = Llm::Client.for(provider: provider).stream(messages: prompt_messages, tools: available_tools, model: model) do |event|
@@ -2058,7 +2168,7 @@ module Message::Streamable
 
     if needs_tool_loop?
       run_tool_calls!
-      advance!
+      advance!(iteration: iteration + 1)
     else
       finalize!(usage)
     end
@@ -2076,11 +2186,25 @@ module Message::Streamable
   end
 
   private
+    # Retry safety (review issue #2): on a rate-limit retry, `content_blocks` may
+    # still contain half-streamed `tool_use` blocks (with `input_partial`) from
+    # the prior attempt. If we leave them in place the next `prompt_messages` call
+    # ships a malformed tool_use to Anthropic. Drop in-flight assistant blocks and
+    # reset the cursor so the retry starts from a clean slate. Persisted blocks
+    # from earlier completed turns (role != assistant on this row, or previous
+    # `tool_result` blocks the loop appended) stay untouched.
     def transition_to_streaming!
       transaction do
         update!(status: :streaming) unless streaming?
-        self.content_blocks ||= []
-        self.stream_cursor = { "block_index" => -1, "byte_offset" => 0, "last_event_at" => Time.current.iso8601 }
+        self.content_blocks = retain_completed_blocks(content_blocks)
+        self.stream_cursor  = { "block_index" => -1, "byte_offset" => 0, "last_event_at" => Time.current.iso8601 }
+        save!
+      end
+    end
+
+    def retain_completed_blocks(blocks)
+      Array(blocks).reject do |b|
+        b.is_a?(Hash) && b["type"] == "tool_use" && b.key?("input_partial")
       end
     end
 
@@ -2101,7 +2225,7 @@ module Message::Streamable
         finalize_block!(event[:index])
       end
       self.stream_cursor = { "block_index" => event[:index] || stream_cursor.to_h["block_index"], "byte_offset" => 0, "last_event_at" => Time.current.iso8601 }
-      save!
+      save! # one row write per event is intentional (§ 7.2). A worker crash mid-stream must be able to resume from the persisted cursor; batching defeats that.
     end
 
     def finalize_block!(index)
@@ -2127,6 +2251,11 @@ module Message::Streamable
       ChatChannel.broadcast_to(chat_session, event)
     end
 
+    # Includes `self` (id <= ?) so the assistant's in-progress tool_use blocks
+    # precede the tool_result blocks the loop appends — the Anthropic API rejects
+    # tool_result without a preceding tool_use. This is correct for the recursive
+    # tool-loop pass; retry safety is handled by `transition_to_streaming!` above
+    # (it drops half-streamed tool_use blocks before the next call).
     def prompt_messages
       chat_session.messages.ordered.where("messages.id <= ?", id).map do |m|
         { role: m.role, content: m.content_blocks }
@@ -2426,7 +2555,57 @@ class ChatChannelTest < ActionCable::Channel::TestCase
 end
 ```
 
-- [ ] **Step 8: System test (uses VCR cassette from Task 1.8)**
+- [ ] **Step 8: HTTP-boundary cross-tenancy tests (review issue #5)**
+
+Channel-level tenancy is covered above, but the HTTP boundary across the four chat_sessions controllers (messages, forks, archives, pins) is not. One signed-in user must never be able to read or mutate another user's chat session even if they guess the id. A shared helper keeps this from being four near-duplicate test files.
+
+```ruby
+# test/controllers/concerns/cross_tenancy_assertions.rb
+module CrossTenancyAssertions
+  extend ActiveSupport::Concern
+
+  # Asserts that the given request (passed as a block taking the chat_session)
+  # 404s when made against another user's chat_session.
+  def assert_cross_tenant_denied(&request)
+    other = users(:member)
+    foreign = other.chat_sessions.create!(title: "theirs", model: "claude-opus-4-7", provider: "anthropic")
+    sign_in_as(users(:one))
+    assert_raises(ActiveRecord::RecordNotFound) { yield(foreign) }
+  end
+end
+```
+
+```ruby
+# test/controllers/chat_sessions_cross_tenancy_test.rb
+require "test_helper"
+class ChatSessionsCrossTenancyTest < ActionDispatch::IntegrationTest
+  include CrossTenancyAssertions
+
+  test "cannot show another user's chat session" do
+    assert_cross_tenant_denied { |cs| get chat_session_path(cs) }
+  end
+
+  test "cannot post a message into another user's chat session" do
+    assert_cross_tenant_denied { |cs| post chat_session_messages_path(cs), params: { content: "hi" } }
+  end
+
+  test "cannot fork another user's chat session" do
+    assert_cross_tenant_denied { |cs| post chat_session_forks_path(cs) }
+  end
+
+  test "cannot archive another user's chat session" do
+    assert_cross_tenant_denied { |cs| post chat_session_archive_path(cs) }
+  end
+
+  test "cannot pin another user's chat session" do
+    assert_cross_tenant_denied { |cs| post chat_session_pin_path(cs) }
+  end
+end
+```
+
+`ChatSessionScoped#set_chat_session` already scopes through `Current.user.chat_sessions.find(...)` (Step 3), so the test should pass without changes — its job is to lock the contract so a future refactor can't quietly drop the scope.
+
+- [ ] **Step 9: System test (uses VCR cassette from Task 1.8)**
 
 ```ruby
 # test/system/streaming_chat_test.rb
@@ -2446,14 +2625,14 @@ end
 
 (`sign_in` helper in `test/application_system_test_case.rb` posts to `session_path`.)
 
-- [ ] **Step 9: Run + commit**
+- [ ] **Step 10: Run + commit**
 
-Run: `bin/rails test test/channels test/system/streaming_chat_test.rb`
+Run: `bin/rails test test/channels test/controllers/chat_sessions_cross_tenancy_test.rb test/system/streaming_chat_test.rb`
 Expected: 0 failures.
 
 ```bash
 git add app test
-git commit -m "Phase 1: ChatChannel + chat UI with Stimulus controller and Turbo Streams"
+git commit -m "Phase 1: ChatChannel + chat UI with Stimulus, Turbo Streams, cross-tenancy boundary tests"
 ```
 
 #### Task 1.11: `Message::AdvanceJob` + ActiveJob `Current.user` extension
@@ -2512,7 +2691,7 @@ git commit -m "Phase 1: ActiveJob Current.user capture + Message::AdvanceJob"
 **Files:**
 - Create: `app/controllers/settings_controller.rb`, `app/controllers/settings/providers_controller.rb`, `app/controllers/settings/providers/tests_controller.rb`
 - Create: views under `app/views/settings/`
-- Create: `test/system/settings_provider_test.rb`
+- Create: `test/controllers/settings/providers_controller_test.rb`, `test/system/settings_provider_test.rb`
 
 - [ ] **Step 1: Settings root**
 
@@ -2530,25 +2709,41 @@ end
 
 - [ ] **Step 2: Providers index + show + update**
 
+`require_admin` gates the whole controller (review issue #3 — any signed-in user could otherwise read or rotate the team's encrypted API keys). The bootstrap user is admin per Task 1.4, so single-user installs are unaffected.
+
+`provider_config_params` strips a blank `:api_key` so the "leave blank to keep current" UX promise is honored — submitting the edit form without retyping the key must not clobber the encrypted value to `""` (review issue #4).
+
 ```ruby
 class Settings::ProvidersController < ApplicationController
+  before_action :require_admin
   before_action :set_provider, only: %i[show update]
+
   def index = (@providers = ProviderConfig.order(:provider))
   def show = nil
+
   def update
-    @provider.update!(provider_params)
+    @provider.update!(provider_config_params)
     redirect_to settings_provider_path(@provider), notice: "Saved."
   end
+
   private
     def set_provider = (@provider = ProviderConfig.find(params[:id]))
-    def provider_params = params.require(:provider_config).permit(:api_key, :base_url, :default_model, :enabled)
+
+    def provider_config_params
+      attrs = params.require(:provider_config).permit(:api_key, :base_url, :default_model, :enabled)
+      attrs.delete(:api_key) if attrs[:api_key].blank?  # "leave blank to keep current"
+      attrs
+    end
 end
 ```
 
 - [ ] **Step 3: Test connection controller**
 
+Same `require_admin` gate — testing a connection reads the encrypted API key into an outbound request and is just as sensitive as editing.
+
 ```ruby
 class Settings::Providers::TestsController < ApplicationController
+  before_action :require_admin
   def create
     provider = ProviderConfig.find(params[:provider_id])
     Llm::Client.for(provider: provider.provider).ping
@@ -2560,9 +2755,49 @@ class Settings::Providers::TestsController < ApplicationController
 end
 ```
 
-- [ ] **Step 4: Views** — basic forms; theme selector dropdown on `settings/show.html.erb`.
+- [ ] **Step 4: Views** — basic forms; theme selector dropdown on `settings/show.html.erb`. The API-key input must be a `password_field` (never `text_field`) with `placeholder: "Leave blank to keep current"` and `autocomplete: "off"`. Don't pre-fill `value:` from the model — the controller now ignores blank submissions, so leaving it empty is the safe default.
 
-- [ ] **Step 5: System test**
+- [ ] **Step 5: Controller tests (admin gate + blank-key behaviour)**
+
+```ruby
+# test/controllers/settings/providers_controller_test.rb
+require "test_helper"
+class Settings::ProvidersControllerTest < ActionDispatch::IntegrationTest
+  setup do
+    @admin   = users(:one)        # admin per Task 1.4 bootstrap
+    @member  = users(:member)     # add a non-admin fixture
+    @provider = provider_configs(:anthropic)
+  end
+
+  test "non-admin cannot read providers index" do
+    sign_in_as(@member)
+    get settings_providers_path
+    assert_redirected_to root_path
+    assert_match(/admin/i, flash[:alert])
+  end
+
+  test "non-admin cannot update a provider" do
+    sign_in_as(@member)
+    patch settings_provider_path(@provider), params: { provider_config: { api_key: "leaked" } }
+    assert_redirected_to root_path
+    refute_equal "leaked", @provider.reload.api_key
+  end
+
+  test "blank api_key does not clobber the stored value" do
+    sign_in_as(@admin)
+    original = @provider.api_key
+    patch settings_provider_path(@provider), params: {
+      provider_config: { api_key: "", base_url: "https://example.test", default_model: @provider.default_model, enabled: "1" }
+    }
+    assert_equal original, @provider.reload.api_key
+    assert_equal "https://example.test", @provider.base_url
+  end
+end
+```
+
+`sign_in_as(user)` is a controller-test helper added to `test_helper.rb` that creates a `Session` and signs the cookie — same shape as the system-test helper.
+
+- [ ] **Step 6: System test**
 
 ```ruby
 # test/system/settings_provider_test.rb
@@ -2579,14 +2814,14 @@ class SettingsProviderTest < ApplicationSystemTestCase
 end
 ```
 
-Run: `bin/rails test:system test/system/settings_provider_test.rb`
+Run: `bin/rails test test/controllers/settings/providers_controller_test.rb test:system test/system/settings_provider_test.rb`
 Expected: 0 failures.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add app test
-git commit -m "Phase 1: Settings + Providers UI with connection test"
+git commit -m "Phase 1: Settings + Providers UI with admin gate, blank-key safety, connection test"
 ```
 
 #### Task 1.13: Procfile.dev + bin/dev + bin/agents_supervisor stub
@@ -2617,6 +2852,8 @@ chmod +x bin/dev
 
 - [ ] **Step 3: bin/agents_supervisor (Phase-1 stub)**
 
+The Phase 1 stub only handles `health.ping` over a local-only UNIX socket, so the deliberately-thin parts (thread-per-client, no line length cap, no payload size cap) are acceptable for now. Phase 4 replaces this with the v2 supervisor (tmux + MCP bridge); the TODO breadcrumbs below mark each shortcut so the v2 rewrite can't miss them.
+
 ```ruby
 #!/usr/bin/env ruby
 require_relative "../config/environment"
@@ -2633,6 +2870,11 @@ Rails.logger.info("[agents_supervisor] listening on #{socket_path}")
 trap("TERM") { server.close; File.unlink(socket_path) rescue nil; exit }
 trap("INT")  { server.close; File.unlink(socket_path) rescue nil; exit }
 
+# TODO(phase-4): replace thread-per-client with a bounded thread pool
+# (Concurrent::FixedThreadPool, size: ENV.fetch("MOP_SUPERVISOR_THREADS", 8)).
+# TODO(phase-4): cap each_line with `limit:` and reject lines past MAX_RPC_LINE_BYTES
+# (default 1 MiB) so a malformed client cannot exhaust memory.
+# TODO(phase-4): per-connection request-rate cap; drop after N bad parses.
 loop do
   client = server.accept
   Thread.new(client) do |c|
@@ -2695,6 +2937,15 @@ git commit -m "Phase 1: Procfile.dev + bin/dev + agents_supervisor stub with hea
   ```
   Expected for each: zero failures, no high-severity findings.
 
+**Phase 1 hardening gate (must-fix from the Phase 1 review)** — none of these may slip into a Phase 2 ticket. Each lives inside the Task it belongs to; this checklist is the second cross-check before declaring Phase 1 done.
+
+- [ ] **MAX_TOOL_ITERATIONS guard** on `Message::Streamable#advance!` with `Llm::ToolLoopExceeded` error (Task 1.9, review issue #1).
+- [ ] **Rate-limit retry strips half-streamed `tool_use` blocks** via `transition_to_streaming!`, with a test that creates a row in `:rate_limited` with `input_partial` and asserts it's dropped on retry (Task 1.9, review issue #2).
+- [ ] **End-to-end recursive tool-loop test** drives stream → tool_call → tool_result → second stream → finalize against a recorded VCR cassette (Task 1.9, review issue #6 — without this, fixes #1 and #2 are unverifiable).
+- [ ] **`require_admin` gates `Settings::ProvidersController` + `Settings::Providers::TestsController`**, with non-admin fixture and controller tests that assert redirect (Task 1.12, review issue #3).
+- [ ] **Blank `api_key` does not clobber stored value**, with a test that updates a provider with `api_key: ""` and asserts the encrypted value is unchanged (Task 1.12, review issue #4).
+- [ ] **Cross-tenancy HTTP boundary test** covers show/messages/forks/archives/pins via a shared `CrossTenancyAssertions` helper (Task 1.10, review issue #5).
+
 ---
 
 ### Phase 2 — Memory + Files + Theme switcher (~1-2 weeks)
@@ -2709,6 +2960,13 @@ git commit -m "Phase 1: Procfile.dev + bin/dev + agents_supervisor stub with hea
 - Files page (`/files` + `Files::NodesController` for tree/show/update). Textarea editor.
 - `theme_controller.js` writes `data-theme`/`data-accent` to `<html>`. Theme settings UI in `/settings`.
 - `bin/agents_supervisor` v1: `listen` watcher for `${MOP_HOME}/memory/`, enqueues `Memory::IndexerJob` via its UNIX socket → Puma → ActiveJob.
+
+**Phase 1 cleanup (deferred review findings; track as their own checkbox in `phase-2-memory-files-themes.md`):**
+- Collapse `Message::Streamable#needs_tool_loop?` N×`exists?` into one query by hydrating an in-memory `Set` of succeeded `provider_tool_id`s, then checking `tool_use` blocks against the set. Bounded today but trivially fixed.
+- Downgrade `ChatChannel#subscribed`'s `RecordNotFound` to a logged `reject` so a stale subscription doesn't flood Sentry. Update the existing channel test to assert `subscription.rejected?` instead of expecting a raise.
+- Replace the empty `Message::Costable` placeholder. Either move `compute_cost` / token attribute readers out of `Streamable` into `Costable`, or delete the include (and the file) — whichever the Phase 2 task list lands on. The current empty concern is a Phase 1 placeholder, called out in Task 1.7 Step 4.
+- Share the model dropdown source between the chat-new view and `ENV["MOP_DEFAULT_MODEL"]` via `Llm::Pricing.models_for("anthropic")` so the two lists can't drift.
+- Deep-freeze `Llm::Pricing::TABLE` (`transform_values(&:freeze).freeze`) so a downstream caller can't mutate a per-model hash.
 
 **Per-phase task list to write before starting:** `docs/plans/phase-2-memory-files-themes.md`.
 
@@ -2749,16 +3007,17 @@ git commit -m "Phase 1: Procfile.dev + bin/dev + agents_supervisor stub with hea
 ### Phase 4 — MCP + Terminal + Supervisor v2 (~2-3 weeks)
 
 **Adds:**
-- Migrations: `mcp_servers`, `mcp_tools`, `terminal_sessions`.
-- `bin/agents_supervisor` v2: tmux session lifecycle + MCP stdio bridge. Full JSON-RPC API per § 11.2.
+- Migrations: `mcp_servers`, `mcp_tools`, `terminal_sessions`. Add `sessions.expires_at` (web `Session` model from Task 1.4) — defaulted at create-time and rotated on use.
+- `bin/agents_supervisor` v2: tmux session lifecycle + MCP stdio bridge. Full JSON-RPC API per § 11.2. Replace the Phase 1 thread-per-client with a bounded `Concurrent::FixedThreadPool`, enforce `MAX_RPC_LINE_BYTES` per request line, and per-connection bad-parse rate cap. The Phase 1 stub has TODO breadcrumbs in `bin/agents_supervisor` marking each shortcut.
 - `Mcp::HttpClient`, `Mcp::StdioBridge`, `Mcp::DiscoveryJob`, `mcp_server.discover_tools!`, `mcp_tool.invoke(input)`.
 - MCP page: list/create/edit/test servers, view discovered tools.
 - `Terminal::TmuxManager` calling out to `tmux` CLI; `Terminal::StreamPump` reads from `pipe-pane` FIFO into `TerminalChannel.broadcast_to`.
-- `Terminal::SweepJob` kills sessions past detach TTL (default 1 hour).
+- `Terminal::SweepJob` kills tmux sessions past detach TTL (default 1 hour).
+- **`Session::SweepJob` (recurring, hourly)** — deletes expired web `Session` rows, rotates `last_seen_at` on each authenticated request, and resets the signed cookie when it nears expiry. Mirrors the Terminal sweep pattern. Phase 1 ships a permanent cookie + no rotation (acceptable for single-user installs per § 15.1); multi-user installs should land this before opening sign-ups.
 - Terminal page with xterm.js + `terminal_controller.js`.
 - Upgrade memory + file editors to Monaco (importmap pin + lazy load per § 13.1).
 
-**Exit criteria:** Configure an HTTP MCP server (e.g. context7) and call its tools from chat. Open a terminal, run commands, disconnect, reattach within TTL window with scrollback intact.
+**Exit criteria:** Configure an HTTP MCP server (e.g. context7) and call its tools from chat. Open a terminal, run commands, disconnect, reattach within TTL window with scrollback intact. Expired web sessions are pruned hourly; an idle session past `expires_at` redirects to sign-in.
 
 ---
 
@@ -2799,7 +3058,7 @@ git commit -m "Phase 1: Procfile.dev + bin/dev + agents_supervisor stub with hea
 ### Phase 7 — Polish + OpenAI compatibility (~1-2 weeks)
 
 **Adds:**
-- `Api::V1::ResponsesController` + `LlmResponsesAdapter` per § 14.
+- `Api::V1::ResponsesController` + `LlmResponsesAdapter` per § 14. This is the first caller of `ApiToken.authenticate` (the model + tests ship in Task 1.6 but stay dead code until this controller lands — keep the model tests, defer the authenticator's first integration test to here).
 - `Api::V1::ChatCompletionsController` (legacy).
 - API token UI (`/settings/api_tokens`, create/revoke, scopes).
 - OAuth device-code flow at `/settings/oauth_device_code` (for Nous Portal-style external auth) — minimal, deferrable.
@@ -2866,6 +3125,15 @@ Each subsequent phase adds its own migrations, models, controllers, channels, se
 - Whether to gem-pin Monaco (`monaco-editor-rails`) instead of CDN (Phase 4 decision).
 - Whether to add `async` gem for the supervisor's IO multiplexing or stay on plain threads + `IO.select` (Phase 4 decision).
 - Whether to extract a `mop-core` engine for the chat/streaming primitives so they could be reused (post-v1; not for v1).
+- Action Cable liveness / heartbeat / reconnect for long-running streams — not on any phase yet. Decide at Phase 4 alongside the supervisor v2 rewrite (the symptoms cluster: long-lived sockets, browser sleep, network blips). Revisit then.
+
+### Decisions logged from the Phase 1 review
+
+These look like open questions but were closed during the Phase 1 review — not deferred, decided.
+
+- **Per-event `save!` in `Message::Streamable#apply_stream_event!` is intentional.** § 7.2 requires the stream cursor be persisted after every successful event so a worker crash mid-stream can resume; batching defeats that. A comment in the code records the rationale (Task 1.9, Step 2). Do not "optimize" this in Phase 2 — if the row-write rate becomes a measurable problem under load, revisit by batching cursor updates while keeping content-block writes per-event.
+- **`prompt_messages` includes `self` (`id <= ?`).** Required for the recursive tool-loop pass: the assistant's `tool_use` blocks must precede the appended `tool_result` blocks in the request history. The retry-safety concern was real and is fixed in `transition_to_streaming!`, not here.
+- **`SessionsController#create` keeps `.downcase.strip` on the lookup email.** `normalizes :email` on `User` only runs on attribute assignment, not on `find_by` lookup values; removing the explicit normalize would break sign-in for "  Foo@Bar.COM  ".
 
 ---
 

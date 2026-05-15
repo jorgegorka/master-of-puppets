@@ -1,4 +1,6 @@
 class Settings::Providers::TestsController < ApplicationController
+  before_action :require_admin
+
   def create
     provider = ProviderConfig.find(params[:provider_id])
     Llm::Client.for(provider: provider.provider).ping

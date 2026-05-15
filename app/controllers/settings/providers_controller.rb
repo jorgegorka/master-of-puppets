@@ -1,4 +1,5 @@
 class Settings::ProvidersController < ApplicationController
+  before_action :require_admin
   before_action :set_provider, only: %i[show update]
 
   def index
@@ -18,7 +19,12 @@ class Settings::ProvidersController < ApplicationController
       @provider = ProviderConfig.find(params[:id])
     end
 
+    # Strip a blank :api_key so "leave blank to keep current" doesn't clobber
+    # the encrypted value with "" when the form is resubmitted without
+    # retyping the key.
     def provider_params
-      params.expect(provider_config: %i[api_key base_url default_model enabled])
+      attrs = params.expect(provider_config: %i[api_key base_url default_model enabled])
+      attrs.delete(:api_key) if attrs[:api_key].blank?
+      attrs
     end
 end

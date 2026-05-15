@@ -1,7 +1,11 @@
 module Message::Streamable
   extend ActiveSupport::Concern
 
-  def advance!
+  MAX_TOOL_ITERATIONS = 10
+
+  def advance!(iteration: 1)
+    raise Llm::ToolLoopExceeded, "exceeded #{MAX_TOOL_ITERATIONS} tool iterations" if iteration > MAX_TOOL_ITERATIONS
+
     transition_to_streaming!
 
     usage = llm_adapter.stream(
@@ -15,7 +19,7 @@ module Message::Streamable
 
     if needs_tool_loop?
       run_tool_calls!
-      advance!
+      advance!(iteration: iteration + 1)
     else
       finalize!(usage)
     end
@@ -37,13 +41,20 @@ module Message::Streamable
       Llm::Client.for(provider: provider)
     end
 
+    # On a rate-limit retry, content_blocks may still hold half-streamed tool_use
+    # blocks (with input_partial) from the prior attempt. Shipping them back to
+    # the provider yields a malformed tool_use — drop them before the next call.
     def transition_to_streaming!
       transaction do
         update!(status: :streaming) unless streaming?
-        self.content_blocks ||= []
-        self.stream_cursor = { "block_index" => -1, "byte_offset" => 0, "last_event_at" => Time.current.iso8601 }
+        self.content_blocks = retain_completed_blocks(content_blocks)
+        self.stream_cursor  = { "block_index" => -1, "byte_offset" => 0, "last_event_at" => Time.current.iso8601 }
         save!
       end
+    end
+
+    def retain_completed_blocks(blocks)
+      Array(blocks).reject { |b| b.is_a?(Hash) && b["type"] == "tool_use" && b.key?("input_partial") }
     end
 
     def apply_stream_event!(event)

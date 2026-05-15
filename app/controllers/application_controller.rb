@@ -21,4 +21,11 @@ class ApplicationController < ActionController::Base
         redirect_to new_session_path
       end
     end
+
+    # Subclasses opt-in with `before_action :require_admin`. The User#role
+    # enum and the bootstrap-to-admin callback in User make this gate the
+    # default seat for privileged surfaces (Settings::Providers* in Phase 1).
+    def require_admin
+      redirect_to root_path, alert: "Admin only." unless Current.user&.admin?
+    end
 end

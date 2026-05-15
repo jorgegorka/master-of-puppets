@@ -11,4 +11,6 @@ module Llm
       @retry_after = retry_after
     end
   end
+
+  class ToolLoopExceeded < Error; end
 end

@@ -43,3 +43,18 @@ module ActiveSupport
     end
   end
 end
+
+# Integration tests authenticate over the HTTP boundary by POSTing to the
+# sessions controller. Rack::Test's cookie jar can't sign cookies directly, so
+# we drive the real sign-in flow — same path the user takes — and inherit the
+# signed session cookie from the response.
+module ControllerSignInHelpers
+  def sign_in_as(user, password: "supersecret123")
+    user.update!(password: password)
+    post session_path, params: { email: user.email, password: password }
+  end
+end
+
+class ActionDispatch::IntegrationTest
+  include ControllerSignInHelpers
+end
