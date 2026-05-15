@@ -1,0 +1,33 @@
+<% content_for :title, @provider.provider %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1><%= @provider.provider %></h1>
+    <%= link_to "← Providers", settings_providers_path %>
+  </header>
+
+  <% if flash[:notice] %><p class="txt-positive"><%= flash[:notice] %></p><% end %>
+  <% if flash[:alert]  %><p class="txt-negative"><%= flash[:alert]  %></p><% end %>
+
+  <%= form_with model: @provider, url: settings_provider_path(@provider), method: :patch, class: "flex flex-column gap" do |f| %>
+    <label class="flex flex-column gap-half">
+      <span>API key</span>
+      <%= f.password_field :api_key, autocomplete: "off", placeholder: "leave blank to keep current" %>
+    </label>
+    <label class="flex flex-column gap-half">
+      <span>Base URL</span>
+      <%= f.text_field :base_url %>
+    </label>
+    <label class="flex flex-column gap-half">
+      <span>Default model</span>
+      <%= f.text_field :default_model %>
+    </label>
+    <label class="flex gap-half align-center">
+      <%= f.check_box :enabled %>
+      <span>Enabled</span>
+    </label>
+    <%= f.submit "Save" %>
+  <% end %>
+
+  <%= button_to "Test connection", settings_provider_test_path(@provider), method: :post, class: "margin-block" %>
+</section>

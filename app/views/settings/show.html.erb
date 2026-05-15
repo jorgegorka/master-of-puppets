@@ -1,0 +1,35 @@
+<% content_for :title, "Settings" %>
+
+<section class="pad max-width center">
+  <h1>Settings</h1>
+
+  <nav class="flex gap pad-block">
+    <%= link_to "Providers", settings_providers_path %>
+  </nav>
+
+  <%= form_with model: @user_setting, url: settings_path, method: :patch, class: "flex flex-column gap" do |f| %>
+    <% if flash[:notice] %><p class="txt-positive"><%= flash[:notice] %></p><% end %>
+
+    <label class="flex flex-column gap-half">
+      <span>Theme</span>
+      <%= f.select :theme, %w[claude-official claude-official-light claude-classic slate mono] %>
+    </label>
+    <label class="flex flex-column gap-half">
+      <span>Accent</span>
+      <%= f.select :accent, %w[indigo green red yellow] %>
+    </label>
+    <label class="flex flex-column gap-half">
+      <span>Editor font size (px)</span>
+      <%= f.number_field :editor_font_size, min: 10, max: 24 %>
+    </label>
+    <label class="flex gap-half align-center">
+      <%= f.check_box :notifications_enabled %>
+      <span>Notifications enabled</span>
+    </label>
+    <label class="flex flex-column gap-half">
+      <span>Usage threshold (%)</span>
+      <%= f.number_field :usage_threshold, min: 0, max: 100 %>
+    </label>
+    <%= f.submit "Save" %>
+  <% end %>
+</section>

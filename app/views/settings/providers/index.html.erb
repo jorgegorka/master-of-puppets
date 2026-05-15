@@ -1,0 +1,20 @@
+<% content_for :title, "Providers" %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1>Providers</h1>
+    <%= link_to "← Settings", settings_path %>
+  </header>
+
+  <ul class="flex flex-column gap-half">
+    <% @providers.each do |provider| %>
+      <li class="flex justify-between align-center pad-block-half">
+        <%= link_to provider.provider, settings_provider_path(provider) %>
+        <span class="txt-subtle txt-x-small">
+          <%= provider.default_model %>
+          <%= "(disabled)" unless provider.enabled? %>
+        </span>
+      </li>
+    <% end %>
+  </ul>
+</section>

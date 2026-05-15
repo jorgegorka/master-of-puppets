@@ -17,4 +17,14 @@ Rails.application.routes.draw do
       resource  :pin,      only: %i[create destroy]
     end
   end
+
+  resource :settings, only: %i[show update] do
+    scope module: :settings do
+      resources :providers, only: %i[index show update] do
+        scope module: :providers do
+          resource :test, only: %i[create]
+        end
+      end
+    end
+  end
 end
