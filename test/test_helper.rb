@@ -10,6 +10,17 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
-    # Add more helper methods to be used by all tests here...
+    setup do
+      Current.session    = sessions(:one) if Session.exists?(sessions(:one).id)
+      Current.user       = Current.session&.user
+      Current.ip_address = "127.0.0.1"
+      Current.user_agent = "test-agent"
+    rescue ActiveRecord::Fixture::FixtureError, NoMethodError
+      # No sessions fixture available in this test class
+    end
+
+    teardown do
+      Current.reset
+    end
   end
 end

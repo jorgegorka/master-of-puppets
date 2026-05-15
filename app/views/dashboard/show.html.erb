@@ -1,0 +1,7 @@
+<% content_for :title, "Dashboard" %>
+
+<section class="pad max-width center">
+  <h1>Dashboard</h1>
+  <p class="txt-subtle">Signed in as <%= Current.user.email %>.</p>
+  <%= button_to "Sign out", session_path, method: :delete %>
+</section>

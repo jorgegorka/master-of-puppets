@@ -1,0 +1,5 @@
+one:
+  user: one
+  user_agent: "Capybara/test"
+  ip_address: "127.0.0.1"
+  last_seen_at: <%= Time.current.iso8601 %>

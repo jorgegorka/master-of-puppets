@@ -1,0 +1,5 @@
+one:
+  email: jorge@example.test
+  password_digest: <%= BCrypt::Password.create("supersecret123") %>
+  role: 0
+  single_user_bootstrap: false
