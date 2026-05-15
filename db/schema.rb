@@ -10,7 +10,24 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_15_204634) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_15_204958) do
+  create_table "events", force: :cascade do |t|
+    t.string "action", null: false
+    t.datetime "created_at", null: false
+    t.integer "creator_id"
+    t.integer "eventable_id", null: false
+    t.string "eventable_type", null: false
+    t.string "ip"
+    t.datetime "occurred_at", null: false
+    t.json "particulars"
+    t.datetime "updated_at", null: false
+    t.string "user_agent"
+    t.index ["action"], name: "index_events_on_action"
+    t.index ["creator_id"], name: "index_events_on_creator_id"
+    t.index ["eventable_type", "eventable_id"], name: "index_events_on_eventable_type_and_eventable_id"
+    t.index ["occurred_at"], name: "index_events_on_occurred_at"
+  end
+
   create_table "sessions", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "ip_address"
@@ -31,5 +48,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_15_204634) do
     t.index ["email"], name: "index_users_on_email", unique: true
   end
 
+  add_foreign_key "events", "users", column: "creator_id"
   add_foreign_key "sessions", "users"
 end
