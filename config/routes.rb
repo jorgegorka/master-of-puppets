@@ -8,4 +8,13 @@ Rails.application.routes.draw do
   root "dashboard#show"
 
   resource :session, only: %i[new create destroy]
+
+  resources :chat_sessions, path: "chat" do
+    scope module: :chat_sessions do
+      resources :messages, only: %i[create]
+      resources :forks,    only: %i[create]
+      resource  :archive,  only: %i[create destroy]
+      resource  :pin,      only: %i[create destroy]
+    end
+  end
 end

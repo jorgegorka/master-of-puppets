@@ -8,12 +8,18 @@ require "vcr"
 VCR.configure do |config|
   config.cassette_library_dir = Rails.root.join("test/fixtures/vcr").to_s
   config.hook_into :webmock
+  config.ignore_localhost = true
   config.filter_sensitive_data("<ANTHROPIC_API_KEY>") { ENV["ANTHROPIC_API_KEY"] || "test-anthropic-key" }
   config.default_cassette_options = { record: :new_episodes, match_requests_on: %i[method uri] }
 end
 
-# Allow Capybara/Selenium loopback traffic through WebMock
-WebMock.disable_net_connect!(allow_localhost: true)
+# Allow Capybara/Selenium loopback traffic through WebMock.
+# Selenium talks to chromedriver on 127.0.0.1 / ::1 which `allow_localhost: true`
+# doesn't always cover, so we whitelist the loopback IPs explicitly.
+WebMock.disable_net_connect!(
+  allow_localhost: true,
+  allow: %w[127.0.0.1 ::1]
+)
 
 module ActiveSupport
   class TestCase

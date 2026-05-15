@@ -1,0 +1,16 @@
+module ApplicationCable
+  class Connection < ActionCable::Connection::Base
+    identified_by :current_user
+
+    def connect
+      self.current_user = find_verified_user
+      logger.add_tags("ActionCable", "User #{current_user.id}")
+    end
+
+    private
+      def find_verified_user
+        session_id = cookies.signed[:session_id]
+        Session.find_by(id: session_id)&.user || reject_unauthorized_connection
+      end
+  end
+end

@@ -3,5 +3,10 @@
 <section class="pad max-width center">
   <h1>Dashboard</h1>
   <p class="txt-subtle">Signed in as <%= Current.user.email %>.</p>
+
+  <nav class="flex gap pad-block">
+    <%= link_to "Chats", chat_sessions_path %>
+  </nav>
+
   <%= button_to "Sign out", session_path, method: :delete %>
 </section>

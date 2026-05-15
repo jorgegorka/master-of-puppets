@@ -1,0 +1,19 @@
+<% content_for :title, @chat_session.title %>
+
+<%= turbo_stream_from @chat_session %>
+
+<section data-controller="chat" data-chat-chat-session-id-value="<%= @chat_session.id %>" class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1><%= @chat_session.title %></h1>
+    <span class="txt-subtle txt-x-small"><%= @chat_session.model %></span>
+  </header>
+
+  <div id="<%= dom_id(@chat_session, :messages) %>" class="messages flex flex-column gap">
+    <%= render @chat_session.messages.ordered %>
+  </div>
+
+  <%= form_with url: chat_session_messages_path(@chat_session), local: false, class: "flex flex-column gap pad-block" do |f| %>
+    <%= f.text_area :content, rows: 3, required: true, placeholder: "Type a message…" %>
+    <%= f.submit "Send" %>
+  <% end %>
+</section>

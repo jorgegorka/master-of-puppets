@@ -1,0 +1,10 @@
+<article id="<%= dom_id(message) %>" class="message message--<%= message.role %> message--<%= message.status %>" data-message-id="<%= message.id %>">
+  <% Array(message.content_blocks).each_with_index do |block, i| %>
+    <% type = (block["type"] || block[:type]).to_s %>
+    <% partial = "messages/block_#{type}" %>
+    <%= render partial: partial, locals: { block: block, index: i } %>
+  <% end %>
+  <% if message.streaming? %>
+    <span class="txt-subtle txt-x-small">streaming…</span>
+  <% end %>
+</article>

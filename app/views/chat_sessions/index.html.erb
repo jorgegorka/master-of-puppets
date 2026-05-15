@@ -1,0 +1,23 @@
+<% content_for :title, "Chats" %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1>Chats</h1>
+    <%= link_to "+ New chat", new_chat_session_path, class: "btn" %>
+  </header>
+
+  <% if @chat_sessions.any? %>
+    <ul class="flex flex-column gap-half">
+      <% @chat_sessions.each do |session| %>
+        <li class="pad-block-half flex justify-between align-center">
+          <%= link_to session.title.presence || "(untitled)", session %>
+          <span class="txt-subtle txt-x-small">
+            <%= session.model %> · <%= time_ago_in_words(session.last_active_at || session.created_at) %> ago
+          </span>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p class="txt-subtle">No chats yet.</p>
+  <% end %>
+</section>

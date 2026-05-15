@@ -1,0 +1,17 @@
+<% content_for :title, "New chat" %>
+
+<section class="pad max-width center">
+  <h1>New chat</h1>
+  <%= form_with model: @chat_session, url: chat_sessions_path, class: "flex flex-column gap" do |f| %>
+    <label class="flex flex-column gap-half">
+      <span>Title</span>
+      <%= f.text_field :title, required: true %>
+    </label>
+    <label class="flex flex-column gap-half">
+      <span>Model</span>
+      <%= f.select :model, %w[claude-opus-4-7 claude-sonnet-4-6 claude-haiku-4-5] %>
+    </label>
+    <%= f.hidden_field :provider, value: "anthropic" %>
+    <%= f.submit "Create" %>
+  <% end %>
+</section>
