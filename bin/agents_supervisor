@@ -1,0 +1,66 @@
+#!/usr/bin/env ruby
+# Phase 1 stub: listens on tmp/sockets/agents_supervisor.sock for JSON-RPC
+# requests. Only health.ping is implemented; Phase 2 adds the memory file
+# watcher, Phase 4 adds tmux + MCP child processes.
+
+require_relative "../config/environment"
+require "socket"
+require "json"
+require "fileutils"
+
+SOCKET_PATH = Rails.root.join("tmp/sockets/agents_supervisor.sock")
+FileUtils.mkdir_p(SOCKET_PATH.dirname)
+File.delete(SOCKET_PATH) if File.exist?(SOCKET_PATH)
+
+server = UNIXServer.new(SOCKET_PATH.to_s)
+shutdown_r, shutdown_w = IO.pipe
+
+Rails.logger.info("[agents_supervisor] listening on #{SOCKET_PATH}")
+puts "[agents_supervisor] listening on #{SOCKET_PATH}"
+
+# Trap handlers must avoid I/O on Rails.logger (writing from a trap context
+# can deadlock or segfault on Ruby 3.x). Signal the main thread by closing a
+# pipe, which IO.select picks up.
+trap("TERM") { shutdown_w.close rescue nil }
+trap("INT")  { shutdown_w.close rescue nil }
+
+handle_request = lambda do |request|
+  case request["method"]
+  when "health.ping"
+    { jsonrpc: "2.0", id: request["id"], result: { pong: true, pid: Process.pid } }
+  else
+    { jsonrpc: "2.0", id: request["id"],
+      error: { code: -32601, message: "method not found in Phase 1: #{request['method']}" } }
+  end
+end
+
+loop do
+  readable, = IO.select([ server, shutdown_r ])
+
+  if readable.include?(shutdown_r)
+    Rails.logger.info("[agents_supervisor] shutting down") rescue nil
+    server.close rescue nil
+    File.unlink(SOCKET_PATH) rescue nil
+    exit 0
+  end
+
+  client = server.accept_nonblock(exception: false)
+  next if client == :wait_readable
+
+  Thread.new(client) do |c|
+    begin
+      c.each_line do |line|
+        request = begin
+          JSON.parse(line)
+        rescue JSON::ParserError
+          { "id" => nil, "method" => "parse_error" }
+        end
+        c.puts(handle_request.call(request).to_json)
+      end
+    rescue IOError, Errno::EPIPE
+      # client disconnected
+    ensure
+      c.close rescue nil
+    end
+  end
+end
