@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_15_205129) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_15_205413) do
   create_table "api_tokens", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "last_used_at"
@@ -22,6 +22,39 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_15_205129) do
     t.integer "user_id", null: false
     t.index ["prefix"], name: "index_api_tokens_on_prefix", unique: true
     t.index ["user_id"], name: "index_api_tokens_on_user_id"
+  end
+
+  create_table "chat_session_archives", force: :cascade do |t|
+    t.integer "chat_session_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["chat_session_id"], name: "index_chat_session_archives_on_chat_session_id", unique: true
+    t.index ["user_id"], name: "index_chat_session_archives_on_user_id"
+  end
+
+  create_table "chat_session_pins", force: :cascade do |t|
+    t.integer "chat_session_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["chat_session_id"], name: "index_chat_session_pins_on_chat_session_id", unique: true
+    t.index ["user_id"], name: "index_chat_session_pins_on_user_id"
+  end
+
+  create_table "chat_sessions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "forked_from_id"
+    t.datetime "last_active_at"
+    t.string "model", null: false
+    t.string "provider", null: false
+    t.string "share_token"
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["forked_from_id"], name: "index_chat_sessions_on_forked_from_id"
+    t.index ["share_token"], name: "index_chat_sessions_on_share_token", unique: true, where: "share_token IS NOT NULL"
+    t.index ["user_id"], name: "index_chat_sessions_on_user_id"
   end
 
   create_table "events", force: :cascade do |t|
@@ -39,6 +72,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_15_205129) do
     t.index ["creator_id"], name: "index_events_on_creator_id"
     t.index ["eventable_type", "eventable_id"], name: "index_events_on_eventable_type_and_eventable_id"
     t.index ["occurred_at"], name: "index_events_on_occurred_at"
+  end
+
+  create_table "messages", force: :cascade do |t|
+    t.integer "cache_creation_tokens"
+    t.integer "cache_read_tokens"
+    t.integer "chat_session_id", null: false
+    t.integer "completion_tokens"
+    t.json "content_blocks"
+    t.decimal "cost_usd", precision: 12, scale: 6
+    t.datetime "created_at", null: false
+    t.text "error_message"
+    t.string "model"
+    t.integer "prompt_tokens"
+    t.string "provider"
+    t.integer "role", null: false
+    t.integer "status", default: 0, null: false
+    t.json "stream_cursor"
+    t.datetime "updated_at", null: false
+    t.index ["chat_session_id", "created_at"], name: "index_messages_on_chat_session_id_and_created_at"
+    t.index ["chat_session_id"], name: "index_messages_on_chat_session_id"
   end
 
   create_table "provider_configs", force: :cascade do |t|
@@ -60,6 +113,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_15_205129) do
     t.string "user_agent"
     t.integer "user_id", null: false
     t.index ["user_id"], name: "index_sessions_on_user_id"
+  end
+
+  create_table "tool_calls", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "error_message"
+    t.datetime "finished_at"
+    t.json "input"
+    t.integer "message_id", null: false
+    t.string "name", null: false
+    t.json "output"
+    t.string "provider_tool_id", null: false
+    t.integer "source", null: false
+    t.datetime "started_at"
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["message_id", "provider_tool_id"], name: "index_tool_calls_on_message_id_and_provider_tool_id", unique: true
+    t.index ["message_id"], name: "index_tool_calls_on_message_id"
   end
 
   create_table "user_settings", force: :cascade do |t|
@@ -86,7 +156,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_15_205129) do
   end
 
   add_foreign_key "api_tokens", "users"
+  add_foreign_key "chat_session_archives", "chat_sessions"
+  add_foreign_key "chat_session_archives", "users"
+  add_foreign_key "chat_session_pins", "chat_sessions"
+  add_foreign_key "chat_session_pins", "users"
+  add_foreign_key "chat_sessions", "chat_sessions", column: "forked_from_id"
+  add_foreign_key "chat_sessions", "users"
   add_foreign_key "events", "users", column: "creator_id"
+  add_foreign_key "messages", "chat_sessions"
   add_foreign_key "sessions", "users"
+  add_foreign_key "tool_calls", "messages"
   add_foreign_key "user_settings", "users"
 end

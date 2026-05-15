@@ -1,0 +1,7 @@
+hello:
+  chat_session: one
+  role: 1
+  content_blocks: <%= [ { type: "text", text: "Hello" } ].to_json %>
+  status: 2
+  model: claude-opus-4-7
+  provider: anthropic

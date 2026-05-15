@@ -1,0 +1,6 @@
+one:
+  user: one
+  title: "First chat"
+  model: claude-opus-4-7
+  provider: anthropic
+  last_active_at: <%= Time.current.iso8601 %>
