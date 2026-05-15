@@ -1,0 +1,11 @@
+anthropic:
+  provider: anthropic
+  base_url: https://api.anthropic.com
+  default_model: claude-opus-4-7
+  enabled: true
+
+openai:
+  provider: openai
+  base_url: https://api.openai.com
+  default_model: gpt-4o
+  enabled: false

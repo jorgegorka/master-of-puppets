@@ -1,0 +1,8 @@
+one:
+  user: one
+  theme: claude-official
+  accent: indigo
+  editor_font_size: 13
+  sidebar_collapsed: false
+  notifications_enabled: true
+  usage_threshold: 80
