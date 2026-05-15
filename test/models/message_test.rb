@@ -7,10 +7,7 @@ class MessageTest < ActiveSupport::TestCase
     assert_equal [], msg.content_blocks
   end
 
-  test "advance! raises NotImplementedError stub" do
-    msg = messages(:hello)
-    assert_raises(NotImplementedError) { msg.advance! }
-  end
+  # advance! is implemented (see test/models/message/streamable_test.rb).
 
   test "ordered scope sorts by created_at" do
     session = chat_sessions(:one)
