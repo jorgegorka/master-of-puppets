@@ -76,4 +76,8 @@ group :test do
   # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
   gem "capybara"
   gem "selenium-webdriver"
+
+  # HTTP stubbing + replay for adapter tests
+  gem "vcr", "~> 6.3"
+  gem "webmock", "~> 3.23"
 end
