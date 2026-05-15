@@ -1,0 +1,65 @@
+@layer utilities {
+  /* Layout */
+  .flex          { display: flex; }
+  .flex-column   { display: flex; flex-direction: column; }
+  .flex-1        { flex: 1; }
+  .flex-wrap     { flex-wrap: wrap; }
+
+  .gap           { gap: var(--inline-space); }
+  .gap-half      { gap: var(--inline-space-half); }
+  .gap-double    { gap: var(--inline-space-double); }
+  .gap-none      { gap: 0; }
+
+  .justify-start   { justify-content: flex-start; }
+  .justify-center  { justify-content: center; }
+  .justify-end     { justify-content: flex-end; }
+  .justify-between { justify-content: space-between; }
+
+  .align-start    { align-items: flex-start; }
+  .align-center   { align-items: center; }
+  .align-end      { align-items: flex-end; }
+  .align-baseline { align-items: baseline; }
+
+  /* Padding (logical) */
+  .pad             { padding: var(--block-space) var(--inline-space); }
+  .pad-double      { padding: var(--block-space-double) var(--inline-space-double); }
+  .pad-block       { padding-block: var(--block-space); }
+  .pad-block-half  { padding-block: var(--block-space-half); }
+  .pad-inline      { padding-inline: var(--inline-space); }
+  .pad-inline-half { padding-inline: var(--inline-space-half); }
+  .unpad           { padding: 0; }
+
+  /* Margin */
+  .margin              { margin: var(--block-space) var(--inline-space); }
+  .margin-block        { margin-block: var(--block-space); }
+  .margin-block-half   { margin-block: var(--block-space-half); }
+  .margin-block-double { margin-block: var(--block-space-double); }
+  .margin-inline       { margin-inline: var(--inline-space); }
+  .center              { margin-inline: auto; }
+
+  /* Sizing */
+  .full-width  { inline-size: 100%; }
+  .max-width   { max-inline-size: 72ch; }
+  .max-width-wide { max-inline-size: 100ch; }
+
+  /* Text */
+  .txt-xx-small { font-size: var(--text-xx-small); }
+  .txt-x-small  { font-size: var(--text-x-small); }
+  .txt-small    { font-size: var(--text-small); }
+  .txt-normal   { font-size: var(--text-normal); }
+  .txt-medium   { font-size: var(--text-medium); }
+  .txt-large    { font-size: var(--text-large); }
+  .txt-x-large  { font-size: var(--text-x-large); }
+
+  .txt-subtle   { color: var(--color-ink-lighter); }
+  .txt-positive { color: var(--color-positive); }
+  .txt-negative { color: var(--color-negative); }
+
+  .font-weight-normal { font-weight: 400; }
+  .font-weight-bold   { font-weight: 600; }
+  .font-weight-black  { font-weight: 900; }
+
+  /* Borders / surfaces */
+  .border-radius { border-radius: 0.5rem; }
+  .surface { background: var(--color-canvas-raise); border-radius: 0.5rem; }
+}

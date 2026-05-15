@@ -1,0 +1,109 @@
+/* Layer order — non-negotiable. */
+@layer reset, base, components, modules, utilities, native, platform;
+
+/* ---------- Raw OKLCH palette (never used directly in components) ---------- */
+:root {
+  --lch-black:           0% 0 0;
+  --lch-white:           100% 0 0;
+  --lch-gray-deep:       18% 0.01 270;
+  --lch-gray-dark:       28% 0.012 270;
+  --lch-gray-mid:        50% 0.012 270;
+  --lch-gray-light:      75% 0.008 270;
+  --lch-gray-lighter:    90% 0.006 270;
+  --lch-gray-ghost:      96% 0.004 270;
+
+  --lch-indigo-deep:     32% 0.16 270;
+  --lch-indigo-medium:   55% 0.18 270;
+  --lch-indigo-light:    72% 0.12 270;
+
+  --lch-red-medium:      55% 0.22 25;
+  --lch-green-medium:    62% 0.16 145;
+  --lch-yellow-medium:   85% 0.15 90;
+}
+
+/* ---------- Semantic aliases (claude-official default) ---------- */
+:root,
+:root[data-theme="claude-official"] {
+  --color-ink:           oklch(var(--lch-gray-deep));
+  --color-ink-light:     oklch(var(--lch-gray-dark));
+  --color-ink-lighter:   oklch(var(--lch-gray-mid));
+  --color-canvas:        oklch(var(--lch-white));
+  --color-canvas-raise:  oklch(var(--lch-gray-ghost));
+  --color-canvas-sunken: oklch(var(--lch-gray-lighter));
+  --color-rule:          oklch(var(--lch-gray-light));
+
+  --color-link:          oklch(var(--lch-indigo-medium));
+  --color-positive:      oklch(var(--lch-green-medium));
+  --color-negative:      oklch(var(--lch-red-medium));
+  --color-highlight:     oklch(var(--lch-yellow-medium));
+
+  --color-card-default:  oklch(var(--lch-indigo-light));
+}
+
+/* Light variants share the default. Dark themes invert below. */
+:root[data-theme="claude-official-light"] {
+  /* same as default for now; expand later */
+}
+
+:root[data-theme="claude-classic"],
+:root[data-theme="slate"],
+:root[data-theme="mono"] {
+  --color-ink:           oklch(var(--lch-white));
+  --color-ink-light:     oklch(var(--lch-gray-lighter));
+  --color-ink-lighter:   oklch(var(--lch-gray-light));
+  --color-canvas:        oklch(var(--lch-gray-deep));
+  --color-canvas-raise:  oklch(var(--lch-gray-dark));
+  --color-canvas-sunken: oklch(0% 0 0);
+  --color-rule:          oklch(var(--lch-gray-mid));
+}
+
+/* ---------- Spacing rhythm (logical) ---------- */
+:root {
+  --inline-space:        1ch;
+  --inline-space-half:   0.5ch;
+  --inline-space-double: 2ch;
+
+  --block-space:         1rem;
+  --block-space-half:    0.5rem;
+  --block-space-double:  2rem;
+}
+
+/* ---------- Type scale ---------- */
+:root {
+  --text-xx-small: clamp(0.69rem, 0.66rem + 0.13vw, 0.75rem);
+  --text-x-small:  clamp(0.78rem, 0.74rem + 0.18vw, 0.87rem);
+  --text-small:    clamp(0.88rem, 0.84rem + 0.22vw, 1rem);
+  --text-normal:   clamp(1rem,    0.95rem + 0.25vw, 1.13rem);
+  --text-medium:   clamp(1.13rem, 1.05rem + 0.4vw,  1.32rem);
+  --text-large:    clamp(1.27rem, 1.16rem + 0.55vw, 1.55rem);
+  --text-x-large:  clamp(1.42rem, 1.27rem + 0.75vw, 1.82rem);
+  --text-xx-large: clamp(1.6rem,  1.4rem + 1vw,     2.13rem);
+}
+
+/* ---------- Z-index scale ---------- */
+:root {
+  --z-events-column-header: 1;
+  --z-events-day-header:    3;
+  --z-popup:                10;
+  --z-nav:                  20;
+  --z-flash:                30;
+  --z-tooltip:              40;
+  --z-bar:                  50;
+  --z-tray:                 51;
+  --z-welcome:              52;
+  --z-nav-open:             100;
+}
+
+/* ---------- Focus ring ---------- */
+:root {
+  --focus-ring-color:  var(--color-link);
+  --focus-ring-offset: 1px;
+  --focus-ring-size:   2px;
+}
+
+/* ---------- Easings ---------- */
+:root {
+  --ease-out-expo:             cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-overshoot:        cubic-bezier(0.25, 1.75, 0.5, 1);
+  --ease-out-overshoot-subtle: cubic-bezier(0.25, 1.25, 0.5, 1);
+}
