@@ -40,6 +40,19 @@ gem "thruster", require: false
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 gem "image_processing", "~> 1.2"
 
+# AI provider SDKs
+gem "anthropic", "~> 1.41"
+gem "faraday", "~> 2.10"
+
+# Cron parsing for ScheduledJob
+gem "fugit", "~> 1.11"
+
+# Password hashing
+gem "bcrypt", "~> 3.1.7"
+
+# Memory dir watcher (used by bin/agents_supervisor)
+gem "listen", "~> 3.9"
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
