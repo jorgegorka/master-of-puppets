@@ -100,9 +100,10 @@ module Message::Streamable
       end
     end
 
-    def infer_source(_name)
-      # Phase 3 wires Tool::Internal and McpTool lookup. For Phase 1, default to :internal.
-      :internal
+    def infer_source(name)
+      return :internal if Tool::Internal.lookup(name)
+      return :mcp      if defined?(McpTool) && McpTool.exists?(name: name)
+      :skill
     end
 
     def broadcast_event(event)
@@ -110,13 +111,30 @@ module Message::Streamable
     end
 
     def prompt_messages
-      chat_session.messages.ordered.where("messages.id <= ?", id).map do |m|
+      history = chat_session.messages.ordered.where("messages.id <= ?", id).map do |m|
         { role: m.role, content: m.content_blocks }
       end
+      system = build_system_prompt
+      system.empty? ? history : ([ { role: :system, content: system } ] + history)
+    end
+
+    def build_system_prompt
+      enabled_skills.map { |s| "## Skill: #{s.name}\n\n#{s.body}" }.join("\n\n")
     end
 
     def available_tools
-      # Phase 3 populates this from enabled skills, Mcp tools, and built-in tools.
+      Tool::Internal.all_definitions + enabled_skills.flat_map { |s| skill_tool_definitions(s) }
+    end
+
+    def enabled_skills
+      Skill.enabled_for(chat_session.user)
+    end
+
+    def skill_tool_definitions(_skill)
+      # Phase 3 wires Tool::Internal only. Skills inject prompt sections (see
+      # build_system_prompt above) but their per-skill tool-def arrays land in
+      # Phase 6 alongside the agent profile work. Return [] now to keep the
+      # surface area honest.
       []
     end
 
@@ -130,14 +148,24 @@ module Message::Streamable
     def run_tool_calls!
       tool_calls.where(status: :pending).find_each(&:execute)
       tool_calls.where(status: :succeeded).find_each do |tc|
-        if content_blocks.none? { |b| b.is_a?(Hash) && b["type"] == "tool_result" && b["tool_use_id"] == tc.provider_tool_id }
-          self.content_blocks << {
-            "type"        => "tool_result",
-            "tool_use_id" => tc.provider_tool_id,
-            "content"     => tc.output.to_s,
-            "is_error"    => false
-          }
-        end
+        next if content_blocks.any? { |b| b.is_a?(Hash) && b["type"] == "tool_result" && b["tool_use_id"] == tc.provider_tool_id }
+        self.content_blocks << {
+          "type"        => "tool_result",
+          "tool_use_id" => tc.provider_tool_id,
+          "content"     => tc.output.is_a?(Hash) ? tc.output["content"].to_s : tc.output.to_s,
+          "is_error"    => false
+        }
+      end
+      # Also append a failed tool_result for any tool_calls that failed, so the
+      # LLM sees the error and can decide what to do next.
+      tool_calls.where(status: :failed).find_each do |tc|
+        next if content_blocks.any? { |b| b.is_a?(Hash) && b["type"] == "tool_result" && b["tool_use_id"] == tc.provider_tool_id }
+        self.content_blocks << {
+          "type"        => "tool_result",
+          "tool_use_id" => tc.provider_tool_id,
+          "content"     => tc.error_message.to_s,
+          "is_error"    => true
+        }
       end
       save!
     end

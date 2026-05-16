@@ -213,6 +213,75 @@ class Message::StreamableTest < ActiveSupport::TestCase
     assert_equal 1, ToolCall.where(message: assistant).count
   end
 
+  test "available_tools includes Tool::Internal definitions" do
+    msg = messages(:hello)
+    names = msg.send(:available_tools).map { |d| d[:name] }
+    assert_includes names, "read_file"
+    assert_includes names, "write_file"
+  end
+
+  test "build_system_prompt embeds enabled skill bodies" do
+    msg = messages(:hello)
+    skill = skills(:filesystem)
+    skill.enable_for(msg.chat_session.user)
+    # `enabled_skills` is an AR relation that loads fresh Skill rows, so stubbing
+    # the fixture instance directly wouldn't be hit. Patch Skill#body globally
+    # for the duration of the block instead.
+    original = Skill.instance_method(:body)
+    Skill.define_method(:body) { "RULES: be careful" }
+    begin
+      assert_includes msg.send(:build_system_prompt), "RULES: be careful"
+    ensure
+      Skill.define_method(:body, original)
+    end
+  end
+
+  test "infer_source returns :internal for read_file" do
+    msg = messages(:hello)
+    assert_equal :internal, msg.send(:infer_source, "read_file")
+  end
+
+  test "run_tool_calls! reads tc.output['content'] from the new hash shape" do
+    msg = messages(:hello)
+    ToolCall.create!(
+      message: msg, provider_tool_id: "toolu_x", name: "read_file",
+      source: :internal, input: { "path" => "memory/x.md" },
+      status: :succeeded, output: { "content" => "hello body" }
+    )
+    msg.send(:run_tool_calls!)
+    block = msg.content_blocks.find { |b| b["type"] == "tool_result" && b["tool_use_id"] == "toolu_x" }
+    refute_nil block, "expected a tool_result block appended"
+    assert_equal "hello body", block["content"], "should read the content key, not Hash#to_s"
+    refute block["is_error"]
+  end
+
+  test "run_tool_calls! appends an is_error tool_result for failed tool calls" do
+    msg = messages(:hello)
+    ToolCall.create!(
+      message: msg, provider_tool_id: "toolu_bad", name: "read_file",
+      source: :internal, input: { "path" => "missing" },
+      status: :failed, error_message: "not found"
+    )
+    msg.send(:run_tool_calls!)
+    block = msg.content_blocks.find { |b| b["type"] == "tool_result" && b["tool_use_id"] == "toolu_bad" }
+    refute_nil block
+    assert_equal "not found", block["content"]
+    assert block["is_error"]
+  end
+
+  test "tool_loop_round_trip: stream → tool_call → succeeded → tool_result block appended" do
+    skip "needs VCR cassette" unless File.exist?(Rails.root.join("test/fixtures/vcr/anthropic_tool_call.yml"))
+    VCR.use_cassette("anthropic_tool_call") do
+      session = chat_sessions(:one)
+      session.messages.create!(role: :user, content_blocks: [ { type: "text", text: "Read memory/MEMORY.md" } ], status: :completed)
+      assistant = session.messages.create!(role: :assistant, content_blocks: [], status: :pending,
+        model: "claude-haiku-4-5", provider: "anthropic")
+      assistant.advance!
+      assert assistant.tool_calls.where(name: "read_file", status: :succeeded).exists?
+      assert assistant.content_blocks.any? { |b| b["type"] == "tool_result" }
+    end
+  end
+
   private
     def build_assistant
       chat_sessions(:one).messages.create!(role: :assistant, status: :pending, content_blocks: [], model: "claude-opus-4-7", provider: "anthropic")
