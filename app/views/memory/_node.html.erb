@@ -1,0 +1,12 @@
+<li>
+  <% if node.directory %>
+    <strong><%= node.name %></strong>/
+    <% if node.children.any? %>
+      <ul class="flex flex-column gap-quarter pad-inline-start">
+        <%= render partial: "memory/node", collection: node.children, as: :node %>
+      </ul>
+    <% end %>
+  <% else %>
+    <%= link_to node.name, memory_file_path(node.path) %>
+  <% end %>
+</li>

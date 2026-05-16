@@ -1,0 +1,23 @@
+<% content_for :title, "Search: #{@query}" %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1>Search results</h1>
+    <%= link_to "← Memory", memory_path %>
+  </header>
+
+  <p class="txt-subtle">Query: <strong><%= @query %></strong></p>
+
+  <% if @results.any? %>
+    <ul class="flex flex-column gap-half">
+      <% @results.each do |file| %>
+        <li>
+          <%= link_to file.title.presence || file.path, memory_file_path(file.path) %>
+          <span class="txt-subtle txt-x-small">· <%= file.path %></span>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p class="txt-subtle">No matches.</p>
+  <% end %>
+</section>

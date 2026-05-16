@@ -27,4 +27,12 @@ Rails.application.routes.draw do
       end
     end
   end
+
+  resource :memory, controller: "memory", only: [ :show ] do
+    scope module: :memory do
+      resources :files,    only: %i[show update create destroy],
+                constraints: { id: %r{[^?]+} }, defaults: { format: :html }
+      resources :searches, only: %i[create]
+    end
+  end
 end
