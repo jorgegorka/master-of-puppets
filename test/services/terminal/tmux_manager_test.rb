@@ -9,7 +9,7 @@ class Terminal::TmuxManagerTest < ActiveSupport::TestCase
 
   test "create calls terminal.create with WorkspacePath-resolved cwd + dims" do
     captured = nil
-    with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) { captured = [method, params]; { "tmux_session_name" => "mop-term-1" } }) do
+    with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) { captured = [ method, params ]; { "tmux_session_name" => "mop-term-1" } }) do
       Terminal::TmuxManager.create(@terminal_session)
     end
     assert_equal "terminal.create", captured[0]
@@ -33,31 +33,31 @@ class Terminal::TmuxManagerTest < ActiveSupport::TestCase
 
   test "send_keys forwards to terminal.input" do
     captured = nil
-    with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) { captured = [method, params]; {} }) do
+    with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) { captured = [ method, params ]; {} }) do
       Terminal::TmuxManager.send_keys(@terminal_session, "echo hi\n")
     end
-    assert_equal ["terminal.input", { session_id: @terminal_session.id, data: "echo hi\n" }], captured
+    assert_equal [ "terminal.input", { session_id: @terminal_session.id, data: "echo hi\n" } ], captured
   end
 
   test "resize forwards to terminal.resize with int dims" do
     captured = nil
-    with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) { captured = [method, params]; {} }) do
+    with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) { captured = [ method, params ]; {} }) do
       Terminal::TmuxManager.resize(@terminal_session, 100, 50)
     end
-    assert_equal ["terminal.resize", { session_id: @terminal_session.id, cols: 100, rows: 50 }], captured
+    assert_equal [ "terminal.resize", { session_id: @terminal_session.id, cols: 100, rows: 50 } ], captured
   end
 
   test "close forwards to terminal.close" do
     captured = nil
-    with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) { captured = [method, params]; {} }) do
+    with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) { captured = [ method, params ]; {} }) do
       Terminal::TmuxManager.close(@terminal_session)
     end
-    assert_equal ["terminal.close", { session_id: @terminal_session.id }], captured
+    assert_equal [ "terminal.close", { session_id: @terminal_session.id } ], captured
   end
 
   test "capture forwards to terminal.capture with default lines" do
     captured = nil
-    with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) { captured = [method, params]; { "text" => "hi" } }) do
+    with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) { captured = [ method, params ]; { "text" => "hi" } }) do
       result = Terminal::TmuxManager.capture(@terminal_session)
       assert_equal({ "text" => "hi" }, result)
     end

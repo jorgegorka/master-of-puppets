@@ -67,7 +67,7 @@ class ToolCall::ExecutableTest < ActiveSupport::TestCase
       tc.execute
     end
 
-    assert tc.reload.succeeded?, "expected mcp dispatch to succeed; tc=#{tc.attributes.slice('status','error_message')}"
+    assert tc.reload.succeeded?, "expected mcp dispatch to succeed; tc=#{tc.attributes.slice('status', 'error_message')}"
     assert_equal "downstream-result", tc.output["content"]
   end
 

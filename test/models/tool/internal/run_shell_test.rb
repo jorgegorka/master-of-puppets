@@ -144,7 +144,7 @@ class Tool::Internal::RunShellTest < ActiveSupport::TestCase
   test "supervisor dispatch: happy path returns Tool::Result.ok with stdout body" do
     captured = nil
     with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) {
-      captured = [method, params]
+      captured = [ method, params ]
       { "stdout" => "hi from sup\n", "stderr" => "", "exit_code" => 0, "timed_out" => false }
     }) do
       result = Tool::Internal::RunShell.invoke(input: { "command" => "echo hi" }, user: @admin)

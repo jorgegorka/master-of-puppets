@@ -11,6 +11,6 @@ class CreateTerminalSessions < ActiveRecord::Migration[8.1]
       t.timestamps
     end
     add_index :terminal_sessions, :tmux_session_name, unique: true
-    add_index :terminal_sessions, [:user_id, :status]
+    add_index :terminal_sessions, [ :user_id, :status ]
   end
 end

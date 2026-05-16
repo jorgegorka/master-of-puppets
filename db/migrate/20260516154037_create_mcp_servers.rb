@@ -17,6 +17,6 @@ class CreateMcpServers < ActiveRecord::Migration[8.1]
       t.datetime :last_checked_at
       t.timestamps
     end
-    add_index :mcp_servers, [:user_id, :slug], unique: true
+    add_index :mcp_servers, [ :user_id, :slug ], unique: true
   end
 end

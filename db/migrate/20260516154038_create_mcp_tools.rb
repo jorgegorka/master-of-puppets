@@ -8,7 +8,7 @@ class CreateMcpTools < ActiveRecord::Migration[8.1]
       t.datetime :discovered_at
       t.timestamps
     end
-    add_index :mcp_tools, [:mcp_server_id, :name], unique: true
+    add_index :mcp_tools, [ :mcp_server_id, :name ], unique: true
     add_index :mcp_tools, :name
   end
 end

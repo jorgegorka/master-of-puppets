@@ -1,9 +1,9 @@
 class UserSetting < ApplicationRecord
   THEMES  = %w[
     claude-official claude-official-light
-    claude-classic  claude-classic-light
-    slate           slate-light
-    mono            mono-light
+    claude-classic claude-classic-light
+    slate slate-light
+    mono mono-light
   ].freeze
 
   ACCENTS = %w[indigo green red yellow violet].freeze

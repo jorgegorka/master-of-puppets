@@ -12,10 +12,10 @@ class TerminalSession::SweepableTest < ActiveSupport::TestCase
 
   test "sweep! calls terminate! on each sweepable row" do
     calls = []
-    with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) { calls << [method, params]; { "ok" => true } }) do
+    with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) { calls << [ method, params ]; { "ok" => true } }) do
       assert_equal 1, TerminalSession.sweep!
     end
-    assert_equal ["terminal.close"], calls.map(&:first)
+    assert_equal [ "terminal.close" ], calls.map(&:first)
     assert terminal_sessions(:stale_detached_for_one).reload.terminated?
   end
 

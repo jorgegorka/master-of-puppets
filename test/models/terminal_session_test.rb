@@ -47,7 +47,7 @@ class TerminalSessionTest < ActiveSupport::TestCase
   test "terminate! calls AgentsSupervisor::Client.call('terminal.close', ...) and transitions to :terminated" do
     t = terminal_sessions(:live_for_one)
     captured = nil
-    with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) { captured = [method, params]; { "ok" => true } }) do
+    with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) { captured = [ method, params ]; { "ok" => true } }) do
       assert_difference -> { Event.where(action: "terminal_session_terminated").count }, +1 do
         t.terminate!
       end
@@ -59,7 +59,7 @@ class TerminalSessionTest < ActiveSupport::TestCase
 
   test "terminate! still commits :terminated when supervisor close raises IOError / JSON::ParserError" do
     t = terminal_sessions(:live_for_one)
-    [IOError.new("broken pipe"), JSON::ParserError.new("not json"), Errno::EPIPE.new].each do |boom|
+    [ IOError.new("broken pipe"), JSON::ParserError.new("not json"), Errno::EPIPE.new ].each do |boom|
       t.update_columns(status: TerminalSession.statuses[:live])
       with_singleton_method(AgentsSupervisor::Client, :call, ->(*) { raise boom }) do
         assert_nothing_raised { t.terminate! }

@@ -14,12 +14,12 @@ class SkillSearchTest < ActiveSupport::TestCase
         source_path: Rails.root.join("test/fixtures/files/skills/debug/SKILL.md").to_s
       )
     )
-    [@fs, @debug].each(&:reindex_fts!)
+    [ @fs, @debug ].each(&:reindex_fts!)
   end
 
   test "matching returns bm25-ordered skill results" do
     results = Skill.matching("debug")
-    assert_equal [@debug.id], results.map(&:id)
+    assert_equal [ @debug.id ], results.map(&:id)
   end
 
   test "matching is namespaced (skills don't return memory hits)" do

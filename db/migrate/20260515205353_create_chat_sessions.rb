@@ -6,7 +6,7 @@ class CreateChatSessions < ActiveRecord::Migration[8.1]
       t.string  :model,    null: false
       t.string  :provider, null: false
       t.references :forked_from, null: true, foreign_key: { to_table: :chat_sessions }
-      t.string  :share_token
+      t.string :share_token
       t.datetime :last_active_at
 
       t.timestamps

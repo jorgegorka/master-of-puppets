@@ -7,7 +7,7 @@ class TerminalsControllerTest < ActionDispatch::IntegrationTest
     @captured_calls = []
     AgentsSupervisor::Client.singleton_class.alias_method(:__real_call, :call)
     AgentsSupervisor::Client.define_singleton_method(:call) do |method, params = {}, **|
-      TerminalsControllerTest.last_calls << [method, params]
+      TerminalsControllerTest.last_calls << [ method, params ]
       { "ok" => true }
     end
     TerminalsControllerTest.last_calls = []

@@ -42,10 +42,10 @@ Skill::SecurityAnalysis = Data.define(:declared_level, :heuristic_flags, :final_
     flags << :file_write if FILE_WRITE_PATTERNS.any? { |re| scanned =~ re }
 
     heuristic_min = if flags.include?(:network)    then :high
-                    elsif flags.include?(:shell)   then :medium
-                    elsif flags.include?(:file_write) then :low
-                    else :safe
-                    end
+    elsif flags.include?(:shell)   then :medium
+    elsif flags.include?(:file_write) then :low
+    else :safe
+    end
 
     declared_sym = declared.to_sym
     final = [ declared_sym, heuristic_min ].max_by { |l| LEVELS.index(l) }

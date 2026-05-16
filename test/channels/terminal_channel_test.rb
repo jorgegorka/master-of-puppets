@@ -9,7 +9,7 @@ class TerminalChannelTest < ActionCable::Channel::TestCase
     @client_calls = []
     AgentsSupervisor::Client.singleton_class.alias_method(:__real_call, :call) if AgentsSupervisor::Client.respond_to?(:call)
     AgentsSupervisor::Client.define_singleton_method(:call) do |method, params = {}, **opts|
-      TerminalChannelTest.last_calls << [method, params]
+      TerminalChannelTest.last_calls << [ method, params ]
       method == "terminal.capture" ? { "text" => "" } : { "ok" => true }
     end
     TerminalChannelTest.last_calls = []

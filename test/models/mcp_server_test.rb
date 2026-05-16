@@ -46,7 +46,7 @@ class McpServerTest < ActiveSupport::TestCase
   test "enable! from disabled queues a discovery" do
     server = mcp_servers(:disabled_server)
     assert_difference -> { Event.where(action: "mcp_server_enabled").count }, +1 do
-      assert_enqueued_with(job: Mcp::DiscoveryJob, args: [server]) do
+      assert_enqueued_with(job: Mcp::DiscoveryJob, args: [ server ]) do
         server.enable!
       end
     end

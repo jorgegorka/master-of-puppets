@@ -9,7 +9,7 @@ class Mcp::HttpClientTest < ActiveSupport::TestCase
     # OutboundGuard runs Resolv.getaddresses(host); keep it offline by stubbing
     # to a public-looking address that the guard's RFC1918 list won't match.
     Resolv.singleton_class.alias_method(:__real_getaddresses, :getaddresses)
-    Resolv.define_singleton_method(:getaddresses) { |_h| ["93.184.216.34"] }
+    Resolv.define_singleton_method(:getaddresses) { |_h| [ "93.184.216.34" ] }
   end
 
   teardown do
@@ -58,7 +58,7 @@ class Mcp::HttpClientTest < ActiveSupport::TestCase
   end
 
   test "SSRF guard runs at construction time and blocks private IPs" do
-    Resolv.define_singleton_method(:getaddresses) { |_h| ["10.0.0.5"] }
+    Resolv.define_singleton_method(:getaddresses) { |_h| [ "10.0.0.5" ] }
     assert_raises(RuntimeError) { Mcp::HttpClient.new(@server) }
   end
 
