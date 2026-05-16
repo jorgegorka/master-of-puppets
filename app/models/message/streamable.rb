@@ -106,6 +106,7 @@ module Message::Streamable
 
     def infer_source(name)
       return :internal if Tool::Internal.lookup(name)
+      return :mcp      if Tool::Mcp.lookup(name)
       :unknown
     end
 
@@ -138,6 +139,7 @@ module Message::Streamable
     def available_tools
       defs = Tool::Internal.all_definitions
       defs = defs.reject { |d| d[:name] == "run_shell" } unless chat_session.user&.admin?
+      defs += Tool::Mcp.all_definitions(user: chat_session.user)
       defs + enabled_skills.flat_map { |s| skill_tool_definitions(s) }
     end
 

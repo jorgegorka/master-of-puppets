@@ -1,7 +1,11 @@
 class McpTool < ApplicationRecord
   belongs_to :mcp_server
 
-  scope :exposed, -> { joins(:mcp_server).merge(McpServer.reachable) }
+  # `joins(:mcp_server)` aliases the join table as 'mcp_server' (singular,
+  # matching the belongs_to name), so a chained .merge(McpServer.reachable)
+  # would emit WHERE "mcp_servers".status — the unaliased table name — and
+  # blow up. Inline the status filter with the alias instead.
+  scope :exposed, -> { joins(:mcp_server).where(mcp_server: { status: McpServer.statuses[:reachable] }) }
 
   def invoke(input:, user:)
     raise "tenant violation" unless mcp_server.user_id == user.id

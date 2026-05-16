@@ -325,6 +325,18 @@ class Message::StreamableTest < ActiveSupport::TestCase
     assert_equal :unknown, msg.send(:infer_source, "garbage_#{SecureRandom.hex(4)}")
   end
 
+  test "infer_source returns :mcp for an exposed MCP tool name" do
+    msg = messages(:hello)
+    assert_equal :mcp, msg.send(:infer_source, mcp_tools(:context7_search).name)
+  end
+
+  test "available_tools includes Tool::Mcp definitions for the chat session's user" do
+    msg = messages(:hello)
+    names = msg.send(:available_tools).map { |d| d[:name] }
+    assert_includes names, "search"
+    assert_includes names, "fetch"
+  end
+
   test "build_system_prompt truncates skill bodies past MAX_SKILL_BODY_BYTES" do
     msg = messages(:hello)
     skill = skills(:filesystem)

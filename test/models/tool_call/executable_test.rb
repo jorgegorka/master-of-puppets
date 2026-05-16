@@ -1,4 +1,5 @@
 require "test_helper"
+require "support/method_stub"
 
 class ToolCall::ExecutableTest < ActiveSupport::TestCase
   setup do
@@ -46,12 +47,36 @@ class ToolCall::ExecutableTest < ActiveSupport::TestCase
     assert_equal "not found", tc.error_message
   end
 
-  test "mcp and skill sources return Phase-4/6 placeholder failure (don't raise)" do
-    tc = ToolCall.create!(message: @msg, provider_tool_id: "toolu_mcp", name: "do_x",
+  test "mcp source with an unknown tool name returns Tool::Result.failure (does not raise)" do
+    tc = ToolCall.create!(message: @msg, provider_tool_id: "toolu_mcp", name: "no-such-mcp-tool",
       source: :mcp, input: {}, status: :pending)
     tc.execute
     assert tc.reload.failed?
-    assert_match /Phase 4/, tc.error_message
+    assert_match(/unknown mcp tool/, tc.error_message)
+  end
+
+  test "mcp source dispatches through Tool::Mcp for a known McpTool" do
+    tool = mcp_tools(:context7_search)
+    tc = ToolCall.create!(message: @msg, provider_tool_id: "toolu_mcp_ok", name: tool.name,
+      source: :mcp, input: { "query" => "ruby" }, status: :pending)
+
+    fake_client = Object.new
+    fake_client.define_singleton_method(:call_tool) { |_n, _i| "downstream-result" }
+
+    with_singleton_method(Mcp::HttpClient, :new, ->(_s) { fake_client }) do
+      tc.execute
+    end
+
+    assert tc.reload.succeeded?, "expected mcp dispatch to succeed; tc=#{tc.attributes.slice('status','error_message')}"
+    assert_equal "downstream-result", tc.output["content"]
+  end
+
+  test "skill source returns the Phase 6 placeholder failure" do
+    tc = ToolCall.create!(message: @msg, provider_tool_id: "toolu_skill", name: "do_x",
+      source: :skill, input: {}, status: :pending)
+    tc.execute
+    assert tc.reload.failed?
+    assert_match(/Phase 6/, tc.error_message)
   end
 
   test ":unknown source returns a clean Tool::Result.failure (does not raise)" do

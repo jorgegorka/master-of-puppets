@@ -25,8 +25,10 @@ module ToolCall::Executable
         case source.to_sym
         when :internal
           Tool::Internal.invoke(name: name, input: input.to_h, user: message.chat_session.user)
-        when :mcp, :skill
-          Tool::Result.failure("#{source} tool execution lands in Phase 4/6")
+        when :mcp
+          Tool::Mcp.invoke(name: name, input: input.to_h, user: message.chat_session.user)
+        when :skill
+          Tool::Result.failure("skill-as-tool dispatch lands in Phase 6")
         when :unknown
           Tool::Result.failure("unknown tool: #{name}")
         else
