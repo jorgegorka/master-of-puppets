@@ -26,15 +26,15 @@
 
 These were called out in workflows.md § Phase 2 "Phase 1 cleanup". Land them first so Phase 2 work doesn't compound on the same rough edges.
 
-- [ ] **Step 1: Collapse `Message::Streamable#needs_tool_loop?` N×`exists?` into one query.**
+- [x] **Step 1: Collapse `Message::Streamable#needs_tool_loop?` N×`exists?` into one query.**
 
   Hydrate the in-memory `Set` of succeeded `provider_tool_id`s for this message in a single `pluck`, then check each `tool_use` block against the set. Add a model test that creates 3 succeeded `ToolCall`s + 1 `tool_use` block missing a counterpart and asserts the method returns `true` with exactly 1 SQL query (use `assert_queries_count 1`, Rails 8.1's built-in matcher).
 
-- [ ] **Step 2: Downgrade `ChatChannel#subscribed` to a logged `reject`.**
+- [x] **Step 2: Downgrade `ChatChannel#subscribed` to a logged `reject`.**
 
   Replace the implicit `RecordNotFound` raise (from `Current.user.chat_sessions.find(params[:chat_session_id])`) with `find_by` + `reject` + `Rails.logger.info`. Update the channel test that currently expects a raise to assert `subscription.rejected?`.
 
-- [ ] **Step 3: Replace the empty `Message::Costable` placeholder.**
+- [x] **Step 3: Replace the empty `Message::Costable` placeholder.** *(option (a) — moved `compute_cost` + added `total_tokens` to Costable.)*
 
   Pick one (Phase 2 task list owns the decision):
   - **(a)** Move `compute_cost` + the four token attribute helpers out of `Message::Streamable` into `Message::Costable`. Update `Message` includes; tests stay green.
@@ -42,11 +42,11 @@ These were called out in workflows.md § Phase 2 "Phase 1 cleanup". Land them fi
 
   Default to **(a)** — it matches the concern-per-capability pattern in `docs/patterns-and-best-practices.md` and keeps `Streamable` focused on the stream loop.
 
-- [ ] **Step 4: Share the model dropdown source.**
+- [x] **Step 4: Share the model dropdown source.**
 
   Add `Llm::Pricing.models_for(provider)` returning the array of model IDs from the pricing table. Use it in `chat_sessions/new.html.erb` for the model dropdown and in `ChatSessionsController#new` for the default-model fallback. The `ENV["MOP_DEFAULT_MODEL"]` env var stays as an override but must be one of `models_for("anthropic")` (validate at boot in `config/initializers/llm_pricing_check.rb` — fail loud on a typo).
 
-- [ ] **Step 5: Deep-freeze `Llm::Pricing::TABLE`.**
+- [x] **Step 5: Deep-freeze `Llm::Pricing::TABLE`.**
 
   ```ruby
   TABLE = { "claude-opus-4-7" => { input: …, output: … }, … }
@@ -56,16 +56,7 @@ These were called out in workflows.md § Phase 2 "Phase 1 cleanup". Land them fi
 
   No behaviour change; protects against a downstream mutation.
 
-- [ ] **Step 6: Run + commit**
-
-  ```bash
-  bin/rails test
-  ```
-  Expected: 56 → ~60 runs, 0 failures. Then:
-
-  ```bash
-  git commit -m "Phase 2 prep: clean up Phase 1 review leftovers"
-  ```
+- [x] **Step 6: Run + commit** — `bin/rails test` 60 runs, 0 failures; system tests green; committed as `b70a605`.
 
 ---
 
