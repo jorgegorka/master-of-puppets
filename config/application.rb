@@ -16,6 +16,8 @@ module MasterOfPuppets
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     config.autoload_lib(ignore: %w[assets tasks])
 
+    config.x.mop_home = ENV.fetch("MOP_HOME") { Rails.root.join("storage/workspace").to_s }
+
     # Configuration for the application, engines, and railties goes here.
     #
     # These settings can be overridden in specific environments using the files
