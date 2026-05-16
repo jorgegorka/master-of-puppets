@@ -51,4 +51,11 @@ Rails.application.routes.draw do
   end
 
   resources :terminals, only: %i[index show new create destroy]
+
+  resources :mcp_servers do
+    scope module: :mcp_servers do
+      resource :test,      only: %i[create]
+      resource :discovery, only: %i[create]
+    end
+  end
 end

@@ -1,0 +1,35 @@
+<%= form_with model: mcp_server, local: true do |f| %>
+  <% if mcp_server.errors.any? %>
+    <ul role="alert">
+      <% mcp_server.errors.full_messages.each do |msg| %><li><%= msg %></li><% end %>
+    </ul>
+  <% end %>
+
+  <div class="flex flex-column gap-half">
+    <%= f.label :slug %>
+    <%= f.text_field :slug, required: true %>
+
+    <%= f.label :name %>
+    <%= f.text_field :name, required: true %>
+
+    <%= f.label :transport_type %>
+    <%= f.select :transport_type, McpServer.transport_types.keys.map { |k| [k, k] } %>
+
+    <%= f.label :url, "URL (http/sse)" %>
+    <%= f.text_field :url, placeholder: "https://example.com/mcp" %>
+
+    <%= f.label :command_template, "Command template (stdio)" %>
+    <%= f.text_field :command_template, placeholder: "/usr/local/bin/some-mcp-server" %>
+
+    <%= f.label :auth_type %>
+    <%= f.select :auth_type, McpServer.auth_types.keys.map { |k| [k, k] } %>
+
+    <%= f.label :auth_payload, "Auth payload (JSON)" %>
+    <%= f.text_area :auth_payload, rows: 3, placeholder: '{"token": "..."}' %>
+
+    <%= f.label :env_payload, "Env payload (JSON)" %>
+    <%= f.text_area :env_payload, rows: 3, placeholder: '{"GITHUB_TOKEN": "ghp_..."}' %>
+
+    <%= f.submit class: "btn" %>
+  </div>
+<% end %>

@@ -1,0 +1,10 @@
+<% content_for :title, "Edit #{@mcp_server.name}" %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1>Edit <%= @mcp_server.name %></h1>
+    <%= link_to "Back", mcp_server_path(@mcp_server), class: "btn btn-secondary" %>
+  </header>
+
+  <%= render "form", mcp_server: @mcp_server %>
+</section>

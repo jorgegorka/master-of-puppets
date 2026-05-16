@@ -1,0 +1,31 @@
+<% content_for :title, "MCP servers" %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1>MCP servers</h1>
+    <%= link_to "+ Add server", new_mcp_server_path, class: "btn" %>
+  </header>
+
+  <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
+  <% if flash[:alert]  %><p role="alert"><%= flash[:alert] %></p><% end %>
+
+  <% if @mcp_servers.any? %>
+    <ul class="flex flex-column gap-half">
+      <% @mcp_servers.each do |server| %>
+        <li class="pad-block-half flex justify-between align-center">
+          <div>
+            <%= link_to server.name, mcp_server_path(server) %>
+            <span class="badge badge--<%= server.reachable? ? 'ok' : (server.error? ? 'danger' : 'warn') %>">
+              <%= server.status %>
+            </span>
+          </div>
+          <span class="txt-subtle txt-x-small">
+            <%= server.transport_type %> · <%= server.tools.count %> tools
+          </span>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p class="txt-subtle">No MCP servers yet. Add one to extend the chat tool loop with external data.</p>
+  <% end %>
+</section>

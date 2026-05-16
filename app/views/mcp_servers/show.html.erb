@@ -1,0 +1,46 @@
+<% content_for :title, @mcp_server.name %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1><%= @mcp_server.name %></h1>
+    <div class="flex gap-half">
+      <%= link_to "Edit", edit_mcp_server_path(@mcp_server), class: "btn btn-secondary" %>
+      <%= button_to "Remove", mcp_server_path(@mcp_server), method: :delete,
+            class: "btn btn-danger", data: { turbo_confirm: "Remove this MCP server?" } %>
+    </div>
+  </header>
+
+  <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
+  <% if flash[:alert]  %><p role="alert"><%= flash[:alert] %></p><% end %>
+
+  <dl>
+    <dt>Slug</dt>            <dd><%= @mcp_server.slug %></dd>
+    <dt>Transport</dt>       <dd><%= @mcp_server.transport_type %></dd>
+    <dt>URL</dt>             <dd><%= @mcp_server.url %></dd>
+    <dt>Auth type</dt>       <dd><%= @mcp_server.auth_type %></dd>
+    <dt>Status</dt>          <dd><span class="badge badge--<%= @mcp_server.reachable? ? 'ok' : (@mcp_server.error? ? 'danger' : 'warn') %>"><%= @mcp_server.status %></span></dd>
+    <dt>Last checked</dt>    <dd><%= @mcp_server.last_checked_at&.iso8601 || "never" %></dd>
+    <% if @mcp_server.last_error %>
+      <dt>Last error</dt>    <dd><%= @mcp_server.last_error %></dd>
+    <% end %>
+  </dl>
+
+  <div class="flex gap-half">
+    <%= button_to "Test connectivity",  mcp_server_test_path(@mcp_server),      method: :post, class: "btn" %>
+    <%= button_to "Discover tools",     mcp_server_discovery_path(@mcp_server), method: :post, class: "btn btn-secondary" %>
+  </div>
+
+  <h2>Discovered tools (<%= @mcp_server.tools.count %>)</h2>
+  <% if @mcp_server.tools.any? %>
+    <ul class="flex flex-column gap-half">
+      <% @mcp_server.tools.order(:name).each do |t| %>
+        <li>
+          <strong><%= t.name %></strong>
+          <span class="txt-subtle"><%= t.description %></span>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p class="txt-subtle">No tools discovered yet — click <em>Discover tools</em>.</p>
+  <% end %>
+</section>
