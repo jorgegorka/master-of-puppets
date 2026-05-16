@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_16_100451) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_16_102544) do
   create_table "api_tokens", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "last_used_at"
@@ -128,6 +128,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_16_100451) do
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
+  create_table "skill_installations", force: :cascade do |t|
+    t.datetime "accepted_at", null: false
+    t.integer "accepted_security_level", null: false
+    t.datetime "created_at", null: false
+    t.integer "skill_id", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["skill_id", "user_id"], name: "index_skill_installations_on_skill_id_and_user_id", unique: true
+    t.index ["skill_id"], name: "index_skill_installations_on_skill_id"
+    t.index ["user_id"], name: "index_skill_installations_on_user_id"
+  end
+
   create_table "skills", force: :cascade do |t|
     t.string "body_digest", null: false
     t.string "category", null: false
@@ -196,6 +208,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_16_100451) do
   add_foreign_key "events", "users", column: "creator_id"
   add_foreign_key "messages", "chat_sessions"
   add_foreign_key "sessions", "users"
+  add_foreign_key "skill_installations", "skills"
+  add_foreign_key "skill_installations", "users"
   add_foreign_key "tool_calls", "messages"
   add_foreign_key "user_settings", "users"
 end
