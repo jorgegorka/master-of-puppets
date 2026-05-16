@@ -48,4 +48,12 @@ class Tool::InternalTest < ActiveSupport::TestCase
     assert_includes names, "list_dir"
     assert_includes names, "run_shell"
   end
+
+  test "register is idempotent — re-registering overwrites without duplicating" do
+    before = Tool::Internal.all_definitions.length
+    Tool::Internal.register("read_file", Tool::Internal::ReadFile)
+    Tool::Internal.register("read_file", Tool::Internal::ReadFile)
+    after = Tool::Internal.all_definitions.length
+    assert_equal before, after
+  end
 end

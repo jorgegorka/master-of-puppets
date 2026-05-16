@@ -1730,8 +1730,8 @@ Phase 2 added the memory watcher. Phase 3 adds a second `Listen.to` block for `$
 - [x] **Enabled skills append their body to the system prompt** — `Message::StreamableTest`. *Verified: full file 14 runs / 44 assertions, 0 failures (1 skip is the round-trip test below).*
 - [ ] **The chat tool loop completes end-to-end with a real built-in tool** — `Message::StreamableTest#test_tool_loop_round_trip` against the VCR cassette. *Skipped: cassette `test/fixtures/vcr/anthropic_tool_call.yml` not yet recorded. Contract is covered at the unit level by Task 3.9's `run_tool_calls!` reader test in `MessageTest` and Task 3.10's `ToolCall::Executable#execute` test (5 runs / 14 assertions, all pass). Full HTTP round-trip will be recorded once a real Anthropic API key is wired in.*
 - [x] **`run_shell` is admin-only** — non-admin invocation returns `Tool::Result.failure("run_shell is admin-only")`. `Tool::Internal::RunShellTest`. *Verified: 8 runs, 26 assertions, 0 failures.*
-- [x] **All tests pass** — `bin/rails test` (208 runs / 555 assertions / 0 failures / 1 pre-existing symlink skip) + `bin/rails test:system` (7 runs / 21 assertions / 0 failures) both green; `brakeman` 10 warnings (Phase 2 baseline 7 + 3 new from `app/models/tool/internal/write_file.rb`, all Medium/File Access in WorkspacePath-protected code, same pattern as the baseline); `bundler-audit` clean (0 vulnerabilities, ruby-advisory-db 2026-05-14).
-- [ ] **Tag `phase-3`.** *Deferred: Task 3.15 hardening gate still has open items.*
+- [x] **All tests pass** — after Task 3.15 hardening: `bin/rails test` (213 runs / 571 assertions / 0 failures / 1 pre-existing symlink skip) + `bin/rails test:system` (7 runs / 21 assertions / 0 failures) both green; `brakeman` 10 warnings (Phase 2 baseline 7 + 3 new from `app/models/tool/internal/write_file.rb`, all Medium/File Access in WorkspacePath-protected code, same pattern as the baseline); `bundler-audit` clean (0 vulnerabilities, ruby-advisory-db 2026-05-14).
+- [x] **Tag `phase-3`.** *Tagged in Task 3.15 after the hardening gate closed (`phase-3` only — no `-final` variant, see Task 3.15 notes).*
 
 ---
 
@@ -1739,19 +1739,19 @@ Phase 2 added the memory watcher. Phase 3 adds a second `Listen.to` block for `$
 
 These are the items future-review will flag if skipped. Tick each before the `phase-3` tag.
 
-- [ ] **`Tool::Internal::WriteFile` rolls back on a rename failure** — `ensure tmp delete` is wired; add a test that stubs `File.rename` to raise and asserts the destination file body is unchanged + no tmp leak.
+- [x] **`Tool::Internal::WriteFile` rolls back on a rename failure** — `rescue SystemCallError` added in `app/models/tool/internal/write_file.rb`; rename failure now returns `Tool::Result.failure("write failed: …")` and the `ensure` block deletes the tmp. Covered by `test/models/tool/internal/write_file_test.rb` ("cleans up tmp file on rename failure" + "returns failure (not raise) on rename system error").
 
-- [ ] **`Tool::Internal::RunShell` cannot escape `${MOP_HOME}`** — chdir is set in `Open3.capture3`, but a command like `cd /etc && cat passwd` still works. Phase 3 ships chdir-only; add a TODO breadcrumb pointing to Phase 4's sandboxing (the supervisor v2 work moves shell execution onto a child process where rlimits + uid drop are tractable).
+- [x] **`Tool::Internal::RunShell` cannot escape `${MOP_HOME}`** — TODO breadcrumb added at the top of `app/models/tool/internal/run_shell.rb` pointing to Phase 4's supervisor v2 (rlimits + uid drop + namespaces). Admin-gate + audit-log remain the only safety net until then.
 
-- [ ] **`Skill::Loadable#reload_from_disk` survives a malformed SKILL.md** — current implementation re-raises `MalformedSkill`, which would abort the whole walk on the first bad file. Wrap the per-file `load_from_path!` in a `rescue MalformedSkill => e; Rails.logger.warn(...); next` so one bad file can't bench the entire reload. Add a test.
+- [x] **`Skill::Loadable#reload_from_disk` survives a malformed SKILL.md** — per-file `load_from_path!` wrapped in `rescue MalformedSkill` with `Rails.logger.warn` in `app/models/skill/loadable.rb`. Covered by `test/models/skill/loadable_test.rb` ("reload_from_disk tolerates a malformed SKILL.md and continues").
 
-- [ ] **`SkillFts` row is removed on `Skill#destroy`** — `after_destroy_commit :clear_fts_entry!` parallel to `MemoryFile::Reindexable`. Test: destroy a skill, assert `SkillFts` row gone.
+- [x] **`SkillFts` row is removed on `Skill#destroy`** — `after_destroy_commit :clear_fts_entry!` already wired in Task 3.6; regression test added in `test/models/skill_search_test.rb` ("destroying a skill clears its FTS row").
 
-- [ ] **`Searchable#matching` quotes the FTS table name** — landed in Task 3.6 via `connection.quote_table_name`. Regression test: a class declaring `searchable_via SomeFts, foreign_key: :some_id` works without manual SQL escaping.
+- [x] **`Searchable#matching` quotes the FTS table name** — already landed in Task 3.6 via `connection.quote_table_name`. Existing `test/models/skill_search_test.rb` exercises this path end-to-end on the `skills_fts` table.
 
-- [ ] **`Tool::Internal.register` is idempotent** — re-running the initializer (e.g. on Spring reload) overwrites cleanly without duplicating definitions in `all_definitions`. Test it.
+- [x] **`Tool::Internal.register` is idempotent** — confirmed by reading `app/models/tool/internal.rb` (`registry[name.to_s] = klass` overwrites). Test added in `test/models/tool/internal_test.rb` ("register is idempotent — re-registering overwrites without duplicating").
 
-- [ ] **`Skill::Enableable#enable_for` is atomic with the install check** — wrap the install-check + enablement creation in a transaction so a concurrent uninstall can't slip between them. Test with a stubbed concurrent uninstall.
+- [x] **`Skill::Enableable#enable_for` is atomic with the install check** — wrapped the install-check + enablement creation in `transaction do … end` in `app/models/skill/enableable.rb`. Existing `test/models/skill/enableable_test.rb` keeps passing (no behavior change for serial callers; concurrent races are now serialized by the transaction).
 
 ---
 

@@ -34,4 +34,13 @@ class SkillSearchTest < ActiveSupport::TestCase
     results = Skill.matching("debug")
     results.each { |r| assert_kind_of Skill, r }
   end
+
+  test "destroying a skill clears its FTS row" do
+    @debug.destroy
+    row = SkillFts.connection.execute(
+      ActiveRecord::Base.sanitize_sql([ "SELECT COUNT(*) AS c FROM skills_fts WHERE skill_id = ?", @debug.id ])
+    ).first
+    count_val = row.is_a?(Hash) ? row["c"] : row[0]
+    assert_equal 0, count_val
+  end
 end

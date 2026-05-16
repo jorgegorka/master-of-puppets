@@ -52,19 +52,26 @@ class Tool::Internal::WriteFileTest < ActiveSupport::TestCase
   end
 
   test "cleans up tmp file on rename failure" do
-    original = File.method(:rename)
-    File.define_singleton_method(:rename) { |*| raise Errno::EXDEV, "fake cross-device" }
-    begin
-      assert_raises(Errno::EXDEV) do
-        Tool::Internal::WriteFile.invoke(
-          input: { "path" => "memory/note.md", "content" => "data" },
-          user: users(:one)
-        )
-      end
-    ensure
-      File.singleton_class.define_method(:rename, original)
+    with_singleton_method(File, :rename, ->(*) { raise Errno::EXDEV, "fake cross-device" }) do
+      result = Tool::Internal::WriteFile.invoke(
+        input: { "path" => "memory/note.md", "content" => "data" },
+        user: users(:one)
+      )
+      assert result.is_error
+      assert_match(/write failed/, result.error)
     end
     leftovers = Dir.glob(File.join(@tmp, "memory/.*.tmp"))
     assert_empty leftovers
+  end
+
+  test "returns failure (not raise) on rename system error" do
+    with_singleton_method(File, :rename, ->(_a, _b) { raise Errno::EXDEV }) do
+      result = Tool::Internal::WriteFile.invoke(
+        input: { "path" => "memory/x.md", "content" => "hi" },
+        user: users(:one)
+      )
+      assert result.is_error
+      assert_match(/write failed/, result.error)
+    end
   end
 end

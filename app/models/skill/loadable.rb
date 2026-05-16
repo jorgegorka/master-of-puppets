@@ -19,7 +19,11 @@ module Skill::Loadable
       where.not(source_path: seen).destroy_all
       seen.each do |path|
         skill = find_or_initialize_by(source_path: path)
-        skill.load_from_path!
+        begin
+          skill.load_from_path!
+        rescue MalformedSkill => e
+          Rails.logger.warn("[Skill::Loadable] skipping #{path}: #{e.message}")
+        end
       end
       seen
     end

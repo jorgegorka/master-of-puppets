@@ -13,12 +13,14 @@ module Skill::Enableable
   end
 
   def enable_for(user)
-    if requires_installation? && !installed_for?(user)
-      raise NotInstalled, "#{slug} (#{security_level}) requires explicit install_for(user)"
+    transaction do
+      if requires_installation? && !installed_for?(user)
+        raise NotInstalled, "#{slug} (#{security_level}) requires explicit install_for(user)"
+      end
+      enablement = enablements.find_or_create_by!(user: user) { |e| e.enabled_at = Time.current }
+      track_event :enabled, user_id: user.id
+      enablement
     end
-    enablement = enablements.find_or_create_by!(user: user) { |e| e.enabled_at = Time.current }
-    track_event :enabled, user_id: user.id
-    enablement
   end
 
   def disable_for(user)

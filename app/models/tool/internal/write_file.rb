@@ -29,6 +29,8 @@ class Tool::Internal::WriteFile < Tool::Internal
     Tool::Result.ok("wrote #{content.bytesize} bytes to #{wsp.rel}")
   rescue WorkspacePath::EscapeAttempt => e
     Tool::Result.failure("forbidden: #{e.message}")
+  rescue SystemCallError => e
+    Tool::Result.failure("write failed: #{e.class}: #{e.message}")
   ensure
     File.delete(tmp) if defined?(tmp) && tmp && File.exist?(tmp)
   end

@@ -71,6 +71,19 @@ class Skill::LoadableTest < ActiveSupport::TestCase
     assert_nothing_raised { skill.body }
   end
 
+  test "reload_from_disk tolerates a malformed SKILL.md and continues" do
+    bad = Pathname.new(@tmp).join("skills/io/broken/SKILL.md")
+    bad.dirname.mkpath
+    bad.write("no frontmatter here")
+    paths = nil
+    assert_nothing_raised { paths = Skill.reload_from_disk }
+    assert_includes paths, bad.to_s
+    refute Skill.exists?(source_path: bad.to_s),
+      "malformed SKILL.md should not produce a Skill row"
+    assert Skill.exists?(slug: "filesystem"),
+      "good SKILL.md should still load"
+  end
+
   test "body with `run_shell` upgrades security_level to medium" do
     Pathname.new(@tmp).join("skills/io/filesystem/SKILL.md").write(<<~MD)
       ---

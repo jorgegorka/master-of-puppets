@@ -82,4 +82,19 @@ class Tool::Internal::RunShellTest < ActiveSupport::TestCase
       assert_match(/truncated/, result.output)
     end
   end
+
+  test "truncates multi-byte UTF-8 output at byte boundary safely" do
+    # Each é is 2 bytes; 100,000 bytes total — well over the 64 KiB cap.
+    big_unicode = "é" * 50_000
+    fake_status = Object.new
+    def fake_status.success?; true; end
+    def fake_status.exitstatus; 0; end
+    with_singleton_method(Open3, :capture3, ->(_cmd, **_opts) { [ big_unicode, "", fake_status ] }) do
+      result = Tool::Internal::RunShell.invoke(input: { "command" => "echo" }, user: @admin)
+      refute result.is_error
+      assert result.output.bytesize < Tool::Internal::RunShell::MAX_OUTPUT_BYTES + 100,
+        "output should be capped near MAX_OUTPUT_BYTES, not 4× over"
+      assert_includes result.output, "[truncated]"
+    end
+  end
 end
