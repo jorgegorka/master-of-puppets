@@ -1804,38 +1804,38 @@ After all three land, retag (`git tag -d phase-3 && git tag phase-3`) so the tag
 
 ### 3.16b — Tool registry hardening
 
-- [ ] **T1 — Validate input against `input_schema` at the registry boundary.** Today malformed args (`{"path": 123}`, missing required keys) raise `KeyError` / `NoMethodError` inside the tool, get caught by `ToolCall::Executable`'s blanket rescue, and surface as poorly-typed error strings. Add a centralized `Tool::Internal.validate!(input, schema)` returning `Tool::Result.failure("invalid input: …")` before `klass.invoke`.
+- [x] **T1 — Validate input against `input_schema` at the registry boundary.** Today malformed args (`{"path": 123}`, missing required keys) raise `KeyError` / `NoMethodError` inside the tool, get caught by `ToolCall::Executable`'s blanket rescue, and surface as poorly-typed error strings. Add a centralized `Tool::Internal.validate!(input, schema)` returning `Tool::Result.failure("invalid input: …")` before `klass.invoke`.
   - **File:** `app/models/tool/internal.rb` — add a minimal schema check (required keys present, top-level types match `schema[:properties][k][:type]`). No need for a JSON-schema gem in Phase 3.
   - **Test:** `test/models/tool/internal_test.rb` — "invoke with missing required key returns Result.failure", "invoke with wrong-typed key returns Result.failure".
 
-- [ ] **T2 — `write_file` defaults to no-overwrite.** Add `overwrite: { type: "boolean", default: false }` to `input_schema`. If destination exists and `overwrite` is not true, return `Tool::Result.failure("file exists; pass overwrite: true to replace")` before `mkdir_p`.
+- [x] **T2 — `write_file` defaults to no-overwrite.** Add `overwrite: { type: "boolean", default: false }` to `input_schema`. If destination exists and `overwrite` is not true, return `Tool::Result.failure("file exists; pass overwrite: true to replace")` before `mkdir_p`.
   - **File:** `app/models/tool/internal/write_file.rb`
   - **Test:** `test/models/tool/internal/write_file_test.rb` — "writing to existing path without overwrite returns failure and leaves original bytes untouched"; "writing with overwrite: true replaces".
 
-- [ ] **T3 — Snapshot/restore `Tool::Internal` registry around tests.** The Phase 3 tests mutate the global `@registry` and never restore it.
+- [x] **T3 — Snapshot/restore `Tool::Internal` registry around tests.** The Phase 3 tests mutate the global `@registry` and never restore it.
   - **File:** `test/models/tool/internal_test.rb` — add `setup`/`teardown` that snapshots `Tool::Internal.send(:registry).dup` and restores in teardown. (Alternative: delete just the keys added by the test; snapshot-restore is cheap and total.)
 
-- [ ] **T4 — `ToolCall::Executable#execute` re-raises the `pending?` guard without overwriting state.** Today the guard `raise "tool_call already #{status}" unless pending?` lives inside the rescue scope; if a `:succeeded` row has `execute` called again, the rescue overwrites it to `:failed` before re-raising.
+- [x] **T4 — `ToolCall::Executable#execute` re-raises the `pending?` guard without overwriting state.** Today the guard `raise "tool_call already #{status}" unless pending?` lives inside the rescue scope; if a `:succeeded` row has `execute` called again, the rescue overwrites it to `:failed` before re-raising.
   - **File:** `app/models/tool_call/executable.rb` — move the `pending?` guard above the `begin … rescue … end` block. The rescue then never sees the guard exception.
   - **Test:** `test/models/tool_call/executable_test.rb` — "after a successful execute, a second execute raises but reload.succeeded? stays true (status unchanged)".
 
-- [ ] **T5 — Hide `run_shell` from non-admin `available_tools`.** Today the registry exposes it to every user; only `RunShell.invoke` itself checks `user.admin?`. Cheap to also filter the tool definitions so non-admins don't see it as an option. Broader per-user/per-skill tool filtering is Phase 6 (`agent_profile_skills`).
+- [x] **T5 — Hide `run_shell` from non-admin `available_tools`.** Today the registry exposes it to every user; only `RunShell.invoke` itself checks `user.admin?`. Cheap to also filter the tool definitions so non-admins don't see it as an option. Broader per-user/per-skill tool filtering is Phase 6 (`agent_profile_skills`).
   - **File:** `app/models/message/streamable.rb` — in `available_tools`, drop `"run_shell"` from `Tool::Internal.all_definitions` for non-admin users.
   - **Test:** `test/models/message/streamable_test.rb` — "available_tools for non-admin excludes run_shell; admin sees it".
 
-- [ ] **T6 — Cap skill body in system prompt + memoize `enabled_skills`.** Bodies live in the DB (not disk re-read — the review's framing was off there), but they are unbounded and `enabled_skills` is recomputed per `advance!` iteration. A single 5 MB skill kills future calls via provider rejection.
+- [x] **T6 — Cap skill body in system prompt + memoize `enabled_skills`.** Bodies live in the DB (not disk re-read — the review's framing was off there), but they are unbounded and `enabled_skills` is recomputed per `advance!` iteration. A single 5 MB skill kills future calls via provider rejection.
   - **File:** `app/models/message/streamable.rb` — introduce `MAX_SKILL_BODY_BYTES = 64_000`, truncate each body in `build_system_prompt` (append `"\n…[truncated]"`), memoize `@enabled_skills ||= …`.
   - **Test:** `test/models/message/streamable_test.rb` — "skill body > MAX is truncated in prompt"; "two `advance!` iterations call Skill.enabled_for once".
 
-- [ ] **T7 — Route unknown tool names to `:unknown` with a clean `Tool::Result.failure`.** Today `infer_source` has a `defined?(McpTool)` branch (dead code — model doesn't exist until Phase 4), and unknown names silently fall through to `source: :skill` and hit a misleading "Phase 4/6" placeholder.
+- [x] **T7 — Route unknown tool names to `:unknown` with a clean `Tool::Result.failure`.** Today `infer_source` has a `defined?(McpTool)` branch (dead code — model doesn't exist until Phase 4), and unknown names silently fall through to `source: :skill` and hit a misleading "Phase 4/6" placeholder.
   - **File:** `app/models/message/streamable.rb` — delete the `defined?(McpTool)` line (Phase 4 reintroduces it cleanly). Return `:unknown` when neither `Tool::Internal.lookup(name)` nor a (future) MCP tool matches.
   - **File:** `app/models/tool_call/executable.rb` — add `when :unknown` arm returning `Tool::Result.failure("unknown tool: #{name}")`.
   - **Test:** `test/models/message/streamable_test.rb` — "infer_source('garbage') returns :unknown"; "executing it produces a clean Result.failure".
 
-- [ ] **T8 — Delete unused `Tool::Internal::Forbidden`.** Zero call-sites across `app/`, `config/`, `db/`, `test/`. The forbidden-path concept lives in `WorkspacePath::EscapeAttempt`.
+- [x] **T8 — Delete unused `Tool::Internal::Forbidden`.** Zero call-sites across `app/`, `config/`, `db/`, `test/`. The forbidden-path concept lives in `WorkspacePath::EscapeAttempt`.
   - **File:** `app/models/tool/internal.rb` — delete the constant.
 
-- [ ] **T9 — `Tool::Internal.invoke` returns `Result.failure` for unknown tool name (was raising `UnknownTool`).** Aligns the contract with every other failure mode. After T8 + this, `Tool::Internal` has no custom exception classes.
+- [x] **T9 — `Tool::Internal.invoke` returns `Result.failure` for unknown tool name (was raising `UnknownTool`).** Aligns the contract with every other failure mode. After T8 + this, `Tool::Internal` has no custom exception classes.
   - **File:** `app/models/tool/internal.rb` — `klass = lookup(name) or return Tool::Result.failure("unknown tool: #{name}")`. Delete `UnknownTool`.
   - **Test:** `test/models/tool/internal_test.rb` — replace "raises UnknownTool" with "returns Result.failure for missing name".
 

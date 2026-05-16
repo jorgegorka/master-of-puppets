@@ -74,4 +74,27 @@ class Tool::Internal::WriteFileTest < ActiveSupport::TestCase
       assert_match(/write failed/, result.error)
     end
   end
+
+  test "writing to existing path without overwrite returns failure and leaves original bytes untouched" do
+    target = File.join(@tmp, "memory/existing.md")
+    File.write(target, "original bytes")
+    result = Tool::Internal::WriteFile.invoke(
+      input: { "path" => "memory/existing.md", "content" => "replacement" },
+      user: users(:one)
+    )
+    assert result.is_error
+    assert_match(/file exists/, result.error)
+    assert_equal "original bytes", File.read(target)
+  end
+
+  test "writing with overwrite: true replaces the file" do
+    target = File.join(@tmp, "memory/existing.md")
+    File.write(target, "original bytes")
+    result = Tool::Internal::WriteFile.invoke(
+      input: { "path" => "memory/existing.md", "content" => "replacement", "overwrite" => true },
+      user: users(:one)
+    )
+    refute result.is_error
+    assert_equal "replacement", File.read(target)
+  end
 end

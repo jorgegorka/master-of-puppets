@@ -29,8 +29,11 @@ class ToolCall::ExecutableTest < ActiveSupport::TestCase
     assert_includes events, "tool_call_succeeded"
   end
 
-  test "re-executing a non-pending call raises" do
+  test "re-executing a non-pending call raises but does NOT overwrite status" do
+    assert @tc.reload.succeeded?, "preconditions: setup left tc :succeeded"
     assert_raises(RuntimeError) { @tc.execute }
+    assert @tc.reload.succeeded?, "the pending? guard must NOT flip a succeeded row to :failed"
+    assert_equal "body", @tc.output["content"], "output payload must remain intact"
   end
 
   test "failed Tool::Result transitions to failed + records error_message" do
@@ -49,5 +52,13 @@ class ToolCall::ExecutableTest < ActiveSupport::TestCase
     tc.execute
     assert tc.reload.failed?
     assert_match /Phase 4/, tc.error_message
+  end
+
+  test ":unknown source returns a clean Tool::Result.failure (does not raise)" do
+    tc = ToolCall.create!(message: @msg, provider_tool_id: "toolu_unk", name: "garbage",
+      source: :unknown, input: {}, status: :pending)
+    tc.execute
+    assert tc.reload.failed?
+    assert_match(/unknown tool: garbage/, tc.error_message)
   end
 end

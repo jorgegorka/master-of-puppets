@@ -220,6 +220,16 @@ class Message::StreamableTest < ActiveSupport::TestCase
     assert_includes names, "write_file"
   end
 
+  test "available_tools hides run_shell from non-admin users" do
+    msg = messages(:hello)
+    member_session = ChatSession.create!(user: users(:member), title: "m", model: "claude-opus-4-7", provider: "anthropic", last_active_at: Time.current)
+    member_msg = member_session.messages.create!(role: :assistant, status: :pending, content_blocks: [], model: "claude-opus-4-7", provider: "anthropic")
+    member_names = member_msg.send(:available_tools).map { |d| d[:name] }
+    admin_names  = msg.send(:available_tools).map { |d| d[:name] }
+    refute_includes member_names, "run_shell"
+    assert_includes admin_names,  "run_shell"
+  end
+
   test "build_system_prompt embeds enabled skill bodies" do
     msg = messages(:hello)
     skill = skills(:filesystem)
@@ -285,6 +295,45 @@ class Message::StreamableTest < ActiveSupport::TestCase
   test "infer_source returns :internal for read_file" do
     msg = messages(:hello)
     assert_equal :internal, msg.send(:infer_source, "read_file")
+  end
+
+  test "infer_source returns :unknown for a name that matches no tool" do
+    msg = messages(:hello)
+    assert_equal :unknown, msg.send(:infer_source, "garbage_#{SecureRandom.hex(4)}")
+  end
+
+  test "build_system_prompt truncates skill bodies past MAX_SKILL_BODY_BYTES" do
+    msg = messages(:hello)
+    skill = skills(:filesystem)
+    skill.enable_for(msg.chat_session.user)
+    huge = "x" * (Message::Streamable::MAX_SKILL_BODY_BYTES + 100)
+    original = Skill.instance_method(:body)
+    Skill.define_method(:body) { huge }
+    begin
+      prompt = msg.send(:build_system_prompt)
+      assert_includes prompt, "[truncated]"
+      assert prompt.bytesize < huge.bytesize, "long bodies must be truncated in the system prompt"
+    ensure
+      Skill.define_method(:body, original)
+    end
+  end
+
+  test "enabled_skills is memoized across advance! iterations" do
+    msg = messages(:hello)
+    call_count = 0
+    Skill.singleton_class.alias_method(:__real_enabled_for, :enabled_for)
+    Skill.define_singleton_method(:enabled_for) do |u|
+      call_count += 1
+      __real_enabled_for(u)
+    end
+    begin
+      msg.send(:enabled_skills)
+      msg.send(:enabled_skills)
+      assert_equal 1, call_count, "Skill.enabled_for must be called at most once per Message instance"
+    ensure
+      Skill.singleton_class.alias_method(:enabled_for, :__real_enabled_for)
+      Skill.singleton_class.remove_method(:__real_enabled_for)
+    end
   end
 
   test "run_tool_calls! reads tc.output['content'] from the new hash shape" do

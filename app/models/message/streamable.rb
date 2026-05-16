@@ -2,6 +2,9 @@ module Message::Streamable
   extend ActiveSupport::Concern
 
   MAX_TOOL_ITERATIONS = 10
+  # Cap on a single skill body in the system prompt. A 5 MB skill would
+  # otherwise blow past the provider's context window and 400 every call.
+  MAX_SKILL_BODY_BYTES = 64_000
 
   def advance!(iteration: 1)
     raise Llm::ToolLoopExceeded, "exceeded #{MAX_TOOL_ITERATIONS} tool iterations" if iteration > MAX_TOOL_ITERATIONS
@@ -103,8 +106,7 @@ module Message::Streamable
 
     def infer_source(name)
       return :internal if Tool::Internal.lookup(name)
-      return :mcp      if defined?(McpTool) && McpTool.exists?(name: name)
-      :skill
+      :unknown
     end
 
     def broadcast_event(event)
@@ -122,15 +124,25 @@ module Message::Streamable
     end
 
     def build_system_prompt
-      enabled_skills.map { |s| "## Skill: #{s.name}\n\n#{s.body}" }.join("\n\n")
+      enabled_skills.map { |s| "## Skill: #{s.name}\n\n#{truncate_skill_body(s.body)}" }.join("\n\n")
     end
 
+    def truncate_skill_body(body)
+      return body if body.to_s.bytesize <= MAX_SKILL_BODY_BYTES
+      body.to_s.byteslice(0, MAX_SKILL_BODY_BYTES).to_s.scrub + "\n…[truncated]"
+    end
+
+    # Broader per-user / per-skill tool filtering lands with Phase 6 + the
+    # `agent_profile_skills` join. Until then `run_shell` is hidden from
+    # non-admins so it doesn't even appear as an option in the tool list.
     def available_tools
-      Tool::Internal.all_definitions + enabled_skills.flat_map { |s| skill_tool_definitions(s) }
+      defs = Tool::Internal.all_definitions
+      defs = defs.reject { |d| d[:name] == "run_shell" } unless chat_session.user&.admin?
+      defs + enabled_skills.flat_map { |s| skill_tool_definitions(s) }
     end
 
     def enabled_skills
-      Skill.enabled_for(chat_session.user)
+      @enabled_skills ||= Skill.enabled_for(chat_session.user).to_a
     end
 
     def skill_tool_definitions(_skill)
