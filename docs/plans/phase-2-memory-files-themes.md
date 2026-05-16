@@ -102,7 +102,7 @@ The single source of truth for `${MOP_HOME}`. Every disk-touching model reads fr
 
 Single guard for every disk read/write. Refuses anything that escapes `${MOP_HOME}` after `File.realpath`. Lives at `app/models/workspace_path.rb` (per `docs/patterns-and-best-practices.md` value-objects-go-in-app/models).
 
-- [ ] **Step 1: Failing tests** at `test/models/workspace_path_test.rb`:
+- [x] **Step 1: Failing tests** at `test/models/workspace_path_test.rb` (9 tests; backslash + not-yet-existing-path cases added on top of the original spec):
 
   ```ruby
   require "test_helper"
@@ -158,7 +158,7 @@ Single guard for every disk read/write. Refuses anything that escapes `${MOP_HOM
   end
   ```
 
-- [ ] **Step 2: Implement** `app/models/workspace_path.rb`:
+- [x] **Step 2: Implement** `app/models/workspace_path.rb`. *(Final form differs from the spec: the textual `cleanpath` check runs **before** `realpath` to avoid ENOENT on a parent that lives outside the workspace; a second post-realpath check still catches symlinks. Backslashes are explicitly rejected — closes the "rejects Windows backslashes" item from the hardening gate.)*
 
   ```ruby
   class WorkspacePath
@@ -198,12 +198,7 @@ Single guard for every disk read/write. Refuses anything that escapes `${MOP_HOM
   end
   ```
 
-- [ ] **Step 3: Pass + commit**
-
-  ```bash
-  bin/rails test test/models/workspace_path_test.rb
-  git commit -am "Phase 2: WorkspacePath value object guards disk access"
-  ```
+- [x] **Step 3: Pass + commit** — `f355938`. 72 tests / 173 assertions, brakeman 0 warnings.
 
 ---
 
@@ -970,7 +965,7 @@ Phase 1 left the supervisor with only `health.ping`. Phase 2 adds a `listen` wat
 These are the items future-review will flag if we skip them — fixing them in-phase keeps Phase 3 from carrying technical debt.
 
 - [ ] **FTS sync runs in a single transaction with the row update.** The implementation in Task 2.5 already does this — the gate is a test that fails if `MemoryFile#reindex!` raises after the FTS DELETE but before the INSERT, asserting both tables roll back together. (Cross-database transactions are best-effort in SQLite; if the test reveals a partial-failure window, switch to a small replay-on-boot reconciliation: `MemoryFile.where("disk_mtime > ?", last_seen).each(&:reindex!)`.)
-- [ ] **`WorkspacePath` rejects on Windows-style backslashes** (`..\..\etc`). Add a probe test and (if it fails) extend the guard.
+- [x] **`WorkspacePath` rejects on Windows-style backslashes** (`..\..\etc`). Landed in Task 2.2 — probe test passes.
 - [ ] **`Files::NodesController` requires admin** — the workspace browser can edit anything under `${MOP_HOME}`, including `skills/` source. Gate the controller with `before_action :require_admin` and add a non-admin test that asserts redirect.
 - [ ] **`AgentsSupervisor::Client` thread dies cleanly on Puma shutdown** — register an `at_exit` or use Puma's `on_worker_shutdown` to set a `@shutting_down` flag the loop checks. Without this, `kill -9` is the only way to stop dev.
 - [ ] **`Memory::IndexerJob` is idempotent** — running it twice on the same path with no disk change produces zero FTS row churn. Test: enqueue twice, assert the FTS row's `rowid` is unchanged (or use `content_digest` to short-circuit when the digest hasn't moved).
