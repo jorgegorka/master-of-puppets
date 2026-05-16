@@ -22,7 +22,7 @@ module Mcp
     def self.allowed!(url)
       uri = URI.parse(url.to_s)
       raise "denied: non-http(s) scheme #{uri.scheme.inspect}" unless %w[http https].include?(uri.scheme)
-      raise "denied: missing host" unless uri.host
+      raise "denied: missing host" if uri.host.nil? || uri.host.empty?
 
       address = Resolv.getaddress(uri.host)
       raise "denied: cloud metadata IP #{address}" if DENYLIST.include?(address)
