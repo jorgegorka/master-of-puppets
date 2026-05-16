@@ -1,5 +1,6 @@
 class MemoryFile < ApplicationRecord
   include Eventable
+  include Searchable
 
   validates :path, presence: true, uniqueness: true
 
