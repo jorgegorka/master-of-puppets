@@ -1,19 +1,26 @@
 #!/usr/bin/env ruby
-# Phase 1 stub: listens on tmp/sockets/agents_supervisor.sock for JSON-RPC
-# requests. Only health.ping is implemented; Phase 2 adds the memory file
-# watcher, Phase 4 adds tmux + MCP child processes.
+# Phase 2 v1: listens on tmp/sockets/agents_supervisor.sock for JSON-RPC
+# requests, and emits server-initiated `memory.changed` notifications to
+# every connected client whenever an .md file under ${MOP_HOME}/memory/
+# is created, modified, or removed. Phase 4 adds tmux + MCP child
+# processes plus a Concurrent::FixedThreadPool / per-connection rate
+# limit; the current loop is single-purpose and bounded by the listen
+# library's own latency knob.
 
 require_relative "../config/environment"
 require "socket"
 require "json"
 require "fileutils"
+require "listen"
+require "concurrent"
 
 SOCKET_PATH = Rails.root.join("tmp/sockets/agents_supervisor.sock")
 FileUtils.mkdir_p(SOCKET_PATH.dirname)
 File.delete(SOCKET_PATH) if File.exist?(SOCKET_PATH)
 
-server = UNIXServer.new(SOCKET_PATH.to_s)
+server                 = UNIXServer.new(SOCKET_PATH.to_s)
 shutdown_r, shutdown_w = IO.pipe
+clients                = Concurrent::Array.new
 
 Rails.logger.info("[agents_supervisor] listening on #{SOCKET_PATH}")
 puts "[agents_supervisor] listening on #{SOCKET_PATH}"
@@ -24,13 +31,29 @@ puts "[agents_supervisor] listening on #{SOCKET_PATH}"
 trap("TERM") { shutdown_w.close rescue nil }
 trap("INT")  { shutdown_w.close rescue nil }
 
+memory_root = Pathname.new(Rails.application.config.x.mop_home).join("memory")
+FileUtils.mkdir_p(memory_root)
+
+listener = Listen.to(memory_root.to_s, only: /\.md\z/, latency: 0.5) do |modified, added, removed|
+  paths = (modified + added + removed).map { |abs| Pathname.new(abs).relative_path_from(memory_root).to_s }
+  notification = { jsonrpc: "2.0", method: "memory.changed", params: { paths: paths } }.to_json
+  clients.each do |client|
+    begin
+      client.puts(notification)
+    rescue IOError, Errno::EPIPE
+      clients.delete(client)
+    end
+  end
+end
+listener.start
+
 handle_request = lambda do |request|
   case request["method"]
   when "health.ping"
     { jsonrpc: "2.0", id: request["id"], result: { pong: true, pid: Process.pid } }
   else
     { jsonrpc: "2.0", id: request["id"],
-      error: { code: -32601, message: "method not found in Phase 1: #{request['method']}" } }
+      error: { code: -32601, message: "method not found in Phase 2: #{request['method']}" } }
   end
 end
 
@@ -39,6 +62,8 @@ loop do
 
   if readable.include?(shutdown_r)
     Rails.logger.info("[agents_supervisor] shutting down") rescue nil
+    listener.stop rescue nil
+    clients.each { |c| c.close rescue nil }
     server.close rescue nil
     File.unlink(SOCKET_PATH) rescue nil
     exit 0
@@ -46,6 +71,7 @@ loop do
 
   client = server.accept_nonblock(exception: false)
   next if client == :wait_readable
+  clients << client
 
   Thread.new(client) do |c|
     begin
@@ -60,6 +86,7 @@ loop do
     rescue IOError, Errno::EPIPE
       # client disconnected
     ensure
+      clients.delete(c)
       c.close rescue nil
     end
   end
