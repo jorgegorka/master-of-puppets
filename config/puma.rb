@@ -43,8 +43,10 @@ pidfile ENV["PIDFILE"] if ENV["PIDFILE"]
 
 # Expose the 0-based worker index so boot-time replay jobs (Skill::ReloadJob,
 # Memory::FullReindexJob) only fan out from worker 0. Single-mode Puma never
-# calls on_worker_boot, so PUMA_WORKER_INDEX stays unset → boot_replay_leader?
+# calls before_worker_boot, so PUMA_WORKER_INDEX stays unset → BootReplayLeader.leader?
 # defaults to true and the single worker still replays. See Phase 4 Task 4.4.
-on_worker_boot do |index|
+# (on_worker_boot was deprecated in Puma 7; before_worker_boot fires at the
+# equivalent point in the cluster-mode worker bootstrap.)
+before_worker_boot do |index|
   ENV["PUMA_WORKER_INDEX"] = index.to_s
 end

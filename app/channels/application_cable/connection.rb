@@ -9,7 +9,8 @@ module ApplicationCable
 
     private
       def find_verified_user
-        session = Session.find_by(id: cookies.signed[:session_id])
+        session_id = cookies.signed[:session_id]
+        session    = Session.find_by(id: session_id)
         if session.nil? || session.expired?
           session&.destroy
           reject_unauthorized_connection
