@@ -3016,6 +3016,10 @@ git commit -m "Phase 1: Procfile.dev + bin/dev + agents_supervisor stub with hea
 - **`Session::SweepJob` (recurring, hourly)** — deletes expired web `Session` rows, rotates `last_seen_at` on each authenticated request, and resets the signed cookie when it nears expiry. Mirrors the Terminal sweep pattern. Phase 1 ships a permanent cookie + no rotation (acceptable for single-user installs per § 15.1); multi-user installs should land this before opening sign-ups.
 - Terminal page with xterm.js + `terminal_controller.js`.
 - Upgrade memory + file editors to Monaco (importmap pin + lazy load per § 13.1).
+- **Phase 3 carry-overs:**
+  - `run_shell` sandboxing — rlimits + uid drop + namespaces inside supervisor-spawned child processes. Replaces the Phase 3 stop-gap (prod-off flag + env scrub + PGID kill). See `docs/plans/phase-3-tools-skills.md` Open items.
+  - Worker-0 gate for boot-replay jobs (`Skill::ReloadJob`, `Memory::FullReindexJob`). Single-leader replay via Puma `on_worker_boot` + worker-index check. Replaces the Phase 3 per-path concurrency-key stop-gap.
+  - `McpTool` branch in `Message::Streamable#infer_source` — restore the route once `mcp_tools` and `Mcp::DiscoveryJob` land (Task 3.16b deleted the stub).
 
 **Exit criteria:** Configure an HTTP MCP server (e.g. context7) and call its tools from chat. Open a terminal, run commands, disconnect, reattach within TTL window with scrollback intact. Expired web sessions are pruned hourly; an idle session past `expires_at` redirects to sign-in.
 
@@ -3030,6 +3034,12 @@ git commit -m "Phase 1: Procfile.dev + bin/dev + agents_supervisor stub with hea
 - Jobs page (`/jobs`): create cron-scheduled prompts, list runs, view output, pause/resume via `resource :pause`.
 - Dashboard: aggregates from `Message`/`ToolCall`/`JobRun`/`McpServer.status`. Charts via chart.js. Token/cost rollups grouped by day, by session, by model.
 - "Incidents" surface via `Event.where("action LIKE 'error_%'")` or an explicit `Event.incidents` scope.
+- **Phase 3 carry-overs:**
+  - FTS prefix-search upgrade — add `prefix='2 3'` to `skills_fts` (and `memory_files_fts`), append `*` in `Searchable#matching`, ship an autocomplete controller for `/skills`. See `docs/plans/phase-3-tools-skills.md` Open items.
+  - Lift `reindex_fts!` / `clear_fts_entry!` raw SQL out of `Skill::Loadable` and `MemoryFile::Reindexable` into the `Searchable` concern (introduce `reindex_fts!(attrs_hash)` / `clear_fts_entry!` on the concern; each model declares its column map). Bundle with the prefix-search work above.
+  - Decide on `SkillInstallation#accepted_at` and `SkillEnablement#enabled_at` — drop the columns (use `created_at`), or repurpose `enabled_at` to track last re-enable (set only on unique-violation retry). Today they always equal `created_at`.
+  - Decide whether `:reloaded` events with `creator: nil` (watcher / boot-replay path) should be filtered or attributed to a "system" pseudo-actor in the incidents/audit feed.
+  - Live `/skills` updates — wire `Skill#after_commit { broadcast_replace_to ... }` alongside the dashboard's Turbo Stream infra.
 
 **Exit criteria:** Schedule a daily prompt, see it run, view output, see costs and incidents on dashboard.
 
@@ -3048,6 +3058,7 @@ git commit -m "Phase 1: Procfile.dev + bin/dev + agents_supervisor stub with hea
 - `bin/agents_supervisor` v3: per-profile tmux session for each swarm worker.
 - Swarm pages: missions list, mission detail, kanban board, worker chat, mission events log.
 - Auto/manual mode toggle.
+- **Phase 3 carry-over:** Per-user / per-skill / per-profile filter in `Message#available_tools`. Today the registry exposes all tools to every user; Task 3.16b adds only a non-admin filter on `run_shell` as a stop-gap. Once `agent_profile_skills` ships, the real filter joins `available_tools` against `Skill.enabled_for(user)` (and, in swarm context, against `agent_profile.skills`).
 
 **State machines:** see § 4.4. Transitions are explicit methods (`mission.dispatch!`, `mission.advance!`, `assignment.block!(reason)`).
 

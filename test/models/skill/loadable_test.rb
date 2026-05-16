@@ -84,7 +84,7 @@ class Skill::LoadableTest < ActiveSupport::TestCase
       "good SKILL.md should still load"
   end
 
-  test "body with `run_shell` upgrades security_level to medium" do
+  test "body with run_shell inside fenced code upgrades security_level to medium" do
     Pathname.new(@tmp).join("skills/io/filesystem/SKILL.md").write(<<~MD)
       ---
       name: filesystem
@@ -92,9 +92,25 @@ class Skill::LoadableTest < ActiveSupport::TestCase
       category: io
       security_level: safe
       ---
-      Use `run_shell` to invoke tar.
+      Use the shell tool:
+
+      ```
+      run_shell "tar -czf foo.tar.gz foo"
+      ```
     MD
     Skill.reload_from_disk
     assert_equal "medium", Skill.find_by!(slug: "filesystem").security_level
+  end
+
+  test "seeded filesystem SKILL.md resolves to security_level safe" do
+    seed = Rails.root.join("db/seeds/skills/io/filesystem/SKILL.md")
+    raise "seed SKILL.md missing" unless seed.exist?
+    target = Pathname.new(@tmp).join("skills/io/filesystem/SKILL.md")
+    target.dirname.mkpath
+    FileUtils.cp(seed, target)
+    Skill.reload_from_disk
+    skill = Skill.find_by!(slug: "filesystem")
+    assert_equal "safe", skill.security_level,
+      "well-documented safe skills must not get bumped to medium by prose backticks"
   end
 end

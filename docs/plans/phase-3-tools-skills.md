@@ -1755,6 +1755,135 @@ These are the items future-review will flag if skipped. Tick each before the `ph
 
 ---
 
+## Task 3.16 — Post-review fix-ups (Phase 3 batch 2)
+
+A full Phase 3 code review on 2026-05-16 surfaced 4 critical and ~20 important/minor issues. After triage (4 parallel review agents cross-checking source against this plan + `workflows.md` § 16), the following ship as a Phase 3 batch-2. Items that genuinely belong to Phase 4/5/6 are listed in *Open items* below, not here.
+
+Three commit groups — land in order so the test suite stays green at each boundary:
+
+- **3.16a — Critical correctness + model layer**
+- **3.16b — Tool registry hardening**
+- **3.16c — Skills UI & wiring**
+
+After all three land, retag (`git tag -d phase-3 && git tag phase-3`) so the tag points at the green tree.
+
+### 3.16a — Critical correctness + model layer
+
+- [x] **C1 — Anthropic system prompt is sent as `system:` kwarg, not a `messages[0]` entry.** Today's `Message::Streamable#prompt_messages` prepends `{role: :system, content: …}` to `messages:`, and `Llm::Anthropic#stream` forwards that — the Anthropic Ruby SDK requires `system:` as a separate top-level kwarg and rejects `{role: "system"}` inside `messages` (400). The exit-criterion test (line 1730) only asserts the `prompt_messages` *shape*; the VCR round-trip (line 1731) was skipped, so this never fired against a real API.
+  - **File:** `app/services/llm/anthropic.rb` — add `system:` to `#stream(...)` signature; pass through as `@client.messages.stream(..., system: system.presence)`. Update `Llm::Adapter` interface comment.
+  - **File:** `app/models/message/streamable.rb` — split `prompt_messages` so it returns history only; add `system_prompt` reader that returns the string from `build_system_prompt`. Pass `system: system_prompt` into `llm_adapter.stream`.
+  - **Test:** `test/services/llm/anthropic_test.rb` — stub `@client.messages` and assert `.stream` receives `system: "## Skill: …"` as a kwarg, not as a `messages[0]` entry.
+  - **Test:** `test/models/message/streamable_test.rb` — update existing prompt assertion: (a) no `:system` role in `messages`, (b) `system_prompt` returns concatenated skill body.
+
+- [x] **C3 — `run_shell` production safety gate + env scrub + PGID kill.** Full sandbox stays Phase 4 (rlimits / uid drop / namespaces — see Open items). What lands now: (a) gate registration on `ENV.fetch("MOP_ENABLE_RUN_SHELL", Rails.env.production? ? "false" : "true") == "true"` so prod is default-off, (b) scrub `DATABASE_URL` / `RAILS_MASTER_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` from the child env, (c) spawn with `Process.setpgid` and kill the process group on `Timeout::Error` (current `Timeout.timeout` wrap leaves the `/bin/sh -c` child running).
+  - **File:** `config/initializers/tool_internal_registry.rb` — conditionally register `Tool::Internal::RunShell` based on the env flag.
+  - **File:** `app/models/tool/internal/run_shell.rb` — replace `Open3.capture3(command, chdir: cwd)` with `Open3.popen3({"DATABASE_URL"=>nil, "RAILS_MASTER_KEY"=>nil, "ANTHROPIC_API_KEY"=>nil, "OPENAI_API_KEY"=>nil}, command, chdir: cwd, pgroup: true)`. Capture child PID; on `Timeout::Error` call `Process.kill("-TERM", -pid)` then `-KILL` after 2s. Keep the Phase-4 TODO breadcrumb.
+  - **Test:** `test/models/tool/internal/run_shell_test.rb` — add: "is unregistered when MOP_ENABLE_RUN_SHELL=false", "DATABASE_URL is not visible to the child", "child is killed on timeout (no orphan `sleep` survives)".
+
+- [x] **C4 — Coalesce `Skill::ReloadJob` per-path concurrency.** Boot-replay + per-worker supervisor fan-out causes N× enqueues of the same `(path: …)` job (N = Puma worker count). DB unique index on `skills.slug` prevents data corruption, but it's pure queue noise + wasted reparses. Full worker-0 gating is Phase 4 supervisor v2 (see Open items); for now add a path-keyed concurrency control on the job itself.
+  - **File:** `app/jobs/skill/reload_job.rb` — add Solid Queue concurrency control: `limits_concurrency to: 1, key: ->(path: nil) { "skill-reload:#{path || 'all'}" }`. If Solid Queue concurrency syntax differs from the gem version in use, fall back to a `Rails.cache.write(..., unless_exist: true, expires_in: 5.seconds)` short-circuit at top of `perform`.
+  - **Test:** `test/jobs/skill/reload_job_test.rb` — add "two enqueues for the same path produce one final row" (the count assertion already implicit, but make it explicit). If concurrency-key infra is available, also assert only one of two parallel enqueues executes.
+
+- [x] **M1 — Wrap `install_for`, `uninstall_for`, `disable_for` in transactions.** Task 3.15 already wrapped `enable_for`; the other three concern methods still do mutation + `track_event` without a transaction. Pinnable/Archivable already follow the rule; this restores parity.
+  - **File:** `app/models/skill/installable.rb` — wrap `install_for` body (find_or_create_by! + track_event) and `uninstall_for` body (destroy + track_event after the early return) in `transaction do … end`.
+  - **File:** `app/models/skill/enableable.rb` — wrap `disable_for` body in `transaction do … end`.
+  - **Test:** `test/models/skill/installable_test.rb` + `test/models/skill/enableable_test.rb` — stub `track_event` to raise; assert the installation/enablement row is rolled back (count unchanged).
+
+- [x] **M2 — Stop `Skill::SecurityAnalysis` over-triggering on prose backticks + bare URLs.** Today every inline-code span and every `https://…` in documentation prose promotes a `safe` SKILL.md to `:medium` (which then requires explicit install). The seeded `db/seeds/skills/io/filesystem/SKILL.md` (declared `safe`) gets bumped to `medium` and breaks the install/enable UX for well-documented safe skills.
+  - **File:** `app/models/skill/security_analysis.rb` — restrict `SHELL_PATTERNS` and `NETWORK_PATTERNS` scans to fenced code blocks only (`body.scan(/```.*?```/m).join("\n")`). Drop the broad backtick pattern. Drop the bare `https?://` pattern; keep library-shape matches (`net/http`, `faraday`, `Excon`, `URI.open`, `Net::HTTP`, `HTTParty`).
+  - **Plus T10 (related):** extend `SHELL_PATTERNS` to also catch `\beval\b`, `\bexec\b`, `Kernel\.(?:spawn|system|exec|fork)`, `IO\.popen`, `\bOpen3\.`, `Process\.(?:spawn|fork|exec)` — current set misses these obvious code-execution vectors.
+  - **Test:** `test/models/skill/security_analyzable_test.rb` — add: "prose backticks in docs do not flag shell", "https URL in prose does not flag network", "shell pattern inside fenced code DOES flag", "URL inside fenced code with Net::HTTP DOES flag network", one assertion per new SHELL pattern. Also add an end-to-end assertion (`test/models/skill/loadable_test.rb`) that the seeded `filesystem` SKILL.md resolves to `safe`.
+
+- [x] **M3 — Move FTS reindex out of the AR transaction → `after_commit`.** `Skill::Loadable#load_from_path!` runs `reindex_fts!` inside `transaction do …` while the FTS write goes through `SkillFts.connection` (different DB, content). A rollback after the FTS write (e.g. `track_event` failure) leaves stale rows. The destroy path is already correct (`after_destroy_commit :clear_fts_entry!`, hardening line 1748) — the write path missed the dual.
+  - **File:** `app/models/skill/loadable.rb` — capture `@pending_fts_body = body` inside the transaction; add `after_commit :flush_fts_write` that calls `reindex_fts!(@pending_fts_body) if @pending_fts_body` then nils it.
+  - **File:** `app/models/memory_file/reindexable.rb` — same treatment (this is a Phase 2 carry-over with the identical bug; fix in tandem so the concern's contract is consistent).
+  - **Test:** `test/models/skill_search_test.rb` — add "rollback of `update!` leaves no stale FTS row". Stub `track_event` to raise inside `load_from_path!`, assert FTS count for that slug is 0.
+  - **Test:** `test/models/memory_file_search_test.rb` (or equivalent) — mirror.
+
+**Commit message:** `Phase 3 Task 3.16a: anthropic system kwarg + run_shell prod gate + reload concurrency + skill concern transactions + FTS after_commit + tighter security heuristics`
+
+### 3.16b — Tool registry hardening
+
+- [ ] **T1 — Validate input against `input_schema` at the registry boundary.** Today malformed args (`{"path": 123}`, missing required keys) raise `KeyError` / `NoMethodError` inside the tool, get caught by `ToolCall::Executable`'s blanket rescue, and surface as poorly-typed error strings. Add a centralized `Tool::Internal.validate!(input, schema)` returning `Tool::Result.failure("invalid input: …")` before `klass.invoke`.
+  - **File:** `app/models/tool/internal.rb` — add a minimal schema check (required keys present, top-level types match `schema[:properties][k][:type]`). No need for a JSON-schema gem in Phase 3.
+  - **Test:** `test/models/tool/internal_test.rb` — "invoke with missing required key returns Result.failure", "invoke with wrong-typed key returns Result.failure".
+
+- [ ] **T2 — `write_file` defaults to no-overwrite.** Add `overwrite: { type: "boolean", default: false }` to `input_schema`. If destination exists and `overwrite` is not true, return `Tool::Result.failure("file exists; pass overwrite: true to replace")` before `mkdir_p`.
+  - **File:** `app/models/tool/internal/write_file.rb`
+  - **Test:** `test/models/tool/internal/write_file_test.rb` — "writing to existing path without overwrite returns failure and leaves original bytes untouched"; "writing with overwrite: true replaces".
+
+- [ ] **T3 — Snapshot/restore `Tool::Internal` registry around tests.** The Phase 3 tests mutate the global `@registry` and never restore it.
+  - **File:** `test/models/tool/internal_test.rb` — add `setup`/`teardown` that snapshots `Tool::Internal.send(:registry).dup` and restores in teardown. (Alternative: delete just the keys added by the test; snapshot-restore is cheap and total.)
+
+- [ ] **T4 — `ToolCall::Executable#execute` re-raises the `pending?` guard without overwriting state.** Today the guard `raise "tool_call already #{status}" unless pending?` lives inside the rescue scope; if a `:succeeded` row has `execute` called again, the rescue overwrites it to `:failed` before re-raising.
+  - **File:** `app/models/tool_call/executable.rb` — move the `pending?` guard above the `begin … rescue … end` block. The rescue then never sees the guard exception.
+  - **Test:** `test/models/tool_call/executable_test.rb` — "after a successful execute, a second execute raises but reload.succeeded? stays true (status unchanged)".
+
+- [ ] **T5 — Hide `run_shell` from non-admin `available_tools`.** Today the registry exposes it to every user; only `RunShell.invoke` itself checks `user.admin?`. Cheap to also filter the tool definitions so non-admins don't see it as an option. Broader per-user/per-skill tool filtering is Phase 6 (`agent_profile_skills`).
+  - **File:** `app/models/message/streamable.rb` — in `available_tools`, drop `"run_shell"` from `Tool::Internal.all_definitions` for non-admin users.
+  - **Test:** `test/models/message/streamable_test.rb` — "available_tools for non-admin excludes run_shell; admin sees it".
+
+- [ ] **T6 — Cap skill body in system prompt + memoize `enabled_skills`.** Bodies live in the DB (not disk re-read — the review's framing was off there), but they are unbounded and `enabled_skills` is recomputed per `advance!` iteration. A single 5 MB skill kills future calls via provider rejection.
+  - **File:** `app/models/message/streamable.rb` — introduce `MAX_SKILL_BODY_BYTES = 64_000`, truncate each body in `build_system_prompt` (append `"\n…[truncated]"`), memoize `@enabled_skills ||= …`.
+  - **Test:** `test/models/message/streamable_test.rb` — "skill body > MAX is truncated in prompt"; "two `advance!` iterations call Skill.enabled_for once".
+
+- [ ] **T7 — Route unknown tool names to `:unknown` with a clean `Tool::Result.failure`.** Today `infer_source` has a `defined?(McpTool)` branch (dead code — model doesn't exist until Phase 4), and unknown names silently fall through to `source: :skill` and hit a misleading "Phase 4/6" placeholder.
+  - **File:** `app/models/message/streamable.rb` — delete the `defined?(McpTool)` line (Phase 4 reintroduces it cleanly). Return `:unknown` when neither `Tool::Internal.lookup(name)` nor a (future) MCP tool matches.
+  - **File:** `app/models/tool_call/executable.rb` — add `when :unknown` arm returning `Tool::Result.failure("unknown tool: #{name}")`.
+  - **Test:** `test/models/message/streamable_test.rb` — "infer_source('garbage') returns :unknown"; "executing it produces a clean Result.failure".
+
+- [ ] **T8 — Delete unused `Tool::Internal::Forbidden`.** Zero call-sites across `app/`, `config/`, `db/`, `test/`. The forbidden-path concept lives in `WorkspacePath::EscapeAttempt`.
+  - **File:** `app/models/tool/internal.rb` — delete the constant.
+
+- [ ] **T9 — `Tool::Internal.invoke` returns `Result.failure` for unknown tool name (was raising `UnknownTool`).** Aligns the contract with every other failure mode. After T8 + this, `Tool::Internal` has no custom exception classes.
+  - **File:** `app/models/tool/internal.rb` — `klass = lookup(name) or return Tool::Result.failure("unknown tool: #{name}")`. Delete `UnknownTool`.
+  - **Test:** `test/models/tool/internal_test.rb` — replace "raises UnknownTool" with "returns Result.failure for missing name".
+
+**Commit message:** `Phase 3 Task 3.16b: tool registry — input validation + write_file no-clobber + clean rescue + unknown-tool contract + admin-only run_shell defs`
+
+### 3.16c — Skills UI & wiring
+
+- [ ] **U1 — Ship CSS for `.badge` / `.badge--ok|warn|danger`.** Helper is in the wild emitting these classes with no matching styles. App uses pure custom CSS (`@layer`, OKLCH tokens) — pick existing semantic color tokens (success / warning / danger).
+  - **File:** `app/assets/stylesheets/base.css` (or new `components/badges.css` if the project uses an `@layer components` slot — follow whatever pattern other components use, e.g. `.button`).
+  - **Test:** `test/system/skills_test.rb` — extend the existing assertion to `assert_selector ".badge.badge--ok, .badge.badge--warn, .badge.badge--danger"` so future CSS removal trips the system test.
+
+- [ ] **U2 — `SkillsController#update` enqueues `Skill::ReloadJob` instead of running `load_from_path!` synchronously.** Job already exists; this aligns with the `_now/_later` pattern.
+  - **File:** `app/controllers/skills_controller.rb` — replace inline `@skill.load_from_path!` with `Skill::ReloadJob.perform_later(path: @skill.source_path)`; flash → `"Reload queued."`.
+  - **Test:** `test/controllers/skills_controller_test.rb` — `assert_enqueued_with(job: Skill::ReloadJob, args: [{ path: @skill.source_path }])`.
+
+- [ ] **U3 — Guard `workspace_bootstrap` initializer against console/rake/migrate contexts.** Current `defined?(Skill)` guard is a no-op (Zeitwerk). Copy the guard block from `config/initializers/agents_supervisor_client.rb` (skip on `Rails::Console`, `Rails::Generators`, Rake top-level tasks) and add `next unless ActiveRecord::Base.connection.data_source_exists?("skills")` so fresh `db:prepare` doesn't blow up.
+  - **File:** `config/initializers/workspace_bootstrap.rb`
+  - **Test:** lightweight unit test, or simply boot `bin/rails runner '0'` and assert no `Skill::ReloadJob` is enqueued (`SolidQueue::Job.count` unchanged).
+
+- [ ] **U4 — Remove `SkillsController#destroy` + route.** Disk is the source of truth; the action deletes the DB row but the next `Skill::ReloadJob` (boot replay, watcher, or supervisor reconnect) recreates it. Misleading affordance with no durable effect. Aligns with the Open-items note that the Web UI cannot mutate SKILL.md in Phase 3.
+  - **File:** `app/controllers/skills_controller.rb` — delete `#destroy`; remove `:destroy` from `before_action` lists.
+  - **File:** `config/routes.rb` — change `resources :skills` to `only: %i[index show update]`.
+  - **Test:** `test/controllers/skills_controller_test.rb` — remove the destroy test.
+
+- [ ] **U5 — `Skill::ReloadJob` becomes a one-liner; `Skill.reload_path(path)` owns the branching.** Restores the `_now/_later` job convention.
+  - **File:** `app/models/skill/loadable.rb` — add class method `def reload_path(path); find_or_initialize_by(source_path: path).load_from_path!; rescue MalformedSkill => e; Rails.logger.warn("…"); end` (gives the supervisor/watcher path the same `rescue MalformedSkill` insulation that `reload_from_disk` got in Task 3.15).
+  - **File:** `app/jobs/skill/reload_job.rb` — body becomes `path ? Skill.reload_path(path) : Skill.reload_from_disk`.
+  - **Test:** `test/models/skill/loadable_test.rb` — add "reload_path tolerates malformed SKILL.md" mirroring the existing `reload_from_disk` test.
+
+- [ ] **U8 — Delete unused `@categories` in `SkillsController#index`.** The view derives sections via `@skills.group_by(&:category)`; `@categories` is set and never read.
+  - **File:** `app/controllers/skills_controller.rb` — delete the `@categories = …` line.
+
+- [ ] **C2 / docs — Add direct scope tests for `Skill.enabled_for` / `installed_for`.** The associations live in `Skill::Installable` / `Skill::Enableable` (review false positive — they exist), but no test exercises the scopes directly. Add coverage so a future regression is caught at the unit layer, not in a full streaming integration test.
+  - **File:** `app/models/skill.rb` — add a one-line comment above the two scopes: `# Associations live in Skill::Installable / Skill::Enableable (included above).`
+  - **Test:** `test/models/skill_test.rb` — `enabled_for returns only skills enabled by the given user`; same shape for `installed_for`.
+
+**Commit message:** `Phase 3 Task 3.16c: skills UI — badge CSS + async reload + bootstrap guards + remove destroy footgun + thin controllers + scope tests`
+
+### 3.16 verification + retag
+
+- [ ] `bin/rails test` — expect ≥213 runs, all green.
+- [ ] `bin/rails test:system` — expect ≥7 runs, all green.
+- [ ] `bin/bundle exec brakeman -A` — expect no new warnings (the 3 existing `app/models/tool/internal/write_file.rb` File-Access medium warnings stay; everything else should stay at the baseline).
+- [ ] `bin/bundle exec bundler-audit check --update` — clean.
+- [ ] `git tag -d phase-3 && git tag phase-3` — retag to the green head after 3.16c lands.
+
+---
+
 ## Critical files map (Phase 3 additions)
 
 ```
@@ -1818,6 +1947,13 @@ test/jobs/skill/reload_job_test.rb
 - `agent_profile_skills` migration is **deferred to Phase 6**. Workflows.md § Phase 3 lists it, but the parent `agent_profiles` table doesn't exist until Phase 6. Adding the join now means either an FK to a missing table (broken at boot) or `foreign_key: false` (dangling reference). Phase 6 ships both together.
 - `web_search` skill is a body-only stub in Phase 3 — the tool itself lands in Phase 4 once the MCP transport exists. The skill teaches the LLM the tool's API contract so it can be ready when the wiring lands.
 - `SkillsController#update` does a *manifest reload* (re-parses disk). It is not a content-edit endpoint — the Web UI cannot mutate a SKILL.md body in Phase 3. Editing the body is done via `/files` (admin-only) or by editing the file on disk; the watcher picks it up.
-- `run_shell` runs with the Rails process's UID. Phase 3 chdir's to `${MOP_HOME}` and adds a 30s timeout; harder isolation (rlimits, uid drop, container) needs the Phase 4 supervisor v2 rewrite and is intentionally out of scope here.
+- `run_shell` runs with the Rails process's UID. Task 3.16a adds a default-off production flag, an env scrub of secrets, and a PGID-based timeout kill. Harder isolation (rlimits, uid drop, container, namespaces) still needs the Phase 4 supervisor v2 rewrite and is intentionally out of scope here.
 - `Skill::Loadable` accepts only YAML frontmatter. If a future skill format adds TOML or JSON front-blocks, lift the parser into a `Skill::FrontmatterParser` PORO at that time.
 - Skills currently don't broadcast a Turbo Stream update on reload. If the `/skills` page needs live updates, wire `Skill#after_commit { broadcast_replace_to ... }` in Phase 5 alongside the dashboard work.
+- **Skill-based tool filtering** in `Message#available_tools` is deferred to Phase 6 (alongside `agent_profile_skills`). Task 3.16b adds only a non-admin filter on `run_shell` as a stop-gap; the full per-user/per-skill capability filter ships with agent profiles.
+- **Boot-replay of `Skill::ReloadJob` / `Memory::FullReindexJob` fires once per Puma worker.** Task 3.16a adds a path-keyed concurrency control on the job so the N concurrent calls collapse to one perform. Worker-0 gating (a true single-leader replay) needs Puma's `on_worker_boot` with worker index and lands as part of Phase 4 supervisor v2. Today's safety net: (a) DB unique index on `skills.slug`, (b) the new concurrency key, (c) `load_from_path!` digest short-circuit for idempotency.
+- **FTS lacks a prefix index.** `skills_fts` uses `tokenize='porter'` only; `Searchable#matching` does phrase match without `*` suffix. Full-word search on `/skills` works fine today (porter stemming handles common cases). Autocomplete is a Phase 5 deliverable that will add `prefix='2 3'` to the fts5 table and `*`-suffix to `Searchable#matching` in one slice.
+- **Lift `reindex_fts!` / `clear_fts_entry!` raw SQL into `Searchable` concern.** Today these live inline in `Skill::Loadable` and `MemoryFile::Reindexable`. After Task 3.16a moves them to `after_commit`, the bodies are still per-model. Phase 5 should bundle this refactor with the prefix-index work — introduce `Searchable#reindex_fts!(attrs_hash)` and let each model declare its column map.
+- **`SkillInstallation#accepted_at` and `SkillEnablement#enabled_at` are eagerly set to `Time.current` and therefore always equal `created_at`.** Schema is frozen at the Phase 3 tag, so dropping them is a Phase 5 decision: either drop the columns and use `created_at`, or repurpose `enabled_at` to track the last re-enable (set only on unique-violation retry, otherwise nil).
+- **`Skill::Loadable#load_from_path!` records `:reloaded` events with `creator: nil`** when invoked from the watcher or boot-replay job (`Eventable#track_event` defaults to `Current.user`, which is nil outside a request). `Event#creator` is `optional: true` so this is safe; revisit at Phase 5 if the dashboard wants to filter or attribute system-originated events.
+- **`McpTool` routing in `Message::Streamable#infer_source` is deferred to Phase 4.** Task 3.16b removes the dead `defined?(McpTool)` line and adds an `:unknown` source for tools the registry can't resolve. Phase 4's MCP work reintroduces the MCP branch cleanly once `mcp_tools` and `Mcp::DiscoveryJob` land.

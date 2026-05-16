@@ -7,6 +7,7 @@ module Skill::Loadable
 
   included do
     after_destroy_commit :clear_fts_entry!
+    after_commit :flush_fts_write, on: %i[create update]
   end
 
   class_methods do
@@ -49,11 +50,26 @@ module Skill::Loadable
         body_digest:    digest,
         discovered_at:  Time.current
       )
-      reindex_fts!(body)
+      @pending_fts_body = body
       track_event :reloaded, body_digest: digest
     end
     @body = body
     self
+  end
+
+  # after_commit hook (see `included do`). Runs the FTS write outside the
+  # primary-DB transaction so a track_event rollback doesn't leave stale FTS
+  # rows. Trade-off: if the FTS write itself fails, the AR row is committed
+  # but FTS may be partial — reset body_digest so the next reindex pass
+  # re-runs (self-healing).
+  def flush_fts_write
+    body = @pending_fts_body
+    return unless body
+    @pending_fts_body = nil
+    reindex_fts!(body)
+  rescue ActiveRecord::StatementInvalid
+    update_columns(body_digest: "")
+    raise
   end
 
   def body

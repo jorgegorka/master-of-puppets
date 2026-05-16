@@ -43,4 +43,44 @@ class SkillSearchTest < ActiveSupport::TestCase
     count_val = row.is_a?(Hash) ? row["c"] : row[0]
     assert_equal 0, count_val
   end
+
+  test "rollback of update! inside load_from_path! leaves no stale FTS row" do
+    tmp = Dir.mktmpdir
+    skills_root = Pathname.new(tmp).join("skills/io/rollback")
+    skills_root.mkpath
+    skill_md = skills_root.join("SKILL.md")
+    skill_md.write(<<~MD)
+      ---
+      name: rollback
+      description: rolls back
+      category: io
+      ---
+      v1 body
+    MD
+    skill = Skill.create!(
+      slug: "rollback-pre",
+      name: "rollback-pre",
+      category: "io",
+      source_path: skill_md.to_s,
+      body_digest: "pre",
+      manifest: {},
+      discovered_at: 1.day.ago
+    )
+    skill.update_columns(body_digest: "different-from-disk")  # force the inner update! to fire
+
+    # Stub track_event on this instance to raise inside the transaction.
+    skill.define_singleton_method(:track_event) { |*_a, **_kw| raise "boom" }
+
+    assert_raises(RuntimeError) { skill.load_from_path! }
+
+    row = SkillFts.connection.execute(
+      ActiveRecord::Base.sanitize_sql([
+        "SELECT COUNT(*) AS c FROM skills_fts WHERE skill_id = ?", skill.id
+      ])
+    ).first
+    count_val = row.is_a?(Hash) ? row["c"] : row[0]
+    assert_equal 0, count_val, "FTS write must not happen when the AR transaction rolls back"
+  ensure
+    FileUtils.rm_rf(tmp) if tmp
+  end
 end

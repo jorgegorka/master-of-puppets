@@ -29,4 +29,25 @@ class Skill::InstallableTest < ActiveSupport::TestCase
     end
     refute skill.installed_for?(user)
   end
+
+  test "install_for rolls back the installation when track_event raises" do
+    skill = skills(:filesystem)
+    user  = users(:one)
+    with_singleton_method(skill, :track_event, ->(*_a, **_kw) { raise "boom" }) do
+      assert_raises(RuntimeError) { skill.install_for(user) }
+    end
+    refute skill.installed_for?(user),
+      "installation row must roll back when track_event raises"
+  end
+
+  test "uninstall_for rolls back the destroy when track_event raises" do
+    skill = skills(:filesystem)
+    user  = users(:one)
+    skill.install_for(user)
+    with_singleton_method(skill, :track_event, ->(*_a, **_kw) { raise "boom" }) do
+      assert_raises(RuntimeError) { skill.uninstall_for(user) }
+    end
+    assert skill.installed_for?(user),
+      "installation row must remain when uninstall track_event raises"
+  end
 end

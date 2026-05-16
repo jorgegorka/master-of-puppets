@@ -11,7 +11,8 @@ module Message::Streamable
     usage = llm_adapter.stream(
       messages: prompt_messages,
       tools:    available_tools,
-      model:    model
+      model:    model,
+      system:   system_prompt
     ) do |event|
       apply_stream_event!(event)
       broadcast_event(event)
@@ -111,11 +112,13 @@ module Message::Streamable
     end
 
     def prompt_messages
-      history = chat_session.messages.ordered.where("messages.id <= ?", id).map do |m|
+      chat_session.messages.ordered.where("messages.id <= ?", id).map do |m|
         { role: m.role, content: m.content_blocks }
       end
-      system = build_system_prompt
-      system.empty? ? history : ([ { role: :system, content: system } ] + history)
+    end
+
+    def system_prompt
+      build_system_prompt
     end
 
     def build_system_prompt

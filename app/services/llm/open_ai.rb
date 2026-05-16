@@ -6,7 +6,7 @@ module Llm
       @config = config
     end
 
-    def stream(messages:, tools:, model:, &block)
+    def stream(messages:, tools:, model:, system: nil, &block)
       raise NotImplementedError, "OpenAI adapter lands in Phase 7"
     end
 

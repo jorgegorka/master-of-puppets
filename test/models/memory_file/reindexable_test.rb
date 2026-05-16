@@ -87,18 +87,16 @@ class MemoryFile::ReindexableTest < ActiveSupport::TestCase
   end
 
   test "reindex! after a partial FTS failure can be repaired by replaying" do
-    # Phase 2 hardening-gate item: SQLite cross-database transactions are
-    # best-effort. If the FTS INSERT raises after the DELETE has gone
-    # through, the primary-DB row rolls back (its content_digest stays put)
-    # but the FTS row is gone — a real-world partial failure.
-    #
-    # The fix is the replay-on-boot reconciliation noted in workflows.md:
-    # re-`reindex!` rows whose digest doesn't match disk. This test simulates
-    # the failure, observes the gap, then asserts a replay restores the
-    # FTS index.
+    # Phase 2 hardening-gate item, updated for Phase 3 Task 3.16a M3:
+    # SQLite cross-database transactions are best-effort and the FTS write
+    # now lives in `after_commit` rather than inside the AR transaction.
+    # If the FTS INSERT raises after the DELETE has gone through, the
+    # primary-DB row is already committed (with the v2 digest) and the FTS
+    # row is gone — a real-world partial failure. The self-healing path is
+    # the `rescue ActiveRecord::StatementInvalid` in `flush_fts_write`,
+    # which resets `content_digest` so the next `reindex!` re-runs.
     write_memory("repair.md", "# Repair\n")
     file = MemoryFile.reindex("repair.md")
-    original_digest = file.content_digest
     assert_equal 1, fts_count_for(file.id)
 
     write_memory("repair.md", "# Repair v2\n")
@@ -117,14 +115,35 @@ class MemoryFile::ReindexableTest < ActiveSupport::TestCase
       fts_conn.singleton_class.remove_method(:__real_execute)
     end
 
-    # The primary-DB row rolled back to the v1 digest.
-    assert_equal original_digest, file.reload.content_digest
+    # The primary-DB row is committed (v2 disk content was written) but the
+    # digest was reset to "" by the rescue in `flush_fts_write`, marking the
+    # row as needing re-indexing.
+    assert_equal "", file.reload.content_digest
 
     # On a fresh sweep, `reindex!` notices the row's digest doesn't match
     # disk, re-runs, and restores the FTS row.
     file.reindex!
     assert_equal 1, fts_count_for(file.id)
     assert_equal Digest::SHA256.hexdigest("# Repair v2\n"), file.reload.content_digest
+  end
+
+  test "rollback of update! leaves no stale FTS row" do
+    write_memory("safe.md", "# Safe\n")
+    file = MemoryFile.reindex("safe.md")
+    assert_equal 1, fts_count_for(file.id)
+
+    write_memory("safe.md", "# Safe v2\n")
+    file.define_singleton_method(:track_event) { |*_a, **_kw| raise "boom" }
+    assert_raises(RuntimeError) { file.reindex! }
+    # The FTS row is the v1 entry (unchanged) — after_commit never fired
+    # because track_event rolled the transaction back.
+    assert_equal 1, fts_count_for(file.id)
+    fts_body = MemoryFileFts.connection.select_value(
+      ActiveRecord::Base.sanitize_sql([
+        "SELECT body FROM memory_files_fts WHERE memory_file_id = ?", file.id
+      ])
+    )
+    assert_equal "# Safe\n", fts_body, "FTS body must still be v1, not v2"
   end
 
   private

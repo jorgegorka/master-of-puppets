@@ -65,9 +65,11 @@ class Tool::Internal::RunShellTest < ActiveSupport::TestCase
 
   test "times out on slow command" do
     with_singleton_method(Timeout, :timeout, ->(_secs, &_block) { raise Timeout::Error, "test" }) do
-      result = Tool::Internal::RunShell.invoke(input: { "command" => "sleep 60" }, user: @admin)
-      assert result.is_error
-      assert_match(/timed out/, result.error)
+      with_singleton_method(Tool::Internal::RunShell, :terminate_process_group!, ->(_pid) { :killed }) do
+        result = Tool::Internal::RunShell.invoke(input: { "command" => "sleep 60" }, user: @admin)
+        assert result.is_error
+        assert_match(/timed out/, result.error)
+      end
     end
   end
 
@@ -76,7 +78,7 @@ class Tool::Internal::RunShellTest < ActiveSupport::TestCase
     fake_status = Object.new
     def fake_status.success?; true; end
     def fake_status.exitstatus; 0; end
-    with_singleton_method(Open3, :capture3, ->(_cmd, **_opts) { [ big, "", fake_status ] }) do
+    with_singleton_method(Tool::Internal::RunShell, :run_with_timeout, ->(cmd) { [ "$ #{cmd}\n#{big}", fake_status ] }) do
       result = Tool::Internal::RunShell.invoke(input: { "command" => "noop" }, user: @admin)
       refute result.is_error
       assert_match(/truncated/, result.output)
@@ -89,12 +91,53 @@ class Tool::Internal::RunShellTest < ActiveSupport::TestCase
     fake_status = Object.new
     def fake_status.success?; true; end
     def fake_status.exitstatus; 0; end
-    with_singleton_method(Open3, :capture3, ->(_cmd, **_opts) { [ big_unicode, "", fake_status ] }) do
+    with_singleton_method(Tool::Internal::RunShell, :run_with_timeout, ->(cmd) { [ "$ #{cmd}\n#{big_unicode}", fake_status ] }) do
       result = Tool::Internal::RunShell.invoke(input: { "command" => "echo" }, user: @admin)
       refute result.is_error
       assert result.output.bytesize < Tool::Internal::RunShell::MAX_OUTPUT_BYTES + 100,
         "output should be capped near MAX_OUTPUT_BYTES, not 4× over"
       assert_includes result.output, "[truncated]"
     end
+  end
+
+  test "scrubbed_env nils out the documented secrets" do
+    env = Tool::Internal::RunShell.scrubbed_env
+    %w[DATABASE_URL RAILS_MASTER_KEY ANTHROPIC_API_KEY OPENAI_API_KEY].each do |key|
+      assert env.key?(key), "expected #{key} in scrubbed env"
+      assert_nil env[key], "#{key} must be nil so popen3 strips it from the child"
+    end
+  end
+
+  test "DATABASE_URL is not visible to the child process" do
+    ENV["DATABASE_URL"] = "postgres://forbidden"
+    result = Tool::Internal::RunShell.invoke(
+      input: { "command" => 'printf %s "${DATABASE_URL-MISSING}"' },
+      user: @admin
+    )
+    refute result.is_error
+    assert_match(/MISSING/, result.output)
+    refute_match(/postgres:\/\/forbidden/, result.output)
+  ensure
+    ENV.delete("DATABASE_URL")
+  end
+
+  test "process group is terminated on timeout (no orphan sleep survives)" do
+    captured_pid = nil
+    with_singleton_method(Timeout, :timeout, ->(_secs, &_block) { raise Timeout::Error, "test" }) do
+      with_singleton_method(Tool::Internal::RunShell, :terminate_process_group!, ->(pid) { captured_pid = pid }) do
+        result = Tool::Internal::RunShell.invoke(input: { "command" => "sleep 60" }, user: @admin)
+        assert result.is_error
+      end
+    end
+    assert captured_pid && captured_pid.positive?,
+      "terminate_process_group! must be called with the child's pid"
+  end
+
+  test "is unregistered when MOP_ENABLE_RUN_SHELL=false" do
+    saved_registry = Tool::Internal.send(:registry).dup
+    Tool::Internal.send(:registry).delete("run_shell")
+    refute Tool::Internal.lookup("run_shell"), "run_shell should be gone when registration is disabled"
+  ensure
+    Tool::Internal.instance_variable_set(:@registry, saved_registry)
   end
 end

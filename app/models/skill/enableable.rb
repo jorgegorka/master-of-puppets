@@ -26,8 +26,10 @@ module Skill::Enableable
   def disable_for(user)
     enablement = enablements.find_by(user: user)
     return false unless enablement
-    enablement.destroy
-    track_event :disabled, user_id: user.id
+    transaction do
+      enablement.destroy
+      track_event :disabled, user_id: user.id
+    end
     true
   end
 

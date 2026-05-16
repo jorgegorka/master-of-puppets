@@ -135,7 +135,7 @@ class Message::StreamableTest < ActiveSupport::TestCase
 
     call_count = 0
     adapter = Object.new
-    adapter.define_singleton_method(:stream) do |messages:, tools:, model:, &block|
+    adapter.define_singleton_method(:stream) do |messages:, tools:, model:, system: nil, &block|
       events = call_count.zero? ? turn1 : turn2
       call_count += 1
       events.each(&block)
@@ -236,6 +236,52 @@ class Message::StreamableTest < ActiveSupport::TestCase
     end
   end
 
+  test "prompt_messages returns history only — no :system role entry" do
+    msg = messages(:hello)
+    skill = skills(:filesystem)
+    skill.enable_for(msg.chat_session.user)
+    original = Skill.instance_method(:body)
+    Skill.define_method(:body) { "RULES" }
+    begin
+      messages = msg.send(:prompt_messages)
+      refute messages.any? { |m| m[:role] == :system || m[:role] == "system" },
+        "system prompt must travel via the system: kwarg, not messages[]"
+    ensure
+      Skill.define_method(:body, original)
+    end
+  end
+
+  test "system_prompt returns the concatenated enabled skill bodies" do
+    msg = messages(:hello)
+    skill = skills(:filesystem)
+    skill.enable_for(msg.chat_session.user)
+    original = Skill.instance_method(:body)
+    Skill.define_method(:body) { "RULES: be careful" }
+    begin
+      assert_includes msg.send(:system_prompt), "RULES: be careful"
+    ensure
+      Skill.define_method(:body, original)
+    end
+  end
+
+  test "advance! passes system: kwarg to llm adapter" do
+    session = chat_sessions(:one)
+    session.messages.create!(role: :user, content_blocks: [ { type: "text", text: "hi" } ], status: :completed, model: "claude-opus-4-7", provider: "anthropic")
+    assistant = session.messages.create!(role: :assistant, status: :pending, content_blocks: [], model: "claude-opus-4-7", provider: "anthropic")
+
+    captured_kwargs = nil
+    adapter = Object.new
+    adapter.define_singleton_method(:stream) do |**kwargs, &block|
+      captured_kwargs = kwargs
+      block.call({ type: :message_stop, finish_reason: "end_turn" })
+      { prompt_tokens: 1, completion_tokens: 1, cache_read_tokens: 0, cache_creation_tokens: 0, finish_reason: "end_turn" }
+    end
+    assistant.define_singleton_method(:llm_adapter) { adapter }
+
+    assistant.advance!
+    assert captured_kwargs.key?(:system), "system: kwarg must be passed to adapter.stream"
+  end
+
   test "infer_source returns :internal for read_file" do
     msg = messages(:hello)
     assert_equal :internal, msg.send(:infer_source, "read_file")
@@ -289,7 +335,7 @@ class Message::StreamableTest < ActiveSupport::TestCase
 
     def build_fake_adapter(events: [], usage: {}, raise_error: nil)
       adapter = Object.new
-      adapter.define_singleton_method(:stream) do |messages:, tools:, model:, &block|
+      adapter.define_singleton_method(:stream) do |messages:, tools:, model:, system: nil, &block|
         raise raise_error if raise_error
         events.each(&block)
         usage

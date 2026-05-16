@@ -10,12 +10,13 @@ module Llm
     end
 
     # Streams a model turn. Yields normalized events; returns a usage summary.
-    def stream(messages:, tools:, model:, &block)
+    def stream(messages:, tools:, model:, system: nil, &block)
       raw = @client.messages.stream(
         model:      model,
         max_tokens: 8_192,
         messages:   messages,
-        tools:      tools.presence
+        tools:      tools.presence,
+        system:     system.presence
       )
 
       raw.each do |event|

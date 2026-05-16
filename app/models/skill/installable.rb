@@ -11,19 +11,23 @@ module Skill::Installable
   end
 
   def install_for(user)
-    installation = installations.find_or_create_by!(user: user) do |i|
-      i.accepted_security_level = Skill.security_levels[security_level]
-      i.accepted_at = Time.current
+    transaction do
+      installation = installations.find_or_create_by!(user: user) do |i|
+        i.accepted_security_level = Skill.security_levels[security_level]
+        i.accepted_at = Time.current
+      end
+      track_event :installed, user_id: user.id, security_level: security_level
+      installation
     end
-    track_event :installed, user_id: user.id, security_level: security_level
-    installation
   end
 
   def uninstall_for(user)
     installation = installations.find_by(user: user)
     return false unless installation
-    installation.destroy
-    track_event :uninstalled, user_id: user.id
+    transaction do
+      installation.destroy
+      track_event :uninstalled, user_id: user.id
+    end
     true
   end
 end

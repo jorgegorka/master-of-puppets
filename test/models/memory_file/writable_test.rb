@@ -55,10 +55,15 @@ class MemoryFile::WritableTest < ActiveSupport::TestCase
     assert_empty leftover_tmps, "tmp file must be cleaned up on failure"
   end
 
-  test "write rolls back the row update when the FTS sync fails" do
+  test "write self-heals the row update when the FTS sync fails" do
+    # Updated for Phase 3 Task 3.16a M3: FTS writes moved out of the AR
+    # transaction → after_commit. Under the new contract, the row update
+    # commits before the FTS write fires; if the FTS write raises, the
+    # `flush_fts_write` rescue resets content_digest so the next reindex
+    # pass re-runs (self-healing). The disk/row consistency story moves
+    # from "transactional rollback" to "digest mismatch on next pass".
     File.write(File.join(@tmp, "memory/db.md"), "before")
     file = MemoryFile.reindex("db.md")
-    original_digest = file.content_digest
 
     fts_connection = MemoryFileFts.connection
     fts_connection.singleton_class.alias_method(:__real_execute, :execute)
@@ -72,12 +77,8 @@ class MemoryFile::WritableTest < ActiveSupport::TestCase
       fts_connection.singleton_class.remove_method(:__real_execute)
     end
 
-    # The file on disk *did* change (the rename runs before the FTS write),
-    # but the row in `memory_files` rolled back so the digest still points
-    # at the previous body — the row + FTS state stay consistent with each
-    # other even though the on-disk view drifted. A replay-on-boot
-    # reconciliation (workflows.md §FTS partial-failure note) is what
-    # closes that disk/row gap.
-    assert_equal original_digest, file.reload.content_digest
+    # The digest is now "" — a sentinel that tells the next `reindex!` pass
+    # that this row is out of sync with the FTS index and must be replayed.
+    assert_equal "", file.reload.content_digest
   end
 end

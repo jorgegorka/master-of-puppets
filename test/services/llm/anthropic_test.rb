@@ -87,6 +87,42 @@ module Llm
       assert_equal "Let me think.", thinking[:thinking]
     end
 
+    test "stream forwards system: kwarg to the SDK (not a messages[0] entry)" do
+      fake_message = build_fake_message
+      fake_stream  = FakeStream.new([ OpenStruct.new(type: :message_stop) ], fake_message)
+      captured = nil
+      @adapter.instance_variable_get(:@client).messages.define_singleton_method(:stream) do |args|
+        captured = args
+        fake_stream
+      end
+
+      @adapter.stream(
+        messages: [ { role: "user", content: "hi" } ],
+        tools:    [],
+        model:    "claude-opus-4-7",
+        system:   "## Skill: filesystem\n\nRead files."
+      ) { |_e| }
+
+      assert_kind_of Hash, captured
+      assert_equal "## Skill: filesystem\n\nRead files.", captured[:system]
+      refute captured[:messages].any? { |m| m[:role].to_s == "system" },
+        "system prompt must travel via the system: kwarg, not messages[]"
+    end
+
+    test "stream passes system: nil when no system prompt was supplied" do
+      fake_message = build_fake_message
+      fake_stream  = FakeStream.new([ OpenStruct.new(type: :message_stop) ], fake_message)
+      captured = nil
+      @adapter.instance_variable_get(:@client).messages.define_singleton_method(:stream) do |args|
+        captured = args
+        fake_stream
+      end
+
+      @adapter.stream(messages: [ { role: "user", content: "hi" } ], tools: [], model: "claude-opus-4-7") { |_e| }
+      assert captured.key?(:system)
+      assert_nil captured[:system]
+    end
+
     test "stream normalizes tool_use input deltas" do
       fake_message = build_fake_message
       raw_events = [
