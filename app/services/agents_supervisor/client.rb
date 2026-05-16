@@ -1,12 +1,35 @@
 require "socket"
+require "timeout"
 
 module AgentsSupervisor
+  class SupervisorError < StandardError; end
+
   # Rails-side subscriber for the supervisor's server-initiated
   # `memory.changed` notifications. One client per Puma worker — Phase 4
   # supervisor v2 collapses these into a single client-per-host.
   class Client
-    SOCKET_PATH    = Rails.root.join("tmp/sockets/agents_supervisor.sock").freeze
+    SOCKET_PATH    = ENV.fetch("MOP_SUPERVISOR_SOCKET", Rails.root.join("tmp/sockets/agents_supervisor.sock").to_s).freeze
     RETRY_INTERVAL = 2
+
+    # Synchronous JSON-RPC call. Opens a fresh socket per call: fine for
+    # low-volume RPC (tmux.*, mcp.*, shell.run) and isolated from the
+    # long-lived notification socket from #subscribe_to_memory_changes.
+    def self.call(method, params = {}, timeout: 5)
+      socket  = UNIXSocket.open(SOCKET_PATH.to_s)
+      id      = SecureRandom.hex(4)
+      request = { jsonrpc: "2.0", id: id, method: method, params: params }.to_json
+      socket.write("#{request}\n")
+      response = Timeout.timeout(timeout) { socket.gets }
+      raise SupervisorError, "supervisor closed connection before responding" if response.nil?
+
+      parsed = JSON.parse(response)
+      if parsed["error"]
+        raise SupervisorError, parsed.dig("error", "message") || "supervisor error"
+      end
+      parsed["result"]
+    ensure
+      socket&.close rescue nil
+    end
 
     def self.subscribe_to_memory_changes
       client = new

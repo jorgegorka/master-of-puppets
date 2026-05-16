@@ -1,11 +1,16 @@
 #!/usr/bin/env ruby
-# Phase 2 v1: listens on tmp/sockets/agents_supervisor.sock for JSON-RPC
-# requests, and emits server-initiated `memory.changed` notifications to
-# every connected client whenever an .md file under ${MOP_HOME}/memory/
-# is created, modified, or removed. Phase 4 adds tmux + MCP child
-# processes plus a Concurrent::FixedThreadPool / per-connection rate
-# limit; the current loop is single-purpose and bounded by the listen
-# library's own latency knob.
+# Phase 4 supervisor v2:
+#  - Bounded Concurrent::FixedThreadPool for handler dispatch
+#    (was unbounded Thread.new(client) — DoS risk under tmux/MCP load).
+#  - Per-connection MAX_RPC_LINE_BYTES line cap (default 64 KiB).
+#  - Per-connection bad-parse rate cap (BAD_PARSE_CAP malformed lines
+#    inside BAD_PARSE_WINDOW seconds → close).
+#  - Single writer thread per connection: both inbound responses AND the
+#    listener fan-out push onto a SizedQueue drained by one writer, so
+#    notifications and RPC responses can never interleave on the wire.
+#    Closes the Phase 2 TODO at line 99 of the old file.
+#  - Socket path is env-configurable via MOP_SUPERVISOR_SOCKET so tests
+#    can spin up a sandboxed supervisor.
 
 require_relative "../config/environment"
 require "socket"
@@ -14,22 +19,171 @@ require "fileutils"
 require "listen"
 require "concurrent"
 
-SOCKET_PATH = Rails.root.join("tmp/sockets/agents_supervisor.sock")
-FileUtils.mkdir_p(SOCKET_PATH.dirname)
-File.delete(SOCKET_PATH) if File.exist?(SOCKET_PATH)
+module AgentsSupervisor
+  MAX_RPC_LINE_BYTES = Integer(ENV.fetch("MOP_RPC_MAX_LINE", 64 * 1024))
+  BAD_PARSE_CAP      = Integer(ENV.fetch("MOP_RPC_BAD_PARSE_CAP", 5))
+  BAD_PARSE_WINDOW   = Float(ENV.fetch("MOP_RPC_BAD_PARSE_WINDOW", 10))
+  POOL_SIZE          = Integer(ENV.fetch("MOP_SUPERVISOR_POOL", 16))
+  WRITE_QUEUE_SIZE   = 256
+  SOCKET_PATH        = Pathname.new(ENV.fetch("MOP_SUPERVISOR_SOCKET", Rails.root.join("tmp/sockets/agents_supervisor.sock").to_s))
 
-server                 = UNIXServer.new(SOCKET_PATH.to_s)
+  # One ConnectionPump per accepted UNIX socket connection. Owns a reader
+  # thread (parses incoming JSON-RPC lines, dispatches to the shared pool)
+  # and a writer thread (drains the write queue to the wire). Notification
+  # fan-out targets #notify which enqueues onto the same write queue, so
+  # the wire format stays consistent under contention.
+  class ConnectionPump
+    def initialize(socket, dispatcher:, handler:, on_close:)
+      @socket          = socket
+      @dispatcher      = dispatcher
+      @handler         = handler
+      @on_close        = on_close
+      @write_queue     = SizedQueue.new(WRITE_QUEUE_SIZE)
+      @bad_parse_times = []
+      @bad_parse_mu    = Mutex.new
+      @closed          = false
+      @close_mu        = Mutex.new
+      @reader          = Thread.new { read_loop }
+      @writer          = Thread.new { write_loop }
+    end
+
+    # Push a server-initiated notification (memory.changed / skills.changed)
+    # through the same writer thread that owns the socket. Non-blocking; if
+    # the consumer is so slow that the queue is full, close the connection
+    # rather than block other consumers' fan-out.
+    def notify(payload)
+      return if closed?
+      @write_queue.push(ensure_newline(payload), true)
+    rescue ThreadError
+      # SizedQueue#push(true) raises ThreadError when full.
+      Rails.logger.warn("[supervisor] write queue full, closing slow consumer")
+      close!
+    rescue ClosedQueueError
+      # Race with close!; ignore.
+    end
+
+    def close!
+      @close_mu.synchronize do
+        return if @closed
+        @closed = true
+      end
+      # Mark the queue closed: pushes start raising ClosedQueueError, but
+      # pops still drain any queued payloads (e.g. the final "line too long"
+      # error response we want the client to see). Give the writer a brief
+      # window to flush before yanking the socket out from under it.
+      @write_queue.close rescue nil
+      @writer.join(1) if @writer && Thread.current != @writer
+      @socket.close rescue nil
+      @on_close.call(self)
+    end
+
+    def closed?
+      @close_mu.synchronize { @closed }
+    end
+
+    def join(timeout = nil)
+      @reader.join(timeout)
+      @writer.join(timeout)
+    end
+
+    private
+      def read_loop
+        until @socket.closed? || closed?
+          line = @socket.gets("\n", MAX_RPC_LINE_BYTES)
+          break if line.nil?
+          if line.bytesize == MAX_RPC_LINE_BYTES && !line.end_with?("\n")
+            push_response({ jsonrpc: "2.0", id: nil, error: { code: -32700, message: "line too long (max #{MAX_RPC_LINE_BYTES} bytes)" } }.to_json)
+            break
+          end
+          stripped = line.strip
+          next if stripped.empty?
+
+          @dispatcher.post do
+            response = handle_one(stripped)
+            push_response(response) if response
+          end
+        end
+      rescue IOError, Errno::EPIPE, Errno::ECONNRESET
+        # connection gone
+      ensure
+        close!
+      end
+
+      def write_loop
+        while (payload = pop_next)
+          begin
+            @socket.write(payload)
+          rescue IOError, Errno::EPIPE, Errno::ECONNRESET
+            break
+          end
+        end
+      ensure
+        close!
+      end
+
+      def pop_next
+        @write_queue.pop
+      rescue ClosedQueueError
+        nil
+      end
+
+      def push_response(payload)
+        return if closed?
+        @write_queue.push(ensure_newline(payload))
+      rescue ClosedQueueError
+        nil
+      end
+
+      def ensure_newline(payload)
+        payload.end_with?("\n") ? payload : "#{payload}\n"
+      end
+
+      def handle_one(line)
+        request = JSON.parse(line)
+        @handler.call(request).to_json
+      rescue JSON::ParserError
+        if register_bad_parse_and_check_cap
+          close!
+          nil
+        else
+          { jsonrpc: "2.0", id: nil, error: { code: -32700, message: "parse error" } }.to_json
+        end
+      rescue => e
+        Rails.logger.error("[supervisor] handler raised: #{e.class}: #{e.message}")
+        { jsonrpc: "2.0", id: nil, error: { code: -32603, message: "internal error" } }.to_json
+      end
+
+      def register_bad_parse_and_check_cap
+        @bad_parse_mu.synchronize do
+          now = Time.now.to_f
+          @bad_parse_times.reject! { |t| now - t > BAD_PARSE_WINDOW }
+          @bad_parse_times << now
+          @bad_parse_times.size >= BAD_PARSE_CAP
+        end
+      end
+  end
+end
+
+# ---- Boot ------------------------------------------------------------------
+
+socket_path = AgentsSupervisor::SOCKET_PATH
+FileUtils.mkdir_p(socket_path.dirname)
+File.delete(socket_path) if File.exist?(socket_path)
+
+server = UNIXServer.new(socket_path.to_s)
 # SECURITY: 0600 keeps other local UIDs from connecting. Peer-credential
 # auth (SO_PEERCRED on Linux, getpeereid on macOS) is the proper gate
 # once Phase 4 layers tmux + MCP spawns onto this socket; until then
 # filesystem perms are the only thing between an unprivileged process
-# and `memory.changed` paths leaking + (future) RPC commands executing.
-File.chmod(0o600, SOCKET_PATH.to_s)
-shutdown_r, shutdown_w = IO.pipe
-clients                = Concurrent::Array.new
+# and `memory.changed` paths leaking + RPC commands executing.
+File.chmod(0o600, socket_path.to_s)
 
-Rails.logger.info("[agents_supervisor] listening on #{SOCKET_PATH}")
-puts "[agents_supervisor] listening on #{SOCKET_PATH}"
+shutdown_r, shutdown_w = IO.pipe
+connections            = Concurrent::Array.new
+dispatcher             = Concurrent::FixedThreadPool.new(AgentsSupervisor::POOL_SIZE)
+
+Rails.logger.info("[agents_supervisor] listening on #{socket_path} (pool=#{AgentsSupervisor::POOL_SIZE})")
+puts "[agents_supervisor] listening on #{socket_path}"
 
 # Trap handlers must avoid I/O on Rails.logger (writing from a trap context
 # can deadlock or segfault on Ruby 3.x). Signal the main thread by closing a
@@ -40,16 +194,13 @@ trap("INT")  { shutdown_w.close rescue nil }
 memory_root = Pathname.new(Rails.application.config.x.mop_home).join("memory")
 FileUtils.mkdir_p(memory_root)
 
+broadcast = lambda do |payload|
+  connections.each { |conn| conn.notify(payload) }
+end
+
 listener = Listen.to(memory_root.to_s, only: /\.md\z/, latency: 0.5) do |modified, added, removed|
   paths = (modified + added + removed).map { |abs| Pathname.new(abs).relative_path_from(memory_root).to_s }
-  notification = { jsonrpc: "2.0", method: "memory.changed", params: { paths: paths } }.to_json
-  clients.each do |client|
-    begin
-      client.puts(notification)
-    rescue IOError, Errno::EPIPE
-      clients.delete(client)
-    end
-  end
+  broadcast.call({ jsonrpc: "2.0", method: "memory.changed", params: { paths: paths } }.to_json)
 end
 listener.start
 
@@ -58,14 +209,7 @@ FileUtils.mkdir_p(skills_root)
 
 skills_listener = Listen.to(skills_root.to_s, only: /SKILL\.md\z/, latency: 0.5) do |modified, added, removed|
   paths = (modified + added + removed).map { |abs| abs.to_s }
-  notification = { jsonrpc: "2.0", method: "skills.changed", params: { paths: paths } }.to_json
-  clients.each do |client|
-    begin
-      client.puts(notification)
-    rescue IOError, Errno::EPIPE
-      clients.delete(client)
-    end
-  end
+  broadcast.call({ jsonrpc: "2.0", method: "skills.changed", params: { paths: paths } }.to_json)
 end
 skills_listener.start
 
@@ -75,8 +219,12 @@ handle_request = lambda do |request|
     { jsonrpc: "2.0", id: request["id"], result: { pong: true, pid: Process.pid } }
   else
     { jsonrpc: "2.0", id: request["id"],
-      error: { code: -32601, message: "method not found in Phase 2: #{request['method']}" } }
+      error: { code: -32601, message: "method not found: #{request['method']}" } }
   end
+end
+
+remove_connection = lambda do |conn|
+  connections.delete(conn)
 end
 
 loop do
@@ -86,39 +234,22 @@ loop do
     Rails.logger.info("[agents_supervisor] shutting down") rescue nil
     listener.stop rescue nil
     skills_listener.stop rescue nil
-    clients.each { |c| c.close rescue nil }
+    connections.each(&:close!)
+    dispatcher.shutdown
+    dispatcher.wait_for_termination(5)
     server.close rescue nil
-    File.unlink(SOCKET_PATH) rescue nil
+    File.unlink(socket_path) rescue nil
     exit 0
   end
 
   client = server.accept_nonblock(exception: false)
   next if client == :wait_readable
-  clients << client
 
-  # TODO(phase-4): one socket carries BOTH request/response traffic AND
-  # the fan-out notification stream. The per-connection reader thread
-  # below and the listener-fan-out loop above both write to `client`,
-  # which can interleave under load. Supervisor v2 should either split
-  # subscription from RPC onto two sockets or serialize all writes
-  # through a single dedicated writer thread per connection. Phase 1
-  # could ignore this because Rails never sent RPC requests; Phase 4
-  # tmux + MCP work makes this load-bearing.
-  Thread.new(client) do |c|
-    begin
-      c.each_line do |line|
-        request = begin
-          JSON.parse(line)
-        rescue JSON::ParserError
-          { "id" => nil, "method" => "parse_error" }
-        end
-        c.puts(handle_request.call(request).to_json)
-      end
-    rescue IOError, Errno::EPIPE
-      # client disconnected
-    ensure
-      clients.delete(c)
-      c.close rescue nil
-    end
-  end
+  pump = AgentsSupervisor::ConnectionPump.new(
+    client,
+    dispatcher: dispatcher,
+    handler:    handle_request,
+    on_close:   remove_connection
+  )
+  connections << pump
 end
