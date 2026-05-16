@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_16_151721) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_16_152845) do
   create_table "api_tokens", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "last_used_at"
@@ -171,6 +171,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_16_151721) do
     t.index ["slug"], name: "index_skills_on_slug", unique: true
   end
 
+  create_table "terminal_sessions", force: :cascade do |t|
+    t.integer "cols", default: 120, null: false
+    t.datetime "created_at", null: false
+    t.string "cwd", null: false
+    t.datetime "last_activity_at", null: false
+    t.integer "rows", default: 40, null: false
+    t.integer "status", default: 0, null: false
+    t.string "tmux_session_name", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["tmux_session_name"], name: "index_terminal_sessions_on_tmux_session_name", unique: true
+    t.index ["user_id", "status"], name: "index_terminal_sessions_on_user_id_and_status"
+    t.index ["user_id"], name: "index_terminal_sessions_on_user_id"
+  end
+
   create_table "tool_calls", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "error_message"
@@ -225,6 +240,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_16_151721) do
   add_foreign_key "skill_enablements", "users"
   add_foreign_key "skill_installations", "skills"
   add_foreign_key "skill_installations", "users"
+  add_foreign_key "terminal_sessions", "users"
   add_foreign_key "tool_calls", "messages"
   add_foreign_key "user_settings", "users"
 end

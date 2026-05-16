@@ -6,6 +6,7 @@ class User < ApplicationRecord
   has_one  :user_setting, dependent: :destroy
   has_many :api_tokens, dependent: :destroy
   has_many :chat_sessions, dependent: :destroy
+  has_many :terminal_sessions, dependent: :destroy
 
   enum :role, member: 0, admin: 1
 

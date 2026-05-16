@@ -1,0 +1,26 @@
+live_for_one:
+  user: one
+  tmux_session_name: mop-term-fixture-live
+  cols: 120
+  rows: 40
+  cwd: <%= Rails.root.to_s %>
+  status: 1 # live
+  last_activity_at: <%= Time.current.iso8601 %>
+
+detached_for_one:
+  user: one
+  tmux_session_name: mop-term-fixture-detached
+  cols: 120
+  rows: 40
+  cwd: <%= Rails.root.to_s %>
+  status: 2 # detached
+  last_activity_at: <%= 10.minutes.ago.iso8601 %>
+
+stale_detached_for_one:
+  user: one
+  tmux_session_name: mop-term-fixture-stale
+  cols: 120
+  rows: 40
+  cwd: <%= Rails.root.to_s %>
+  status: 2 # detached
+  last_activity_at: <%= 2.hours.ago.iso8601 %>
