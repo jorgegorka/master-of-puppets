@@ -1,0 +1,18 @@
+<% content_for :title, "Files" %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1>Files</h1>
+    <%= link_to "Memory", memory_path %>
+  </header>
+
+  <p class="txt-subtle">Workspace browser. Root: <code><%= Rails.application.config.x.mop_home %></code></p>
+
+  <% if @tree.empty? %>
+    <p class="txt-subtle">Workspace is empty.</p>
+  <% else %>
+    <ul class="flex flex-column gap-quarter">
+      <%= render partial: "files/node", collection: @tree, as: :node %>
+    </ul>
+  <% end %>
+</section>

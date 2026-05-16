@@ -1,0 +1,12 @@
+<% content_for :title, "Files: #{@rel}" %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1><%= @rel %></h1>
+    <%= link_to "← Files", files_path %>
+  </header>
+
+  <ul class="flex flex-column gap-quarter">
+    <%= render partial: "files/node", collection: @tree, as: :node %>
+  </ul>
+</section>

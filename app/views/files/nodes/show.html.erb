@@ -1,0 +1,17 @@
+<% content_for :title, @rel %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1><%= @rel %></h1>
+    <%= link_to "← Files", files_path %>
+  </header>
+
+  <%= form_with url: files_node_path(@rel), method: :patch, local: true do |f| %>
+    <%= f.label :content, "Body", class: "txt-small" %>
+    <%= f.text_area :content, value: @body, rows: 30, cols: 80, "aria-label": "Body" %>
+    <div class="flex gap pad-block-half">
+      <%= f.submit "Save" %>
+      <%= button_to "Delete", files_node_path(@rel), method: :delete, data: { turbo_confirm: "Delete #{@rel}?" } %>
+    </div>
+  <% end %>
+</section>

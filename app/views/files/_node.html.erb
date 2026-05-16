@@ -1,0 +1,13 @@
+<li>
+  <% if node.directory %>
+    <strong><%= node.name %></strong>/
+    <% if node.children.any? %>
+      <ul class="flex flex-column gap-quarter pad-inline-start">
+        <%= render partial: "files/node", collection: node.children, as: :node %>
+      </ul>
+    <% end %>
+  <% else %>
+    <%= link_to node.name, files_node_path(node.path) %>
+    <span class="txt-subtle txt-x-small">· <%= number_to_human_size(node.size_bytes) %></span>
+  <% end %>
+</li>

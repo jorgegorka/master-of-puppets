@@ -35,4 +35,11 @@ Rails.application.routes.draw do
       resources :searches, only: %i[create]
     end
   end
+
+  resource :files, controller: "files", only: [ :show ] do
+    scope module: :files do
+      resources :nodes, only: %i[index show create update destroy],
+                constraints: { id: %r{[^?]+} }, defaults: { format: :html }
+    end
+  end
 end
