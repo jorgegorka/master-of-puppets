@@ -1,5 +1,6 @@
 class Skill < ApplicationRecord
   include Eventable
+  include Skill::Loadable
 
   enum :origin,         { builtin: 0, agent_created: 1, marketplace: 2 }
   enum :security_level, { safe: 0, low: 1, medium: 2, high: 3 }
