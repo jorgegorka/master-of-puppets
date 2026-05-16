@@ -64,7 +64,7 @@ These were called out in workflows.md § Phase 2 "Phase 1 cleanup". Land them fi
 
 The single source of truth for `${MOP_HOME}`. Every disk-touching model reads from `Rails.application.config.x.mop_home` — never `ENV["MOP_HOME"]` directly outside this file.
 
-- [ ] **Step 1: Set `config.x.mop_home` in `config/application.rb`.**
+- [x] **Step 1: Set `config.x.mop_home` in `config/application.rb`.**
 
   Inside the `class Application < Rails::Application` block, after `config.autoload_lib`:
 
@@ -72,7 +72,7 @@ The single source of truth for `${MOP_HOME}`. Every disk-touching model reads fr
   config.x.mop_home = ENV.fetch("MOP_HOME") { Rails.root.join("storage/workspace").to_s }
   ```
 
-- [ ] **Step 2: Bootstrap the workspace tree on boot.**
+- [x] **Step 2: Bootstrap the workspace tree on boot.** *(extracted the body into `WorkspaceBootstrap.run(root)` so tests can call it directly against `Dir.mktmpdir`.)*
 
   New initializer `config/initializers/workspace_bootstrap.rb`:
 
@@ -92,16 +92,9 @@ The single source of truth for `${MOP_HOME}`. Every disk-touching model reads fr
 
   Why `unless Rails.env.test?`: tests use `Dir.mktmpdir` per test where they need a real workspace; we don't want every test boot creating `storage/workspace/`.
 
-- [ ] **Step 3: Tests for the bootstrap.**
+- [x] **Step 3: Tests for the bootstrap.** 3 tests, 8 assertions: subdirs created, seed file written, idempotent across repeat runs, no clobber of edited `MEMORY.md`.
 
-  `test/initializers/workspace_bootstrap_test.rb` runs the initializer block manually against a `Dir.mktmpdir` and asserts the five subdirs + seed `MEMORY.md` exist.
-
-- [ ] **Step 4: Commit**
-
-  ```bash
-  git add config/application.rb config/initializers/workspace_bootstrap.rb test/initializers
-  git commit -m "Phase 2: config.x.mop_home + workspace bootstrap"
-  ```
+- [x] **Step 4: Commit** — `92bf39f`.
 
 ---
 
