@@ -4,6 +4,7 @@ require "rails/test_help"
 
 require "webmock/minitest"
 require "vcr"
+require_relative "support/method_stub"
 
 VCR.configure do |config|
   config.cassette_library_dir = Rails.root.join("test/fixtures/vcr").to_s
