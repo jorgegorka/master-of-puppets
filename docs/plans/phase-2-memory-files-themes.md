@@ -587,18 +587,9 @@ The disk-walk that backs both the Memory page (Task 2.7) and the Files page (Tas
 
 Read-write file browser for the whole `${MOP_HOME}` workspace (not just `memory/`). Textarea editor; Monaco upgrade is Phase 4.
 
-- [ ] **Step 1: Add routes** to `config/routes.rb`:
+- [x] **Step 1: Add routes** to `config/routes.rb`.
 
-  ```ruby
-  resource :files, controller: "files", only: [:show] do
-    scope module: :files do
-      resources :nodes, only: %i[index show create update destroy],
-                constraints: { id: %r{[^?]+} }, defaults: { format: :html }
-    end
-  end
-  ```
-
-- [ ] **Step 2: `FilesController#show`** at `app/controllers/files_controller.rb`:
+- [x] **Step 2: `FilesController#show`** at `app/controllers/files_controller.rb`. *(Adds `before_action :require_admin` here so the top-level workspace browser is admin-only — closes the hardening-gate item "Files::NodesController requires admin" by gating at both layers.)*
 
   ```ruby
   class FilesController < ApplicationController
@@ -608,7 +599,7 @@ Read-write file browser for the whole `${MOP_HOME}` workspace (not just `memory/
   end
   ```
 
-- [ ] **Step 3: `Files::NodesController`** at `app/controllers/files/nodes_controller.rb`:
+- [x] **Step 3: `Files::NodesController`** at `app/controllers/files/nodes_controller.rb`. *(Adds `before_action :require_admin`, `rescue_from WorkspacePath::EscapeAttempt → 403`, and `rescue_from Errno::ENOENT → 404` so traversal probes and missing paths never surface as 500s.)*
 
   ```ruby
   class Files::NodesController < ApplicationController
@@ -642,18 +633,11 @@ Read-write file browser for the whole `${MOP_HOME}` workspace (not just `memory/
 
   Note: writes here are *not* run through `MemoryFile#write` — only `memory/*.md` lives in the `memory_files` table. Edits to `skills/...` or `profiles/...` rely on Phase 3/6 wiring; this controller is the generic admin view of the workspace.
 
-- [ ] **Step 4: Views** — `files/show.html.erb` (tree partial reused from memory), `files/nodes/show.html.erb` (textarea + Save).
+- [x] **Step 4: Views** — `files/show.html.erb`, `files/_node.html.erb` (recursive, mirrors memory's partial), `files/nodes/show.html.erb` (textarea + save + delete), `files/nodes/index.html.erb` (subtree listing).
 
-- [ ] **Step 5: Tests**:
+- [x] **Step 5: Tests** — 3 `FilesControllerTest` cases (admin / non-admin / signed-out) and 8 `Files::NodesControllerTest` cases (file + dir show, write, delete, encoded-slash probe → 404, controller rescue → 403, non-admin read + edit denied), plus a system test that edits a workspace file end to end.
 
-  - Controller test: GET `/files/nodes/.gitignore` returns the body, PATCH writes new content, traversal probes return 403.
-  - System test: open `/files`, click a node, edit it, save, see the change.
-
-- [ ] **Step 6: Commit**
-
-  ```bash
-  git commit -am "Phase 2: Files page (tree + read/write/delete)"
-  ```
+- [x] **Step 6: Commit.** 117 unit/integration + 5 system tests, all green.
 
 ---
 
@@ -860,7 +844,7 @@ These are the items future-review will flag if we skip them — fixing them in-p
 
 - [ ] **FTS sync runs in a single transaction with the row update.** The implementation in Task 2.5 already does this — the gate is a test that fails if `MemoryFile#reindex!` raises after the FTS DELETE but before the INSERT, asserting both tables roll back together. (Cross-database transactions are best-effort in SQLite; if the test reveals a partial-failure window, switch to a small replay-on-boot reconciliation: `MemoryFile.where("disk_mtime > ?", last_seen).each(&:reindex!)`.)
 - [x] **`WorkspacePath` rejects on Windows-style backslashes** (`..\..\etc`). Landed in Task 2.2 — probe test passes.
-- [ ] **`Files::NodesController` requires admin** — the workspace browser can edit anything under `${MOP_HOME}`, including `skills/` source. Gate the controller with `before_action :require_admin` and add a non-admin test that asserts redirect.
+- [x] **`Files::NodesController` requires admin** — landed in Task 2.9: both `FilesController` and `Files::NodesController` gate with `before_action :require_admin`, and `Files::NodesControllerTest` asserts that a non-admin GET + non-admin PATCH both redirect to `root_path`.
 - [ ] **`AgentsSupervisor::Client` thread dies cleanly on Puma shutdown** — register an `at_exit` or use Puma's `on_worker_shutdown` to set a `@shutting_down` flag the loop checks. Without this, `kill -9` is the only way to stop dev.
 - [x] **`Memory::IndexerJob` is idempotent** — covered in Task 2.5: `reindex!` short-circuits when the digest matches, and the test "reindex! is idempotent when the digest is unchanged" asserts the FTS row's `rowid` is unchanged across re-runs.
 
