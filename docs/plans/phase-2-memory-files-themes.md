@@ -645,7 +645,7 @@ Read-write file browser for the whole `${MOP_HOME}` workspace (not just `memory/
 
 8 themes per `docs/style-guide.md` (Claude Official + Light, Claude Classic + Light, Slate + Light, Mono + Light). `theme_controller.js` writes `data-theme` + `data-accent` to `<html>`. Selection persists on `UserSetting`.
 
-- [ ] **Step 1: Stimulus controller** at `app/javascript/controllers/theme_controller.js`:
+- [x] **Step 1: Stimulus controller** at `app/javascript/controllers/theme_controller.js`.
 
   ```js
   import { Controller } from "@hotwired/stimulus"
@@ -683,7 +683,7 @@ Read-write file browser for the whole `${MOP_HOME}` workspace (not just `memory/
   }
   ```
 
-- [ ] **Step 2: `SettingsController#update`** — extend to accept `user_setting[theme]` + `user_setting[accent]`.
+- [x] **Step 2: `SettingsController#update`** now `respond_to`s html (redirect) and json (204 no-content). `THEMES`/`ACCENTS` arrays moved onto `UserSetting` as frozen constants, with matching `inclusion:` validators so a typo over the JSON API surfaces as 422 not silent garbage.
 
   ```ruby
   def update
@@ -699,22 +699,13 @@ Read-write file browser for the whole `${MOP_HOME}` workspace (not just `memory/
 
   Allow `format: :json` so the Stimulus `persist()` round-trip succeeds without a redirect dance.
 
-- [ ] **Step 3: Layout binding** — `app/views/layouts/application.html.erb` already reads `Current.user&.user_setting&.theme` into `data-theme`. Confirm + parameterize the `data-accent` attribute the same way.
+- [x] **Step 3: Layout binding** — confirmed: `application.html.erb` already wires both `data-theme` and `data-accent` from `Current.user&.user_setting&.…` with safe fallbacks. No change needed.
 
-- [ ] **Step 4: Settings UI** — add the theme/accent dropdowns to `app/views/settings/show.html.erb` inside a div wrapping `data-controller="theme" data-theme-theme-value=… data-theme-accent-value=… data-theme-persist-url-value="<%= settings_path %>.json"`.
+- [x] **Step 4: Settings UI** — theme/accent selects wired with `data-controller="theme"`, `change->theme#select`, and `data-theme-persist-url-value="<%= settings_path(format: :json) %>"`. 8 themes + 5 accents pulled from `UserSetting::THEMES` / `UserSetting::ACCENTS`.
 
-  Selects: `data-theme-kind="theme"` (8 options) + `data-theme-kind="accent"` (5 options from style-guide).
+- [x] **Step 5: Tests** — 2 controller tests (JSON PATCH → 204 + row update, HTML PATCH still redirects) + 1 system test (pick "slate" → row flips → reload → `data-theme="slate"`).
 
-- [ ] **Step 5: Tests**:
-
-  - `test/controllers/settings_controller_test.rb` — PATCH `/settings.json` updates `UserSetting` and returns 204.
-  - `test/system/theme_switcher_test.rb` — sign in, change theme dropdown, reload, assert `<html data-theme="…">` matches the new value.
-
-- [ ] **Step 6: Commit**
-
-  ```bash
-  git commit -am "Phase 2: theme switcher (Stimulus + UserSetting persist)"
-  ```
+- [x] **Step 6: Commit.** 119 unit/integration + 6 system tests, all green.
 
 ---
 
