@@ -1,0 +1,11 @@
+filesystem:
+  slug: filesystem
+  name: Filesystem
+  category: io
+  description: Read and write files in the workspace.
+  manifest: <%= { name: "filesystem", description: "Read and write files in the workspace.", category: "io", allowed_tools: %w[read_file write_file list_dir] }.to_json %>
+  source_path: <%= Rails.root.join("test/fixtures/files/skills/filesystem/SKILL.md").to_s %>
+  origin: 0
+  security_level: 0
+  body_digest: <%= Digest::SHA256.hexdigest("# Filesystem\n\nRead and write files.\n") %>
+  discovered_at: <%= 1.hour.ago.utc.iso8601 %>

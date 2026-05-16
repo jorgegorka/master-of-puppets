@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_16_083050) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_16_100451) do
   create_table "api_tokens", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "last_used_at"
@@ -126,6 +126,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_16_083050) do
     t.string "user_agent"
     t.integer "user_id", null: false
     t.index ["user_id"], name: "index_sessions_on_user_id"
+  end
+
+  create_table "skills", force: :cascade do |t|
+    t.string "body_digest", null: false
+    t.string "category", null: false
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.datetime "discovered_at", null: false
+    t.json "manifest", default: {}, null: false
+    t.string "name", null: false
+    t.integer "origin", default: 0, null: false
+    t.integer "security_level", default: 0, null: false
+    t.string "slug", null: false
+    t.string "source_path", null: false
+    t.datetime "updated_at", null: false
+    t.index ["category"], name: "index_skills_on_category"
+    t.index ["security_level"], name: "index_skills_on_security_level"
+    t.index ["slug"], name: "index_skills_on_slug", unique: true
   end
 
   create_table "tool_calls", force: :cascade do |t|
