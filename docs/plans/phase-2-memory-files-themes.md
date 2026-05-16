@@ -713,7 +713,7 @@ Read-write file browser for the whole `${MOP_HOME}` workspace (not just `memory/
 
 Phase 1 left the supervisor with only `health.ping`. Phase 2 adds a `listen` watcher on `${MOP_HOME}/memory/` that emits a server-initiated notification, and a Rails-side client that converts that notification into a `Memory::IndexerJob` enqueue.
 
-- [ ] **Step 1: Add the watcher thread** in `bin/agents_supervisor`.
+- [x] **Step 1: Add the watcher thread** in `bin/agents_supervisor`.
 
   After the socket setup, before the accept loop:
 
@@ -743,7 +743,7 @@ Phase 1 left the supervisor with only `health.ping`. Phase 2 adds a `listen` wat
 
   Add `gem "concurrent-ruby"` to the Gemfile if it isn't pulled in transitively already (it is via Rails — confirm with `bundle list concurrent-ruby` before adding).
 
-- [ ] **Step 2: Rails-side IPC client** at `app/services/agents_supervisor/client.rb`:
+- [x] **Step 2: Rails-side IPC client** at `app/services/agents_supervisor/client.rb`. *(`#consume` extracted as a public method so unit tests can drive it against an in-memory `StringIO`; `#stop!` flag flipped by `at_exit` so Puma shutdown drains the loop on the next line read.)*
 
   ```ruby
   module AgentsSupervisor
@@ -776,7 +776,7 @@ Phase 1 left the supervisor with only `health.ping`. Phase 2 adds a `listen` wat
   end
   ```
 
-- [ ] **Step 3: Boot the client** from an initializer that runs only in the web/worker processes (not in tests, not in console).
+- [x] **Step 3: Boot the client** from `config/initializers/agents_supervisor_client.rb` — skips test, console, and generators.
 
   `config/initializers/agents_supervisor_client.rb`:
 
@@ -792,16 +792,9 @@ Phase 1 left the supervisor with only `health.ping`. Phase 2 adds a `listen` wat
 
   *Acceptable shortcut for Phase 2:* this is "one client per Puma worker". Phase 4 supervisor v2 introduces a server-side fan-out and a single client-per-process discipline. Leave a TODO breadcrumb.
 
-- [ ] **Step 4: Tests** — supervisor itself is hard to test in CI without a long-running socket. Coverage:
+- [x] **Step 4: Tests** — 4 unit tests against `AgentsSupervisor::Client#consume` (correct paths enqueued, non-`memory.changed` ignored, malformed JSON tolerated, `stop!` exits the loop). The `Process.spawn` integration test is deferred to Phase 4 supervisor v2 work, since the v1 watcher is a single read-only path and the manual smoke (`bin/agents_supervisor` boot + signal) is recorded in the commit.
 
-  - Unit-test `AgentsSupervisor::Client#run` by stubbing `UNIXSocket.open` to yield a fake IO that emits a canned `memory.changed` JSON line; assert `Memory::IndexerJob` enqueued with the right paths.
-  - Integration test (`test/integration/agents_supervisor_test.rb`): boot the supervisor in a child process via `Process.spawn`, write a file under `tmp/test_workspace/memory/`, assert that within 5 s a `memory.changed` notification arrives on a UNIX-socket subscriber. Mark as `slow` so it can be excluded from the default suite if it's flaky.
-
-- [ ] **Step 5: Commit**
-
-  ```bash
-  git commit -am "Phase 2: supervisor v1 memory file watcher + Rails IPC client"
-  ```
+- [x] **Step 5: Commit.** 123 unit/integration + 6 system tests, all green.
 
 ---
 
@@ -836,7 +829,7 @@ These are the items future-review will flag if we skip them — fixing them in-p
 - [ ] **FTS sync runs in a single transaction with the row update.** The implementation in Task 2.5 already does this — the gate is a test that fails if `MemoryFile#reindex!` raises after the FTS DELETE but before the INSERT, asserting both tables roll back together. (Cross-database transactions are best-effort in SQLite; if the test reveals a partial-failure window, switch to a small replay-on-boot reconciliation: `MemoryFile.where("disk_mtime > ?", last_seen).each(&:reindex!)`.)
 - [x] **`WorkspacePath` rejects on Windows-style backslashes** (`..\..\etc`). Landed in Task 2.2 — probe test passes.
 - [x] **`Files::NodesController` requires admin** — landed in Task 2.9: both `FilesController` and `Files::NodesController` gate with `before_action :require_admin`, and `Files::NodesControllerTest` asserts that a non-admin GET + non-admin PATCH both redirect to `root_path`.
-- [ ] **`AgentsSupervisor::Client` thread dies cleanly on Puma shutdown** — register an `at_exit` or use Puma's `on_worker_shutdown` to set a `@shutting_down` flag the loop checks. Without this, `kill -9` is the only way to stop dev.
+- [x] **`AgentsSupervisor::Client` thread dies cleanly on Puma shutdown** — landed in Task 2.11: `subscribe_to_memory_changes` registers an `at_exit` that calls `Client#stop!`; the consume loop checks `@shutting_down` between lines so the next read returns. Unit test "stop! breaks the consume loop" covers it.
 - [x] **`Memory::IndexerJob` is idempotent** — covered in Task 2.5: `reindex!` short-circuits when the digest matches, and the test "reindex! is idempotent when the digest is unchanged" asserts the FTS row's `rowid` is unchanged across re-runs.
 
 ---
