@@ -6,7 +6,8 @@ class Memory::SearchesControllerTest < ActionDispatch::IntegrationTest
     @prev_home = Rails.application.config.x.mop_home
     Rails.application.config.x.mop_home = @tmp
     FileUtils.mkdir_p(File.join(@tmp, "memory"))
-    @user = users(:one)
+    @user   = users(:one)
+    @member = users(:member)
     sign_in_as(@user)
   end
 
@@ -33,5 +34,11 @@ class Memory::SearchesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_match(/no matches/i, response.body)
+  end
+
+  test "non-admin cannot search" do
+    sign_in_as(@member)
+    post memory_searches_path, params: { query: "dragon" }
+    assert_redirected_to root_path
   end
 end

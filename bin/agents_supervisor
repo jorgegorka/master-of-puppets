@@ -19,6 +19,12 @@ FileUtils.mkdir_p(SOCKET_PATH.dirname)
 File.delete(SOCKET_PATH) if File.exist?(SOCKET_PATH)
 
 server                 = UNIXServer.new(SOCKET_PATH.to_s)
+# SECURITY: 0600 keeps other local UIDs from connecting. Peer-credential
+# auth (SO_PEERCRED on Linux, getpeereid on macOS) is the proper gate
+# once Phase 4 layers tmux + MCP spawns onto this socket; until then
+# filesystem perms are the only thing between an unprivileged process
+# and `memory.changed` paths leaking + (future) RPC commands executing.
+File.chmod(0o600, SOCKET_PATH.to_s)
 shutdown_r, shutdown_w = IO.pipe
 clients                = Concurrent::Array.new
 
@@ -73,6 +79,14 @@ loop do
   next if client == :wait_readable
   clients << client
 
+  # TODO(phase-4): one socket carries BOTH request/response traffic AND
+  # the fan-out notification stream. The per-connection reader thread
+  # below and the listener-fan-out loop above both write to `client`,
+  # which can interleave under load. Supervisor v2 should either split
+  # subscription from RPC onto two sockets or serialize all writes
+  # through a single dedicated writer thread per connection. Phase 1
+  # could ignore this because Rails never sent RPC requests; Phase 4
+  # tmux + MCP work makes this load-bearing.
   Thread.new(client) do |c|
     begin
       c.each_line do |line|

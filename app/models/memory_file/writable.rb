@@ -5,17 +5,14 @@ module MemoryFile::Writable
     # Public entry point for "write content to <path>, creating the row if
     # needed". Lets callers (controllers, jobs, the supervisor) treat write
     # as the primitive without first hydrating a `MemoryFile`.
+    #
+    # The row is *not* persisted until `#write` succeeds — `reindex!`
+    # upserts it from the on-disk file inside the same transaction. A
+    # traversal payload raises `WorkspacePath::EscapeAttempt` from inside
+    # `#write` before any DB or disk state is touched, so failures never
+    # leave orphan rows behind.
     def write_at(path, content)
-      file = find_or_initialize_by(path: path)
-      unless file.persisted?
-        file.assign_attributes(
-          content_digest: "pending",
-          byte_size:      0,
-          disk_mtime:     Time.current
-        )
-        file.save!(validate: false)
-      end
-      file.write(content)
+      find_or_initialize_by(path: path).write(content)
     end
   end
 

@@ -1,6 +1,13 @@
 class WorkspacePath
   class EscapeAttempt < StandardError; end
 
+  # The set of workspace roots that callers are allowed to address. "." is
+  # the whole workspace (used by Files::NodesController); the rest mirror
+  # `WorkspaceBootstrap::SUBDIRS`. Keeping this explicit means a future
+  # caller passing user-controlled input as `root:` can't escape into
+  # arbitrary parent directories.
+  ALLOWED_ROOTS = (WorkspaceBootstrap::SUBDIRS + [ "." ]).freeze
+
   attr_reader :absolute, :rel, :root_key
 
   def self.resolve(root:, raw:)
@@ -8,13 +15,18 @@ class WorkspacePath
   end
 
   def initialize(root:, raw:)
+    root_string = root.to_s
+    unless ALLOWED_ROOTS.include?(root_string)
+      raise EscapeAttempt, "unknown root #{root_string.inspect}"
+    end
+
     raw_string = raw.to_s
     raise EscapeAttempt, "null byte"        if raw_string.include?("\0")
     raise EscapeAttempt, "backslash"        if raw_string.include?("\\")
     raise EscapeAttempt, "absolute path"    if Pathname.new(raw_string).absolute?
 
     @root_key = root
-    base = Pathname.new(File.join(Rails.application.config.x.mop_home, root.to_s)).realpath
+    base = Pathname.new(File.join(Rails.application.config.x.mop_home, root_string)).realpath
 
     # Textual check first — defeats `../../../etc/passwd` and friends without
     # ever touching disk, so we don't crash on realpath of a non-existent

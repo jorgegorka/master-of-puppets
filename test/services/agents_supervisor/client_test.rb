@@ -1,5 +1,6 @@
 require "test_helper"
 require "stringio"
+require "socket"
 
 class AgentsSupervisor::ClientTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
@@ -56,5 +57,23 @@ class AgentsSupervisor::ClientTest < ActiveSupport::TestCase
       queue.singleton_class.alias_method(:enqueue, :__real_enqueue)
       queue.singleton_class.remove_method(:__real_enqueue)
     end
+  end
+
+  test "stop! closes an active socket so a blocked each_line wakes" do
+    sock_a, sock_b = UNIXSocket.pair
+    client = AgentsSupervisor::Client.new
+    client.instance_variable_set(:@socket, sock_a)
+
+    consumer = Thread.new { client.consume(sock_a) }
+    # Give the thread time to enter the blocking each_line read on sock_a.
+    sleep 0.05
+
+    client.stop!
+
+    assert consumer.join(1), "consume did not unblock within 1s after stop!"
+    assert sock_a.closed?, "stop! should have closed the active socket"
+  ensure
+    sock_a&.close rescue nil
+    sock_b&.close rescue nil
   end
 end

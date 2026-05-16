@@ -17,8 +17,7 @@ class MemorySystemTest < ApplicationSystemTestCase
   end
 
   test "edit a memory file in the browser and find it via search" do
-    user = User.create!(email: "memory@example.test", password: "supersecret123")
-    sign_in(user)
+    sign_in(users(:one))
 
     visit memory_path
     assert_text "Original title"

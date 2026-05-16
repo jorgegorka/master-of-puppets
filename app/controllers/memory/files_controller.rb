@@ -1,4 +1,5 @@
 class Memory::FilesController < ApplicationController
+  before_action :require_admin
   rescue_from WorkspacePath::EscapeAttempt, with: :forbid_escape
 
   before_action :set_file, only: %i[show update destroy]

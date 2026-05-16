@@ -66,4 +66,16 @@ class WorkspacePathTest < ActiveSupport::TestCase
     assert_kind_of Pathname, path.to_pathname
     assert_equal "hi", path.read
   end
+
+  test "refuses an unknown root key" do
+    assert_raises(WorkspacePath::EscapeAttempt) do
+      WorkspacePath.resolve(root: "../etc", raw: "passwd")
+    end
+  end
+
+  test "accepts the workspace root via '.'" do
+    File.write(File.join(@tmp, "topfile.txt"), "x")
+    path = WorkspacePath.resolve(root: ".", raw: "topfile.txt")
+    assert_equal File.realpath(File.join(@tmp, "topfile.txt")), path.to_s
+  end
 end

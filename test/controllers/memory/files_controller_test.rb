@@ -6,7 +6,8 @@ class Memory::FilesControllerTest < ActionDispatch::IntegrationTest
     @prev_home = Rails.application.config.x.mop_home
     Rails.application.config.x.mop_home = @tmp
     FileUtils.mkdir_p(File.join(@tmp, "memory"))
-    @user = users(:one)
+    @user   = users(:one)
+    @member = users(:member)
     sign_in_as(@user)
   end
 
@@ -66,11 +67,31 @@ class Memory::FilesControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :forbidden
     refute File.exist?(File.join(@tmp, "etc/passwd"))
+    # Path resolution must happen before the row is persisted — a rejected
+    # write must not leave an orphan MemoryFile behind.
+    refute MemoryFile.exists?(path: "../../etc/passwd")
   end
 
   test "update with a path-traversal id never reaches the disk" do
     patch memory_file_path("..%2Fetc%2Fpasswd"), params: { content: "rooted" }
     assert_response :not_found
     refute File.exist?("/etc/passwd.tmp")
+  end
+
+  test "non-admin cannot create" do
+    sign_in_as(@member)
+    post memory_files_path, params: { path: "leak.md", content: "x" }
+    assert_redirected_to root_path
+    refute File.exist?(File.join(@tmp, "memory/leak.md"))
+    refute MemoryFile.exists?(path: "leak.md")
+  end
+
+  test "non-admin cannot update" do
+    File.write(File.join(@tmp, "memory/admin.md"), "before")
+    MemoryFile.reindex("admin.md")
+    sign_in_as(@member)
+    patch memory_file_path("admin.md"), params: { content: "after" }
+    assert_redirected_to root_path
+    assert_equal "before", File.read(File.join(@tmp, "memory/admin.md"))
   end
 end

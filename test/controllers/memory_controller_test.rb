@@ -7,7 +7,8 @@ class MemoryControllerTest < ActionDispatch::IntegrationTest
     Rails.application.config.x.mop_home = @tmp
     FileUtils.mkdir_p(File.join(@tmp, "memory"))
     File.write(File.join(@tmp, "memory/MEMORY.md"), "# Memory\n")
-    @user = users(:one)
+    @user   = users(:one)
+    @member = users(:member)
   end
 
   teardown do
@@ -26,5 +27,11 @@ class MemoryControllerTest < ActionDispatch::IntegrationTest
   test "signed out redirects to sign-in" do
     get memory_path
     assert_redirected_to new_session_path
+  end
+
+  test "non-admin cannot view memory" do
+    sign_in_as(@member)
+    get memory_path
+    assert_redirected_to root_path
   end
 end
