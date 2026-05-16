@@ -39,4 +39,13 @@ class Tool::InternalTest < ActiveSupport::TestCase
     assert_equal "body", block["content"]
     refute block["is_error"]
   end
+
+  test "all_definitions includes the 4 built-in tools (after initializer runs)" do
+    defs = Tool::Internal.all_definitions
+    names = defs.map { |d| d[:name] }
+    assert_includes names, "read_file"
+    assert_includes names, "write_file"
+    assert_includes names, "list_dir"
+    assert_includes names, "run_shell"
+  end
 end
