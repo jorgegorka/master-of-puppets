@@ -11,6 +11,11 @@ Rails.application.config.after_initialize do
 
   AgentsSupervisor::Client.subscribe_to_memory_changes
 
+  # Boot-replay fan-out gate: only worker 0 enqueues. Multi-worker Puma
+  # otherwise enqueued N copies of these idempotent jobs — wasteful even
+  # though digest-match + concurrency keys keep correctness.
+  next unless BootReplayLeader.leader?
+
   # Cold-start replay: any .md edits that happened while Puma or the
   # supervisor were down would otherwise sit unindexed forever (the
   # supervisor's listener only fires on events that arrive after a

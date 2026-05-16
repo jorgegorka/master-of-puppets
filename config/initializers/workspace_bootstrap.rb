@@ -39,12 +39,15 @@ Rails.application.config.after_initialize do
   next if defined?(Rake) && Rake.respond_to?(:application) && Rake.application&.top_level_tasks&.any?
   next unless Rails.application.config.x.mop_home
 
+  # WorkspaceBootstrap.run is idempotent (mkdir_p + non-clobbering seed copy),
+  # so every worker still runs it cheaply — no fan-out cost.
   WorkspaceBootstrap.run(Rails.application.config.x.mop_home)
 
   # Replay any skill edits that happened while Puma was down. Idempotent
   # because Skill::Loadable short-circuits on unchanged body_digest, and
   # Skill::ReloadJob's concurrency control collapses duplicate enqueues
-  # across Puma workers.
+  # across Puma workers. Still, gate to worker 0 to avoid waking N replicas.
   next unless ActiveRecord::Base.connection.data_source_exists?("skills")
+  next unless BootReplayLeader.leader?
   Skill::ReloadJob.perform_later
 end
