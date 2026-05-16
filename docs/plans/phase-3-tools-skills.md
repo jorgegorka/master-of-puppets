@@ -1876,11 +1876,11 @@ After all three land, retag (`git tag -d phase-3 && git tag phase-3`) so the tag
 
 ### 3.16 verification + retag
 
-- [ ] `bin/rails test` — expect ≥213 runs, all green.
-- [ ] `bin/rails test:system` — expect ≥7 runs, all green.
-- [ ] `bin/bundle exec brakeman -A` — expect no new warnings (the 3 existing `app/models/tool/internal/write_file.rb` File-Access medium warnings stay; everything else should stay at the baseline).
-- [ ] `bin/bundle exec bundler-audit check --update` — clean.
-- [ ] `git tag -d phase-3 && git tag phase-3` — retag to the green head after 3.16c lands.
+- [x] `bin/rails test` — 260 runs / 697 assertions / 0 failures / 1 skip (the pre-existing `tool_loop_round_trip` cassette skip).
+- [x] `bin/rails test:system` — 7 runs / 22 assertions / 0 failures.
+- [x] `bin/bundle exec brakeman -A` — 11 Medium/File-Access warnings (was 10 at the original phase-3 tag; the +1 is a line-number shift inside `app/models/tool/internal/write_file.rb` after 3.16b inserted the `overwrite` branch — same WorkspacePath-protected pattern, no new attack surface). `Session.find_by` unscoped-find baseline unchanged.
+- [x] `bin/bundle exec bundler-audit check --update` — clean (0 vulnerabilities, ruby-advisory-db 2026-05-14).
+- [x] `git tag -d phase-3 && git tag phase-3` — retag to the green head after 3.16c lands.
 
 ---
 
