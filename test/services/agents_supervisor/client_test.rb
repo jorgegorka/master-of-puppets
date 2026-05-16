@@ -20,6 +20,16 @@ class AgentsSupervisor::ClientTest < ActiveSupport::TestCase
     assert_equal %w[a.md nested/b.md], enqueued.map { |j| j[:args].first }
   end
 
+  test "skills.changed paths enqueue Skill::ReloadJob" do
+    client = AgentsSupervisor::Client.new
+    payload = { jsonrpc: "2.0", method: "skills.changed", params: { paths: [ "/tmp/x/SKILL.md" ] } }.to_json + "\n"
+    socket = StringIO.new(payload)
+
+    assert_enqueued_with(job: Skill::ReloadJob, args: [ { path: "/tmp/x/SKILL.md" } ]) do
+      client.consume(socket)
+    end
+  end
+
   test "consume ignores notifications with other methods" do
     payload = { jsonrpc: "2.0", method: "health.pong", params: {} }.to_json
 

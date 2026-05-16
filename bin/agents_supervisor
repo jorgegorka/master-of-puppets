@@ -53,6 +53,22 @@ listener = Listen.to(memory_root.to_s, only: /\.md\z/, latency: 0.5) do |modifie
 end
 listener.start
 
+skills_root = Pathname.new(Rails.application.config.x.mop_home).join("skills")
+FileUtils.mkdir_p(skills_root)
+
+skills_listener = Listen.to(skills_root.to_s, only: /SKILL\.md\z/, latency: 0.5) do |modified, added, removed|
+  paths = (modified + added + removed).map { |abs| abs.to_s }
+  notification = { jsonrpc: "2.0", method: "skills.changed", params: { paths: paths } }.to_json
+  clients.each do |client|
+    begin
+      client.puts(notification)
+    rescue IOError, Errno::EPIPE
+      clients.delete(client)
+    end
+  end
+end
+skills_listener.start
+
 handle_request = lambda do |request|
   case request["method"]
   when "health.ping"
@@ -69,6 +85,7 @@ loop do
   if readable.include?(shutdown_r)
     Rails.logger.info("[agents_supervisor] shutting down") rescue nil
     listener.stop rescue nil
+    skills_listener.stop rescue nil
     clients.each { |c| c.close rescue nil }
     server.close rescue nil
     File.unlink(SOCKET_PATH) rescue nil

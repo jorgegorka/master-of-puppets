@@ -58,10 +58,14 @@ module AgentsSupervisor
       socket.each_line do |line|
         break if @shutting_down
         message = parse(line)
-        next unless message && message["method"] == "memory.changed"
+        next unless message
 
-        paths = Array(message.dig("params", "paths"))
-        paths.each { |path| Memory::IndexerJob.perform_later(path) }
+        case message["method"]
+        when "memory.changed"
+          Array(message.dig("params", "paths")).each { |path| Memory::IndexerJob.perform_later(path) }
+        when "skills.changed"
+          Array(message.dig("params", "paths")).each { |path| Skill::ReloadJob.perform_later(path: path) }
+        end
       end
     rescue IOError
       # `stop!` closed the socket while we were parked in `each_line` —
