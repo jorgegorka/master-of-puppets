@@ -86,6 +86,18 @@ class SupervisorV2Test < ActiveSupport::TestCase
     assert_equal(-32601, response.dig("error", "code"))
   end
 
+  test "shell.run executes a command and returns exit code + stdout" do
+    response = rpc(method: "shell.run", params: { command: "echo from-supervisor", cwd: @mop_home.to_s, timeout: 5 }, timeout: 10)
+    assert_equal 0, response.dig("result", "exit_code")
+    assert_match(/from-supervisor/, response.dig("result", "stdout").to_s)
+    assert_equal false, response.dig("result", "timed_out")
+  end
+
+  test "shell.run kills a runaway command at the timeout" do
+    response = rpc(method: "shell.run", params: { command: "sleep 10", cwd: @mop_home.to_s, timeout: 1 }, timeout: 5)
+    assert_equal true, response.dig("result", "timed_out")
+  end
+
   test "terminal.create + capture + close cycle through tmux" do
     omit "tmux not installed" unless system("which tmux > /dev/null 2>&1")
 

@@ -2,18 +2,12 @@ require "open3"
 require "timeout"
 
 class Tool::Internal::RunShell < Tool::Internal
-  # SECURITY NOTE: chdir to ${MOP_HOME} is the *only* sandboxing for shell
-  # execution. A command like `cd /etc && cat passwd` escapes trivially.
-  # Phase 4's supervisor v2 rewrite moves shell execution into a child
-  # process where rlimits + uid drop + namespaces become tractable;
-  # until then, `run_shell` is admin-only and the audit log is the safety net.
-  # Today's mitigations (also see config/initializers/tool_internal_registry.rb):
-  #   - registration is gated on MOP_ENABLE_RUN_SHELL (default off in prod)
-  #   - secrets are scrubbed from the child environment (SCRUBBED_ENV)
-  #   - the child runs in its own process group so a timeout kills the whole tree
-  MAX_OUTPUT_BYTES = 64 * 1024
-  TIMEOUT_SECONDS  = 30
+  MAX_OUTPUT_BYTES   = 64 * 1024
+  TIMEOUT_SECONDS    = 30
   KILL_GRACE_SECONDS = 2
+
+  # Mirror the supervisor's scrub list so the in-process fallback (tests,
+  # MOP_RUN_SHELL_FORCE_IN_PROCESS=1) gets the same protection.
   SCRUBBED_ENV = %w[
     DATABASE_URL
     RAILS_MASTER_KEY
@@ -22,7 +16,7 @@ class Tool::Internal::RunShell < Tool::Internal
   ].freeze
 
   def self.tool_name;   "run_shell"; end
-  def self.description; "Run a shell command in the workspace (admin only, sandboxed via cwd, 30s timeout)."; end
+  def self.description; "Run a shell command in the workspace (admin only, sandboxed via cwd, 30s timeout, rlimits via supervisor)."; end
   def self.input_schema
     {
       type: "object",
@@ -39,6 +33,41 @@ class Tool::Internal::RunShell < Tool::Internal
     command = input.fetch("command").to_s
     return Tool::Result.failure("empty command") if command.strip.empty?
 
+    if ENV["MOP_RUN_SHELL_FORCE_IN_PROCESS"] == "1"
+      invoke_in_process(command)
+    else
+      invoke_via_supervisor(command)
+    end
+  end
+
+  # Default Phase 4 path: dispatch through the supervisor's shell.run RPC,
+  # so the child gets rlimits + env scrub + pgroup + (Linux + root) uid drop.
+  # If the supervisor isn't reachable, fall back to the in-process path so
+  # dev environments without a running supervisor can still test the tool.
+  def self.invoke_via_supervisor(command)
+    cwd = Rails.application.config.x.mop_home.to_s
+    result = AgentsSupervisor::Client.call("shell.run", { command: command, cwd: cwd, timeout: TIMEOUT_SECONDS }, timeout: TIMEOUT_SECONDS + 5)
+
+    if result["timed_out"]
+      return Tool::Result.failure("timed out after #{TIMEOUT_SECONDS}s")
+    end
+
+    body = "$ #{command}\n#{result['stdout']}#{result['stderr']}".byteslice(0, MAX_OUTPUT_BYTES * 2).to_s
+    exit_code = result["exit_code"].to_i
+    if exit_code.zero?
+      Tool::Result.ok(body)
+    else
+      Tool::Result.failure("exit #{exit_code}: #{body}")
+    end
+  rescue Errno::ENOENT, Errno::ECONNREFUSED, AgentsSupervisor::SupervisorError => e
+    Rails.logger.warn("[run_shell] supervisor RPC failed (#{e.class}: #{e.message}); falling back to in-process")
+    invoke_in_process(command)
+  end
+
+  # In-process fallback (Phase 3 codepath, kept for tests + supervisor-less
+  # dev). Scrubs sensitive env vars; runs in its own process group so a
+  # timeout kills the whole tree.
+  def self.invoke_in_process(command)
     output, status = run_with_timeout(command)
     if output.bytesize > MAX_OUTPUT_BYTES
       output = output.byteslice(0, MAX_OUTPUT_BYTES).to_s.scrub + "\n…[truncated]"
@@ -72,9 +101,6 @@ class Tool::Internal::RunShell < Tool::Internal
     end
   end
 
-  # Signal the whole process group so `/bin/sh -c "<long-running>"` and any
-  # children die with the timeout. SIGTERM first; if the leader is still up
-  # after the grace window, SIGKILL.
   def self.terminate_process_group!(pid)
     return if pid.nil?
     Process.kill("-TERM", pid)

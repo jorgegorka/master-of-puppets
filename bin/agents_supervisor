@@ -164,6 +164,97 @@ module AgentsSupervisor
       end
   end
 
+  # Owns the run_shell tool's child process: scrubs sensitive env vars,
+  # spawns into its own process group so SIGTERM/SIGKILL takes the whole
+  # tree, applies rlimits (CPU / virtual memory / fd count). Linux uid
+  # drop is gated on the supervisor itself being root AND an opt-in
+  # marker file — dev laptops never run as root so this is a no-op for
+  # most users, but the supervisor is the right place for this to land
+  # once Phase 5 ships a privileged unit.
+  class ShellBridge
+    SCRUBBED = %w[
+      DATABASE_URL
+      RAILS_MASTER_KEY
+      ANTHROPIC_API_KEY
+      OPENAI_API_KEY
+      MOP_SUPERVISOR_SOCKET
+    ].freeze
+
+    # macOS doesn't honor RLIMIT_AS (address space) — setrlimit returns
+    # EINVAL — so only apply the cross-platform rlimits there. Linux gets
+    # the full set.
+    RLIMITS = if RUBY_PLATFORM.include?("linux")
+      { rlimit_cpu: [30, 30], rlimit_as: [512 * 1024 * 1024, 512 * 1024 * 1024], rlimit_nofile: [64, 64] }
+    else
+      { rlimit_cpu: [30, 30], rlimit_nofile: [64, 64] }
+    end.freeze
+
+    MAX_OUTPUT_BYTES = 64 * 1024
+
+    def run(command:, cwd:, timeout: 30, **)
+      env  = SCRUBBED.zip([nil] * SCRUBBED.size).to_h
+      opts = { chdir: cwd, pgroup: true, **RLIMITS }
+      opts[:uid] = Integer(ENV["MOP_RUN_SHELL_UID"]) if ENV["MOP_RUN_SHELL_UID"] && Process.uid.zero?
+
+      r_out, w_out = IO.pipe
+      r_err, w_err = IO.pipe
+      pid = Process.spawn(env, command, **opts, out: w_out, err: w_err, in: :close)
+      w_out.close
+      w_err.close
+
+      out = ""
+      err = ""
+      reader_threads = [
+        Thread.new { while (chunk = r_out.read(4096)); out << chunk; end rescue nil },
+        Thread.new { while (chunk = r_err.read(4096)); err << chunk; end rescue nil }
+      ]
+
+      status, timed_out = wait_with_timeout(pid, timeout)
+      reader_threads.each { |t| t.join(0.5) }
+      [out, err].each { |s| s.replace(s.byteslice(0, MAX_OUTPUT_BYTES).to_s.scrub + "\n…[truncated]") if s.bytesize > MAX_OUTPUT_BYTES }
+
+      {
+        stdout:    out,
+        stderr:    err,
+        exit_code: status&.exitstatus.to_i,
+        timed_out: timed_out
+      }
+    end
+
+    private
+      def wait_with_timeout(pid, timeout)
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout.to_f
+        loop do
+          _, status = Process.waitpid2(pid, Process::WNOHANG)
+          return [status, false] if status
+
+          if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+            status = kill_pgroup_and_reap!(pid)
+            return [status, true]
+          end
+          sleep 0.05
+        end
+      end
+
+      # Signal the whole process group so /bin/sh -c "..." and any children
+      # die together. Returns the (reaped) status, or nil if the child was
+      # already gone.
+      def kill_pgroup_and_reap!(pid)
+        Process.kill("-TERM", pid)
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 2
+        until Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+          _, status = Process.waitpid2(pid, Process::WNOHANG)
+          return status if status
+          sleep 0.05
+        end
+        Process.kill("-KILL", pid)
+        _, status = Process.waitpid2(pid)
+        status
+      rescue Errno::ESRCH, Errno::ECHILD
+        nil
+      end
+  end
+
   # Owns the tmux side of terminal sessions. Every shell command goes
   # through array-form Open3 (no shell metachar interpolation). The Rails
   # web process is responsible for tailing the FIFO and broadcasting back
@@ -283,19 +374,21 @@ skills_listener = Listen.to(skills_root.to_s, only: /SKILL\.md\z/, latency: 0.5)
 end
 skills_listener.start
 
-tmux = AgentsSupervisor::TmuxBridge.new
+tmux  = AgentsSupervisor::TmuxBridge.new
+shell = AgentsSupervisor::ShellBridge.new
 
 handle_request = lambda do |request|
   method = request["method"]
   params = (request["params"] || {}).transform_keys(&:to_sym)
   result =
     case method
-    when "health.ping"     then { pong: true, pid: Process.pid }
-    when "terminal.create" then tmux.create(**params)
-    when "terminal.input"  then tmux.input(**params)
-    when "terminal.resize" then tmux.resize(**params)
-    when "terminal.close"  then tmux.close(**params)
+    when "health.ping"      then { pong: true, pid: Process.pid }
+    when "terminal.create"  then tmux.create(**params)
+    when "terminal.input"   then tmux.input(**params)
+    when "terminal.resize"  then tmux.resize(**params)
+    when "terminal.close"   then tmux.close(**params)
     when "terminal.capture" then tmux.capture(**params)
+    when "shell.run"        then shell.run(**params)
     else
       return { jsonrpc: "2.0", id: request["id"], error: { code: -32601, message: "method not found: #{method}" } }
     end

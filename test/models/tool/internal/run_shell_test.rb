@@ -140,4 +140,58 @@ class Tool::Internal::RunShellTest < ActiveSupport::TestCase
   ensure
     Tool::Internal.instance_variable_set(:@registry, saved_registry)
   end
+
+  test "supervisor dispatch: happy path returns Tool::Result.ok with stdout body" do
+    captured = nil
+    with_singleton_method(AgentsSupervisor::Client, :call, ->(method, params = {}, **) {
+      captured = [method, params]
+      { "stdout" => "hi from sup\n", "stderr" => "", "exit_code" => 0, "timed_out" => false }
+    }) do
+      result = Tool::Internal::RunShell.invoke(input: { "command" => "echo hi" }, user: @admin)
+      refute result.is_error
+      assert_match(/\$ echo hi/, result.output)
+      assert_match(/hi from sup/, result.output)
+    end
+    assert_equal "shell.run", captured[0]
+    assert_equal "echo hi", captured[1][:command]
+  end
+
+  test "supervisor dispatch: timed_out returns Tool::Result.failure(/timed out/)" do
+    with_singleton_method(AgentsSupervisor::Client, :call, ->(*, **) {
+      { "stdout" => "", "stderr" => "", "exit_code" => -1, "timed_out" => true }
+    }) do
+      result = Tool::Internal::RunShell.invoke(input: { "command" => "sleep 99" }, user: @admin)
+      assert result.is_error
+      assert_match(/timed out/, result.error)
+    end
+  end
+
+  test "supervisor dispatch: non-zero exit returns Tool::Result.failure with exit code" do
+    with_singleton_method(AgentsSupervisor::Client, :call, ->(*, **) {
+      { "stdout" => "", "stderr" => "bad path\n", "exit_code" => 2, "timed_out" => false }
+    }) do
+      result = Tool::Internal::RunShell.invoke(input: { "command" => "false" }, user: @admin)
+      assert result.is_error
+      assert_match(/exit 2/, result.error)
+    end
+  end
+
+  test "supervisor unreachable falls back to in-process path" do
+    with_singleton_method(AgentsSupervisor::Client, :call, ->(*, **) { raise Errno::ENOENT, "no socket" }) do
+      result = Tool::Internal::RunShell.invoke(input: { "command" => "echo via-fallback" }, user: @admin)
+      refute result.is_error
+      assert_match(/via-fallback/, result.output)
+    end
+  end
+
+  test "MOP_RUN_SHELL_FORCE_IN_PROCESS=1 skips the supervisor entirely" do
+    called = false
+    with_singleton_method(AgentsSupervisor::Client, :call, ->(*, **) { called = true; { "exit_code" => 0, "stdout" => "", "stderr" => "" } }) do
+      ENV["MOP_RUN_SHELL_FORCE_IN_PROCESS"] = "1"
+      Tool::Internal::RunShell.invoke(input: { "command" => "echo direct" }, user: @admin)
+    end
+    assert_not called, "supervisor call should not run when the force flag is set"
+  ensure
+    ENV.delete("MOP_RUN_SHELL_FORCE_IN_PROCESS")
+  end
 end
