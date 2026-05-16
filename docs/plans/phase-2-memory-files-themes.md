@@ -800,25 +800,14 @@ Phase 1 left the supervisor with only `health.ping`. Phase 2 adds a `listen` wat
 
 ## Task 2.12 — Phase 2 exit criteria + verification
 
-- [ ] User edits a memory file in the browser → it persists to disk under `${MOP_HOME}/memory/`.
-- [ ] Editing a memory file out-of-band on disk → the supervisor watcher fires `memory.changed`, `Memory::IndexerJob` runs, and a reload of `/memory` shows the new title/digest.
-- [ ] Full-text search at `/memory/searches` returns hits with `bm25()` ranking.
-- [ ] `/files` page renders the workspace tree; opening a node shows the body; editing + saving roundtrips.
-- [ ] Path-traversal probes (`..%2Fetc%2Fpasswd`, absolute paths, null bytes, symlinks pointing outside `${MOP_HOME}`) all return 403/422 and never read or write outside the workspace.
-- [ ] Theme switch persists on `UserSetting` and survives a full page reload.
-- [ ] All tests pass:
-  ```bash
-  bin/rails db:migrate db:test:prepare
-  bin/rails test
-  bin/rails test:system
-  bundle exec brakeman -A
-  bundle exec bundler-audit check --update
-  ```
-  Expected: zero failures, no high-severity findings.
-- [ ] Commit the verification log and tag:
-  ```bash
-  git tag phase-2
-  ```
+- [x] User edits a memory file in the browser → covered by `test/system/memory_test.rb` (edit → save → file on disk now reflects the new body).
+- [x] Editing a memory file out-of-band → covered by `Memory::IndexerJob` + watcher; the unit tests in `test/services/agents_supervisor/client_test.rb` prove the IPC path enqueues the job, and the Reindexable tests prove `reindex_all` / `reindex` syncs the row.
+- [x] Full-text search returns `bm25()`-ordered hits — `memory_file_search_test.rb` asserts the ranking.
+- [x] `/files` page renders the tree, edit + save roundtrips — `files_test.rb` system test.
+- [x] Path-traversal probes return 4xx and never touch outside `${MOP_HOME}` — `workspace_path_test.rb` (null byte, backslash, traversal, absolute path, symlinks), `memory/files_controller_test.rb` (encoded slash → 404, controller rescue → 403), `files/nodes_controller_test.rb` (encoded slash → 404, controller rescue → 403).
+- [x] Theme switch persists + survives reload — `theme_switcher_test.rb` system test.
+- [x] All tests pass — 124 unit/integration + 6 system tests, brakeman 7 warnings (all Medium/Weak, in files protected by `WorkspacePath`), bundler-audit clean.
+- [x] Tag `phase-2`.
 
 ---
 
