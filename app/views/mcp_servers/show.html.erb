@@ -18,7 +18,7 @@
     <dt>Transport</dt>       <dd><%= @mcp_server.transport_type %></dd>
     <dt>URL</dt>             <dd><%= @mcp_server.url %></dd>
     <dt>Auth type</dt>       <dd><%= @mcp_server.auth_type %></dd>
-    <dt>Status</dt>          <dd><span class="badge badge--<%= @mcp_server.reachable? ? 'ok' : (@mcp_server.error? ? 'danger' : 'warn') %>"><%= @mcp_server.status %></span></dd>
+    <dt>Status</dt>          <dd><%= mcp_server_status_badge(@mcp_server) %></dd>
     <dt>Last checked</dt>    <dd><%= @mcp_server.last_checked_at&.iso8601 || "never" %></dd>
     <% if @mcp_server.last_error %>
       <dt>Last error</dt>    <dd><%= @mcp_server.last_error %></dd>

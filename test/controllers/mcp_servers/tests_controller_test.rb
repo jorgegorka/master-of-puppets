@@ -45,9 +45,9 @@ class McpServers::DiscoveriesControllerTest < ActionDispatch::IntegrationTest
 
   setup { sign_in_as(users(:one)) }
 
-  test "create enqueues Mcp::DiscoveryJob" do
+  test "create enqueues Mcp::DiscoveryJob with the record (GlobalID)" do
     server = mcp_servers(:context7_http)
-    assert_enqueued_with(job: Mcp::DiscoveryJob, args: [server.id]) do
+    assert_enqueued_with(job: Mcp::DiscoveryJob, args: [server]) do
       post mcp_server_discovery_path(server)
     end
     assert_redirected_to mcp_server_path(server)

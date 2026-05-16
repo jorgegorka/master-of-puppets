@@ -18,8 +18,8 @@ class Tool::McpTest < ActiveSupport::TestCase
     assert_not_includes Tool::Mcp.all_definitions(user: users(:one)).map { |d| d[:name] }, "secret"
   end
 
-  test "lookup returns the tool record" do
-    assert_equal mcp_tools(:context7_search), Tool::Mcp.lookup("search")
+  test "lookup returns the tool record for the owning user" do
+    assert_equal mcp_tools(:context7_search), Tool::Mcp.lookup("search", user: users(:one))
   end
 
   test "invoke unknown tool returns Tool::Result.failure" do
@@ -28,11 +28,15 @@ class Tool::McpTest < ActiveSupport::TestCase
     assert_match(/unknown mcp tool/, result.error)
   end
 
-  test "invoke cross-tenant rejects with Tool::Result.failure (not raise)" do
+  # The pre-fix behavior surfaced "belongs to another user", which both
+  # misrouted the call and disclosed that the name existed elsewhere. The
+  # secure shape: the intruder sees the same "unknown" they'd see for a typo.
+  test "invoke cross-tenant returns the same failure shape as an unknown tool" do
     intruder = User.create!(email: "mcp-cross@example.test", password: "supersecret123")
     result = Tool::Mcp.invoke(name: "search", input: { query: "x" }, user: intruder)
     assert result.is_error
-    assert_match(/belongs to another user/, result.error)
+    assert_match(/unknown mcp tool/, result.error)
+    refute_match(/belongs to another user/, result.error)
   end
 
   test "invoke happy path delegates to McpTool#invoke" do

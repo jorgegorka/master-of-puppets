@@ -86,6 +86,30 @@ class SupervisorV2Test < ActiveSupport::TestCase
     assert_equal(-32601, response.dig("error", "code"))
   end
 
+  test "handler errors return a canonical 'internal error' message (no class/path leakage)" do
+    omit "tmux not installed" unless system("which tmux > /dev/null 2>&1")
+    # session_id is non-numeric → Integer() raises ArgumentError inside
+    # TmuxBridge. The supervisor must NOT echo the raw e.message (which can
+    # carry workspace paths, tmux argv fragments, or rescue-formatted stack
+    # trace bits) back to the client.
+    response = rpc(method: "terminal.create",
+                   params: { session_id: "not-a-number", cwd: @mop_home.to_s, cols: 80, rows: 24 },
+                   timeout: 5)
+    assert_equal(-32603, response.dig("error", "code"))
+    assert_equal "internal error", response.dig("error", "message")
+  end
+
+  test "TmuxBridge#create rejects non-integer session_id (shell-injection defense)" do
+    omit "tmux not installed" unless system("which tmux > /dev/null 2>&1")
+    # Even a value that looks shell-y must be rejected before reaching pipe-pane.
+    payload = "$(touch /tmp/should-never-exist)"
+    response = rpc(method: "terminal.create",
+                   params: { session_id: payload, cwd: @mop_home.to_s, cols: 80, rows: 24 },
+                   timeout: 5)
+    assert response["error"], "expected the coercion to fail and return an error envelope"
+    assert_not File.exist?("/tmp/should-never-exist"), "shell-metachar payload must not be evaluated"
+  end
+
   test "shell.run executes a command and returns exit code + stdout" do
     response = rpc(method: "shell.run", params: { command: "echo from-supervisor", cwd: @mop_home.to_s, timeout: 5 }, timeout: 10)
     assert_equal 0, response.dig("result", "exit_code")
@@ -115,7 +139,10 @@ class SupervisorV2Test < ActiveSupport::TestCase
   test "terminal.create + capture + close cycle through tmux" do
     omit "tmux not installed" unless system("which tmux > /dev/null 2>&1")
 
-    session_id = "supv-test-#{Process.pid}-#{rand(10_000)}"
+    # Supervisor coerces session_id to Integer (defense against shell-metachar
+    # injection through pipe-pane), so the test uses a numeric id like
+    # production code does (TerminalSession.id is always an integer).
+    session_id = "#{Process.pid}#{rand(10_000)}".to_i
     cwd        = @mop_home.to_s
     response   = rpc(method: "terminal.create", params: { session_id: session_id, cwd: cwd, cols: 80, rows: 24 }, timeout: 5)
     assert_equal "mop-term-#{session_id}", response.dig("result", "tmux_session_name")

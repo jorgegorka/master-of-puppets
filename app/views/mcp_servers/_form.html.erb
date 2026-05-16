@@ -13,7 +13,7 @@
     <%= f.text_field :name, required: true %>
 
     <%= f.label :transport_type %>
-    <%= f.select :transport_type, McpServer.transport_types.keys.map { |k| [k, k] } %>
+    <%= f.select :transport_type, McpServer.transport_type_options %>
 
     <%= f.label :url, "URL (http/sse)" %>
     <%= f.text_field :url, placeholder: "https://example.com/mcp" %>
@@ -22,7 +22,7 @@
     <%= f.text_field :command_template, placeholder: "/usr/local/bin/some-mcp-server" %>
 
     <%= f.label :auth_type %>
-    <%= f.select :auth_type, McpServer.auth_types.keys.map { |k| [k, k] } %>
+    <%= f.select :auth_type, McpServer.auth_type_options %>
 
     <%= f.label :auth_payload, "Auth payload (JSON)" %>
     <%= f.text_area :auth_payload, rows: 3, placeholder: '{"token": "..."}' %>

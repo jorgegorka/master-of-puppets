@@ -14,12 +14,18 @@ class McpTool < ApplicationRecord
       client = Mcp::HttpClient.new(mcp_server)
       output = client.call_tool(name, input)
       Tool::Result.ok(output.to_s)
-    rescue => e
+    rescue StandardError => e
       Tool::Result.failure("mcp tool '#{name}' failed: #{e.message.to_s[0, 255]}")
     end
   end
 
-  def self.lookup(name)
-    exposed.find_by(name: name)
+  # Scoped by user: two tenants may both expose a tool named "search". Without
+  # the scope, user B's LLM call lands on user A's row, fails the tenant check,
+  # and the LLM gets "belongs to another user" — which both misroutes the call
+  # and discloses that another tenant owns a tool of that name.
+  def self.lookup(name, user:)
+    return nil if user.nil?
+
+    exposed.where(mcp_server: { user_id: user.id }).find_by(name: name)
   end
 end

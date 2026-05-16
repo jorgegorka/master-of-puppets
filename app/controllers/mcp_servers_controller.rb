@@ -6,8 +6,7 @@ class McpServersController < ApplicationController
     @mcp_servers = Current.user.mcp_servers.order(:slug)
   end
 
-  def show
-  end
+  def show; end
 
   def new
     @mcp_server = Current.user.mcp_servers.new(transport_type: :http, auth_type: :none, tool_mode: :all)
@@ -22,8 +21,7 @@ class McpServersController < ApplicationController
     end
   end
 
-  def edit
-  end
+  def edit; end
 
   def update
     if @mcp_server.update(mcp_server_params)
@@ -39,14 +37,15 @@ class McpServersController < ApplicationController
   end
 
   private
-    def set_mcp_server
-      @mcp_server = Current.user.mcp_servers.find(params[:id])
-    end
 
-    def mcp_server_params
-      params.require(:mcp_server).permit(
-        :slug, :name, :transport_type, :url, :command_template,
-        :auth_type, :auth_payload, :env_payload, :tool_mode
-      )
-    end
+  def set_mcp_server
+    @mcp_server = Current.user.mcp_servers.find(params[:id])
+  end
+
+  def mcp_server_params
+    params.require(:mcp_server).permit(
+      :slug, :name, :transport_type, :url, :command_template,
+      :auth_type, :auth_payload, :env_payload, :tool_mode
+    )
+  end
 end

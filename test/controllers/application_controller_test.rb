@@ -1,16 +1,21 @@
 require "test_helper"
 
 class ApplicationControllerTest < ActionDispatch::IntegrationTest
-  test "expired session redirects to sign-in with flash" do
+  test "expired session redirects to sign-in with flash and records the expired event" do
     sign_in_as(users(:one))
     session = users(:one).sessions.last
     session.update_columns(expires_at: 1.minute.ago)
 
-    get root_path
+    assert_difference -> { Event.where(action: "session_expired").count }, +1 do
+      get root_path
+    end
 
     assert_redirected_to new_session_path
     assert_equal "Session expired. Please sign in again.", flash[:alert]
-    assert_not Session.exists?(session.id), "expired session row should be destroyed on detection"
+    # session.expire! preserves the row (and its event trail) until the
+    # next sweep; the row should be marked expired, not destroyed.
+    session.reload
+    assert_operator session.expires_at, :<=, Time.current
   end
 
   test "valid session bumps last_seen_at on each request" do

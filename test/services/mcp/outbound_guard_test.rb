@@ -55,4 +55,48 @@ class Mcp::OutboundGuardTest < ActiveSupport::TestCase
       assert_match(/did not resolve/, err.message)
     end
   end
+
+  test "0.0.0.0 is denied (Linux routes it to loopback)" do
+    with_singleton_method(Resolv, :getaddresses, ->(_h) { ["0.0.0.0"] }) do
+      err = assert_raises(RuntimeError) { Mcp::OutboundGuard.allowed!("http://anything") }
+      assert_match(/private range/, err.message)
+    end
+  end
+
+  test "IPv4-mapped IPv6 metadata IP is denied" do
+    ENV["MOP_MCP_ALLOW_PRIVATE"] = "1"
+    with_singleton_method(Resolv, :getaddresses, ->(_h) { ["::ffff:169.254.169.254"] }) do
+      err = assert_raises(RuntimeError) { Mcp::OutboundGuard.allowed!("http://meta-v6") }
+      assert_match(/cloud metadata/, err.message)
+    end
+  end
+
+  test "IPv4-mapped IPv6 RFC1918 is denied by default" do
+    with_singleton_method(Resolv, :getaddresses, ->(_h) { ["::ffff:10.0.0.5"] }) do
+      err = assert_raises(RuntimeError) { Mcp::OutboundGuard.allowed!("http://lan-v6") }
+      assert_match(/private range/, err.message)
+    end
+  end
+
+  test "AWS IPv6 IMDS endpoint is denied even with MOP_MCP_ALLOW_PRIVATE=1" do
+    ENV["MOP_MCP_ALLOW_PRIVATE"] = "1"
+    with_singleton_method(Resolv, :getaddresses, ->(_h) { ["fd00:ec2::254"] }) do
+      err = assert_raises(RuntimeError) { Mcp::OutboundGuard.allowed!("http://aws-v6-meta") }
+      assert_match(/cloud metadata/, err.message)
+    end
+  end
+
+  test "limited broadcast 255.255.255.255 is denied" do
+    with_singleton_method(Resolv, :getaddresses, ->(_h) { ["255.255.255.255"] }) do
+      err = assert_raises(RuntimeError) { Mcp::OutboundGuard.allowed!("http://bcast") }
+      assert_match(/private range/, err.message)
+    end
+  end
+
+  test "multicast 239.x is denied" do
+    with_singleton_method(Resolv, :getaddresses, ->(_h) { ["239.1.2.3"] }) do
+      err = assert_raises(RuntimeError) { Mcp::OutboundGuard.allowed!("http://multi") }
+      assert_match(/private range/, err.message)
+    end
+  end
 end

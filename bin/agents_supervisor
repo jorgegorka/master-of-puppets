@@ -19,6 +19,7 @@ require "fileutils"
 require "listen"
 require "concurrent"
 require "open3"
+require "shellwords"
 
 module AgentsSupervisor
   MAX_RPC_LINE_BYTES = Integer(ENV.fetch("MOP_RPC_MAX_LINE", 64 * 1024))
@@ -192,15 +193,15 @@ module AgentsSupervisor
     # EINVAL — so only apply the cross-platform rlimits there. Linux gets
     # the full set.
     RLIMITS = if RUBY_PLATFORM.include?("linux")
-      { rlimit_cpu: [30, 30], rlimit_as: [512 * 1024 * 1024, 512 * 1024 * 1024], rlimit_nofile: [64, 64] }
+      { rlimit_cpu: [ 30, 30 ], rlimit_as: [ 512 * 1024 * 1024, 512 * 1024 * 1024 ], rlimit_nofile: [ 64, 64 ] }
     else
-      { rlimit_cpu: [30, 30], rlimit_nofile: [64, 64] }
+      { rlimit_cpu: [ 30, 30 ], rlimit_nofile: [ 64, 64 ] }
     end.freeze
 
     MAX_OUTPUT_BYTES = 64 * 1024
 
     def run(command:, cwd:, timeout: 30, **)
-      env  = SCRUBBED.zip([nil] * SCRUBBED.size).to_h
+      env  = SCRUBBED.zip([ nil ] * SCRUBBED.size).to_h
       opts = { chdir: cwd, pgroup: true, **RLIMITS }
       opts[:uid] = Integer(ENV["MOP_RUN_SHELL_UID"]) if ENV["MOP_RUN_SHELL_UID"] && Process.uid.zero?
 
@@ -228,7 +229,7 @@ module AgentsSupervisor
         # bound guarantees we don't read out/err while a writer thread is
         # still appending to them.
         reader_threads.each(&:join)
-        [out, err].each { |s| s.replace(s.byteslice(0, MAX_OUTPUT_BYTES).to_s.scrub + "\n…[truncated]") if s.bytesize > MAX_OUTPUT_BYTES }
+        [ out, err ].each { |s| s.replace(s.byteslice(0, MAX_OUTPUT_BYTES).to_s.scrub + "\n…[truncated]") if s.bytesize > MAX_OUTPUT_BYTES }
 
         {
           stdout:    out,
@@ -240,7 +241,7 @@ module AgentsSupervisor
         # Always release the read fds — a Process.spawn failure (path missing,
         # rlimit setup error) leaves the pipes dangling otherwise. Already-closed
         # is fine and IO#close raises IOError in that case; swallow it.
-        [w_out, w_err, r_out, r_err].each { |io| io.close rescue nil }
+        [ w_out, w_err, r_out, r_err ].each { |io| io.close rescue nil }
         reader_threads&.each { |t| t.kill if t.alive? }
       end
     end
@@ -250,11 +251,11 @@ module AgentsSupervisor
         deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout.to_f
         loop do
           _, status = Process.waitpid2(pid, Process::WNOHANG)
-          return [status, false] if status
+          return [ status, false ] if status
 
           if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
             status = kill_pgroup_and_reap!(pid)
-            return [status, true]
+            return [ status, true ]
           end
           sleep 0.05
         end
@@ -262,19 +263,38 @@ module AgentsSupervisor
 
       # Signal the whole process group so /bin/sh -c "..." and any children
       # die together. Returns the (reaped) status, or nil if the child was
-      # already gone.
+      # already gone. After the final SIGKILL we drain any remaining members
+      # of the pgroup — Process.waitpid2(pid) only reaps the leader, leaving
+      # stragglers as zombies the supervisor would never collect.
       def kill_pgroup_and_reap!(pid)
         Process.kill("-TERM", pid)
         deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 2
         until Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
           _, status = Process.waitpid2(pid, Process::WNOHANG)
-          return status if status
+          if status
+            drain_pgroup(pid)
+            return status
+          end
           sleep 0.05
         end
         Process.kill("-KILL", pid)
         _, status = Process.waitpid2(pid)
+        drain_pgroup(pid)
         status
       rescue Errno::ESRCH, Errno::ECHILD
+        nil
+      end
+
+      # Reap remaining members of the leader's pgroup so they don't linger as
+      # zombies. pgid == pid because the child was spawned with pgroup: true.
+      # ECHILD ends the loop; everything else is logged and swallowed (a
+      # leftover zombie is preferable to crashing the supervisor on shutdown).
+      def drain_pgroup(pgid)
+        loop do
+          reaped, _ = Process.waitpid2(-pgid, Process::WNOHANG)
+          break unless reaped
+        end
+      rescue Errno::ECHILD
         nil
       end
   end
@@ -293,29 +313,39 @@ module AgentsSupervisor
     end
 
     def create(session_id:, cwd:, cols:, rows:, **)
-      name = name_for(session_id)
+      sid  = coerce_session_id(session_id)
+      cols = Integer(cols)
+      rows = Integer(rows)
+      name = name_for(sid)
       run!("tmux", "new-session", "-d", "-s", name, "-x", cols.to_s, "-y", rows.to_s, "-c", cwd)
-      fifo = fifo_path(session_id)
+      fifo = fifo_path(sid)
       File.mkfifo(fifo.to_s) unless fifo.exist?
-      # pipe-pane's shell argument is the only string-interpolated bit; the
-      # FIFO path is server-derived from an integer session_id, not user input.
-      run!("tmux", "pipe-pane", "-t", name, "-o", "cat >> #{fifo}")
+      # pipe-pane's shell argument is evaluated through /bin/sh -c. The FIFO
+      # path is built from a coerced Integer session_id so even a malicious
+      # JSON-RPC client can't smuggle shell metacharacters here; the
+      # Shellwords.escape is defence-in-depth for the FIFO_DIR component.
+      run!("tmux", "pipe-pane", "-t", name, "-o", "cat >> #{Shellwords.escape(fifo.to_s)}")
       { tmux_session_name: name, fifo: fifo.to_s }
     end
 
     def input(session_id:, data:, **)
-      run!("tmux", "send-keys", "-t", name_for(session_id), "-l", data.to_s)
+      sid = coerce_session_id(session_id)
+      run!("tmux", "send-keys", "-t", name_for(sid), "-l", data.to_s)
       { ok: true }
     end
 
     def resize(session_id:, cols:, rows:, **)
-      run!("tmux", "resize-window", "-t", name_for(session_id), "-x", cols.to_s, "-y", rows.to_s)
+      sid  = coerce_session_id(session_id)
+      cols = Integer(cols)
+      rows = Integer(rows)
+      run!("tmux", "resize-window", "-t", name_for(sid), "-x", cols.to_s, "-y", rows.to_s)
       { ok: true }
     end
 
     def close(session_id:, **)
-      out, status = Open3.capture2e("tmux", "kill-session", "-t", name_for(session_id))
-      fifo = fifo_path(session_id)
+      sid = coerce_session_id(session_id)
+      out, status = Open3.capture2e("tmux", "kill-session", "-t", name_for(sid))
+      fifo = fifo_path(sid)
       File.unlink(fifo.to_s) if fifo.exist?
       # kill-session failing usually means "no such session" — already gone,
       # so the desired end state is satisfied. Bubble other failures up.
@@ -327,18 +357,28 @@ module AgentsSupervisor
     end
 
     def capture(session_id:, lines: 500, **)
-      out, status = Open3.capture2e("tmux", "capture-pane", "-p", "-t", name_for(session_id), "-S", "-#{lines.to_i}")
+      sid = coerce_session_id(session_id)
+      out, status = Open3.capture2e("tmux", "capture-pane", "-p", "-t", name_for(sid), "-S", "-#{Integer(lines)}")
       raise "tmux capture-pane failed: #{out}" unless status.success?
       { text: out }
     end
 
     def fifo_path(session_id)
-      FIFO_DIR.join("term-#{session_id}.fifo")
+      FIFO_DIR.join("term-#{coerce_session_id(session_id)}.fifo")
     end
 
     private
       def name_for(session_id)
         "mop-term-#{session_id}"
+      end
+
+      # Every public TmuxBridge method receives session_id from the JSON-RPC
+      # wire and uses it either to build a tmux target name or to interpolate
+      # into a shell-evaluated pipe-pane argument. Coercing to Integer here
+      # is the single chokepoint that prevents any non-numeric value (and
+      # thus any shell metacharacter) from reaching tmux.
+      def coerce_session_id(value)
+        Integer(value)
       end
 
       def run!(*argv)
@@ -418,8 +458,14 @@ handle_request = lambda do |request|
     end
   { jsonrpc: "2.0", id: request["id"], result: result }
 rescue => e
+  # Log the full class + message + backtrace fragment server-side; return a
+  # canonical short message to the client. Earlier shape echoed the raw
+  # `e.message` (which can carry workspace paths, tmux command lines, or
+  # rescue-formatted stack-trace fragments) — that's inconsistent with
+  # ConnectionPump#handle_one's "internal error" and leaks more than it
+  # should. Pick one policy; this is it.
   Rails.logger.error("[supervisor] #{method}: #{e.class}: #{e.message}")
-  { jsonrpc: "2.0", id: request["id"], error: { code: -32603, message: "#{e.class}: #{e.message}" } }
+  { jsonrpc: "2.0", id: request["id"], error: { code: -32603, message: "internal error" } }
 end
 
 remove_connection = lambda do |conn|

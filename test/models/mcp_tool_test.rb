@@ -10,11 +10,21 @@ class McpToolTest < ActiveSupport::TestCase
   end
 
   test "lookup returns nil for unknown name" do
-    assert_nil McpTool.lookup("nope")
+    assert_nil McpTool.lookup("nope", user: users(:one))
   end
 
-  test "lookup returns the McpTool for an exposed name" do
-    assert_equal mcp_tools(:context7_search), McpTool.lookup("search")
+  test "lookup returns nil when user is nil" do
+    assert_nil McpTool.lookup("search", user: nil)
+  end
+
+  test "lookup returns the McpTool for an exposed name owned by the user" do
+    assert_equal mcp_tools(:context7_search), McpTool.lookup("search", user: users(:one))
+  end
+
+  test "lookup ignores tools that belong to another tenant" do
+    intruder = User.create!(email: "lookup-intruder@example.test", password: "supersecret123")
+    # A name collision must not route the intruder to user(:one)'s row.
+    assert_nil McpTool.lookup("search", user: intruder)
   end
 
   test "invoke returns Tool::Result.ok on happy path" do

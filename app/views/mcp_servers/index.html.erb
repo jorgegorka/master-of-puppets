@@ -15,9 +15,7 @@
         <li class="pad-block-half flex justify-between align-center">
           <div>
             <%= link_to server.name, mcp_server_path(server) %>
-            <span class="badge badge--<%= server.reachable? ? 'ok' : (server.error? ? 'danger' : 'warn') %>">
-              <%= server.status %>
-            </span>
+            <%= mcp_server_status_badge(server) %>
           </div>
           <span class="txt-subtle txt-x-small">
             <%= server.transport_type %> · <%= server.tools.count %> tools

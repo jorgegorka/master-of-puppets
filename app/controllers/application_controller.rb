@@ -9,32 +9,33 @@ class ApplicationController < ActionController::Base
   before_action :require_sign_in
 
   private
-    def set_current
-      session = Session.find_by(id: cookies.signed[:session_id])
-      if session&.expired?
-        session.destroy
-        cookies.delete(:session_id)
-        flash[:alert] = "Session expired. Please sign in again."
-        Current.session = Current.user = nil
-        redirect_to(new_session_path) and return
-      end
-      Current.session    = session
-      Current.user       = session&.user
-      Current.ip_address = request.remote_ip
-      Current.user_agent = request.user_agent
-      session&.touch_and_maybe_rotate!
-    end
 
-    def require_sign_in
-      unless Current.user
-        redirect_to new_session_path
-      end
+  def set_current
+    session = Session.find_by(id: cookies.signed[:session_id])
+    if session&.expired?
+      session.expire!
+      cookies.delete(:session_id)
+      flash[:alert] = "Session expired. Please sign in again."
+      Current.session = Current.user = nil
+      redirect_to(new_session_path) and return
     end
+    Current.session    = session
+    Current.user       = session&.user
+    Current.ip_address = request.remote_ip
+    Current.user_agent = request.user_agent
+    session&.touch_and_rotate_if_due!
+  end
 
-    # Subclasses opt-in with `before_action :require_admin`. The User#role
-    # enum and the bootstrap-to-admin callback in User make this gate the
-    # default seat for privileged surfaces (Settings::Providers* in Phase 1).
-    def require_admin
-      redirect_to root_path, alert: "Admin only." unless Current.user&.admin?
-    end
+  def require_sign_in
+    return if Current.user
+
+    redirect_to new_session_path
+  end
+
+  # Subclasses opt-in with `before_action :require_admin`. The User#role
+  # enum and the bootstrap-to-admin callback in User make this gate the
+  # default seat for privileged surfaces (Settings::Providers* in Phase 1).
+  def require_admin
+    redirect_to root_path, alert: "Admin only." unless Current.user&.admin?
+  end
 end

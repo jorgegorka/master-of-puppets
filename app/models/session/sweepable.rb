@@ -24,7 +24,11 @@ module Session::Sweepable
     end
   end
 
-  def touch_and_maybe_rotate!
+  # Bumps last_seen_at on every request and *also* extends expires_at when
+  # we're inside the rotation window — old name (`touch_and_maybe_rotate!`)
+  # buried the rotation behind a "maybe". This name makes the rotation the
+  # headline of what the method does on the days it matters.
+  def touch_and_rotate_if_due!
     now    = Time.current
     rotate = (expires_at - now) < ROTATION_WINDOW
     attrs  = { last_seen_at: now }

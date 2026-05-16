@@ -57,6 +57,18 @@ class TerminalSessionTest < ActiveSupport::TestCase
     assert_equal t.id, captured[1][:session_id]
   end
 
+  test "terminate! still commits :terminated when supervisor close raises IOError / JSON::ParserError" do
+    t = terminal_sessions(:live_for_one)
+    [IOError.new("broken pipe"), JSON::ParserError.new("not json"), Errno::EPIPE.new].each do |boom|
+      t.update_columns(status: TerminalSession.statuses[:live])
+      with_singleton_method(AgentsSupervisor::Client, :call, ->(*) { raise boom }) do
+        assert_nothing_raised { t.terminate! }
+      end
+      assert t.reload.terminated?,
+        "terminate! must commit DB state to :terminated even when the supervisor close raises #{boom.class}"
+    end
+  end
+
   test "reattachable scope returns only :detached rows inside DETACH_TTL" do
     fresh = terminal_sessions(:detached_for_one)
     stale = terminal_sessions(:stale_detached_for_one)

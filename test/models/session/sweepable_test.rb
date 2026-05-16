@@ -21,22 +21,22 @@ class Session::SweepableTest < ActiveSupport::TestCase
     assert s.reload.expired?
   end
 
-  test "touch_and_maybe_rotate! bumps last_seen_at without rotating outside window" do
+  test "touch_and_rotate_if_due! bumps last_seen_at without rotating outside window" do
     s = sessions(:one)
     s.update_columns(expires_at: Session::Sweepable::DEFAULT_TTL.from_now, last_seen_at: 1.day.ago)
     original_expires = s.expires_at
-    s.touch_and_maybe_rotate!
+    s.touch_and_rotate_if_due!
     s.reload
     assert_operator s.last_seen_at, :>, 1.minute.ago
     assert_equal original_expires.to_i, s.expires_at.to_i
   end
 
-  test "touch_and_maybe_rotate! extends expires_at inside rotation window" do
+  test "touch_and_rotate_if_due! extends expires_at inside rotation window" do
     s = sessions(:one)
     window = Session::Sweepable::ROTATION_WINDOW
     s.update_columns(expires_at: (window - 1.hour).from_now)
     assert_difference -> { Event.where(action: "session_rotated").count }, +1 do
-      s.touch_and_maybe_rotate!
+      s.touch_and_rotate_if_due!
     end
     assert_operator s.reload.expires_at, :>, window.from_now
   end
