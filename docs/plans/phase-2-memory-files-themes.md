@@ -469,19 +469,9 @@ Single-file reindex (`reindex!`) and whole-tree walk (`reindex_all`). Keeps the 
 
 Routes already exist (workflows.md § 9 ships them as part of Phase 2 — they are not in `config/routes.rb` yet from Phase 1). Add the three controllers + views.
 
-- [ ] **Step 1: Add routes** to `config/routes.rb`:
+- [x] **Step 1: Add routes** to `config/routes.rb`.
 
-  ```ruby
-  resource :memory, controller: "memory", only: [:show] do
-    scope module: :memory do
-      resources :files,    only: %i[show update create destroy],
-                constraints: { id: %r{[^?]+} }, defaults: { format: :html }
-      resources :searches, only: %i[create]
-    end
-  end
-  ```
-
-- [ ] **Step 2: `MemoryController#show`** at `app/controllers/memory_controller.rb`:
+- [x] **Step 2: `MemoryController#show`** at `app/controllers/memory_controller.rb`:
 
   ```ruby
   class MemoryController < ApplicationController
@@ -494,7 +484,7 @@ Routes already exist (workflows.md § 9 ships them as part of Phase 2 — they a
 
   *(Task 2.8 ships `WorkspaceFile.tree`. Stub it as `[]` here and remove the stub when 2.8 lands.)*
 
-- [ ] **Step 3: `Memory::FilesController`** at `app/controllers/memory/files_controller.rb`:
+- [x] **Step 3: `Memory::FilesController`** at `app/controllers/memory/files_controller.rb`. *(Adds `rescue_from WorkspacePath::EscapeAttempt` → 403 so a traversal payload returns a clean response instead of a 500.)*
 
   ```ruby
   class Memory::FilesController < ApplicationController
@@ -527,7 +517,7 @@ Routes already exist (workflows.md § 9 ships them as part of Phase 2 — they a
   end
   ```
 
-- [ ] **Step 4: `Memory::SearchesController`** at `app/controllers/memory/searches_controller.rb`:
+- [x] **Step 4: `Memory::SearchesController`** at `app/controllers/memory/searches_controller.rb`.
 
   ```ruby
   class Memory::SearchesController < ApplicationController
@@ -539,24 +529,11 @@ Routes already exist (workflows.md § 9 ships them as part of Phase 2 — they a
   end
   ```
 
-- [ ] **Step 5: Views** — minimal but functional:
+- [x] **Step 5: Views** — `show`, `_node` partial (recursive), `files/edit`, `searches/results`. `simple_format` for the preview (Phase 4 swaps to kramdown + Monaco).
 
-  - `app/views/memory/show.html.erb` — left rail tree (recursive partial `memory/_node.html.erb`), right pane "Pick a file" placeholder, search form posting to `memory_searches_path`.
-  - `app/views/memory/files/edit.html.erb` — textarea (rows: 30, name: `content`), Save button posting to `memory_file_path(@file.path)` with `method: :patch`, raw markdown preview via `Kramdown::Document.new(@file.body).to_html` (simple_format fallback if `kramdown` isn't pinned yet — defer to Phase 4 when Monaco lands).
-  - `app/views/memory/searches/results.html.erb` — list of matches with `link_to` to `memory_file_path(file.path)`.
+- [x] **Step 6: Controller + system tests** — 2 memory dashboard tests (signed-in / signed-out), 7 files-controller tests (CRUD + 404 + traversal × 2), 2 searches tests, 1 system test (edit → save → search → see the change).
 
-- [ ] **Step 6: Controller + system tests**:
-
-  - `test/controllers/memory_controller_test.rb` — signed-in shows tree, signed-out redirects.
-  - `test/controllers/memory/files_controller_test.rb` — show/update/create/destroy roundtrip; path-traversal probe (`PATCH /memory/files/..%2Fetc%2Fpasswd` returns 4xx, not 200).
-  - `test/system/memory_test.rb` — sign in, click into a memory file, edit textarea, save, see the change reflected in the right pane and in the FTS search.
-
-- [ ] **Step 7: Commit**
-
-  ```bash
-  bin/rails test test/controllers/memory test/system/memory_test.rb
-  git commit -am "Phase 2: Memory page (show/edit/search)"
-  ```
+- [x] **Step 7: Commit.** 106 unit/integration tests + 4 system tests, all green.
 
 ---
 
@@ -564,7 +541,7 @@ Routes already exist (workflows.md § 9 ships them as part of Phase 2 — they a
 
 The disk-walk that backs both the Memory page (Task 2.7) and the Files page (Task 2.9). Keep it bounded — `max_depth` and `max_entries` caps protect against `node_modules` accidentally living in `${MOP_HOME}`.
 
-- [ ] **Step 1: Implement** at `app/models/workspace_file.rb`:
+- [x] **Step 1: Implement** at `app/models/workspace_file.rb`. *(Added an explicit `safe_symlink?` check so a symlink whose target lives outside the workspace is silently skipped rather than crashing the walk or following it into `/etc`.)*
 
   ```ruby
   class WorkspaceFile
@@ -598,22 +575,11 @@ The disk-walk that backs both the Memory page (Task 2.7) and the Files page (Tas
   end
   ```
 
-- [ ] **Step 2: Tests** at `test/models/workspace_file_test.rb`:
+- [x] **Step 2: Tests** at `test/models/workspace_file_test.rb` — 5 tests cover all five bullets.
 
-  - Walks a 3-level fixture tree (built with `Dir.mktmpdir`) and returns it in dirs-first/alpha order.
-  - `max_depth: 1` truncates beyond one level.
-  - `max_entries: 5` stops after 5 nodes.
-  - `node_modules/` is omitted; `.git/` is omitted.
-  - Symlinks pointing outside root are excluded (don't crash, just skip).
+- [x] **Step 3: Replace the `[]` stub in `MemoryController#show` from Task 2.7.** *(`MemoryController` was written against the real `WorkspaceFile.tree` from the start — Task 2.8 landed before Task 2.7 here, so no stub ever shipped.)*
 
-- [ ] **Step 3: Replace the `[]` stub in `MemoryController#show` from Task 2.7.**
-
-- [ ] **Step 4: Commit**
-
-  ```bash
-  bin/rails test test/models/workspace_file_test.rb
-  git commit -am "Phase 2: WorkspaceFile.tree"
-  ```
+- [x] **Step 4: Commit.** Already in the Task 2.8 commit above.
 
 ---
 
