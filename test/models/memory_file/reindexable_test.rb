@@ -86,6 +86,47 @@ class MemoryFile::ReindexableTest < ActiveSupport::TestCase
     assert MemoryFile.exists?(path: "from-job.md")
   end
 
+  test "reindex! after a partial FTS failure can be repaired by replaying" do
+    # Phase 2 hardening-gate item: SQLite cross-database transactions are
+    # best-effort. If the FTS INSERT raises after the DELETE has gone
+    # through, the primary-DB row rolls back (its content_digest stays put)
+    # but the FTS row is gone — a real-world partial failure.
+    #
+    # The fix is the replay-on-boot reconciliation noted in workflows.md:
+    # re-`reindex!` rows whose digest doesn't match disk. This test simulates
+    # the failure, observes the gap, then asserts a replay restores the
+    # FTS index.
+    write_memory("repair.md", "# Repair\n")
+    file = MemoryFile.reindex("repair.md")
+    original_digest = file.content_digest
+    assert_equal 1, fts_count_for(file.id)
+
+    write_memory("repair.md", "# Repair v2\n")
+    fts_conn = MemoryFileFts.connection
+    call_count = 0
+    fts_conn.singleton_class.alias_method(:__real_execute, :execute)
+    fts_conn.define_singleton_method(:execute) do |*args|
+      call_count += 1
+      raise ActiveRecord::StatementInvalid, "fts down" if call_count == 2
+      __real_execute(*args)
+    end
+    begin
+      assert_raises(ActiveRecord::StatementInvalid) { file.reindex! }
+    ensure
+      fts_conn.singleton_class.alias_method(:execute, :__real_execute)
+      fts_conn.singleton_class.remove_method(:__real_execute)
+    end
+
+    # The primary-DB row rolled back to the v1 digest.
+    assert_equal original_digest, file.reload.content_digest
+
+    # On a fresh sweep, `reindex!` notices the row's digest doesn't match
+    # disk, re-runs, and restores the FTS row.
+    file.reindex!
+    assert_equal 1, fts_count_for(file.id)
+    assert_equal Digest::SHA256.hexdigest("# Repair v2\n"), file.reload.content_digest
+  end
+
   private
     def write_memory(rel_path, body)
       absolute = File.join(@tmp, "memory", rel_path)
