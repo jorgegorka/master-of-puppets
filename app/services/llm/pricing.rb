@@ -9,7 +9,7 @@ module Llm
         "claude-sonnet-4-6" => { input:  3.0, output: 15.0, cache_read: 0.3, cache_write:  3.75 },
         "claude-haiku-4-5"  => { input:  1.0, output:  5.0, cache_read: 0.1, cache_write:  1.25 }
       }
-    }.freeze
+    }.transform_values { |models| models.transform_values(&:freeze).freeze }.freeze
 
     module_function
 
@@ -23,6 +23,10 @@ module Llm
               (cache_creation_tokens.to_i * rates[:cache_write])
 
       (total / 1_000_000.0).round(6)
+    end
+
+    def models_for(provider)
+      TABLE.fetch(provider, {}).keys
     end
   end
 end

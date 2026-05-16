@@ -164,6 +164,33 @@ class Message::StreamableTest < ActiveSupport::TestCase
     ToolCall.include(ToolCall::Executable)
   end
 
+  # Review-follow-up — needs_tool_loop? used to fire one exists? query per
+  # tool_use block. Collapse it into one pluck-then-set check.
+  test "needs_tool_loop? checks all tool_use blocks in a single query" do
+    session = chat_sessions(:one)
+    assistant = session.messages.create!(
+      role: :assistant, status: :streaming,
+      model: session.model, provider: "anthropic",
+      content_blocks: [
+        { "type" => "tool_use", "id" => "toolu_1", "name" => "read_file", "input" => {} },
+        { "type" => "tool_use", "id" => "toolu_2", "name" => "read_file", "input" => {} },
+        { "type" => "tool_use", "id" => "toolu_3", "name" => "read_file", "input" => {} }
+      ]
+    )
+    %w[toolu_1 toolu_2].each do |id|
+      assistant.tool_calls.create!(provider_tool_id: id, name: "read_file", source: :internal, status: :succeeded, input: {})
+    end
+    # toolu_3 has no ToolCall row yet — so we still need the loop.
+    assert_queries_count(1) do
+      assert assistant.send(:needs_tool_loop?)
+    end
+
+    assistant.tool_calls.create!(provider_tool_id: "toolu_3", name: "read_file", source: :internal, status: :succeeded, input: {})
+    assert_queries_count(1) do
+      refute assistant.send(:needs_tool_loop?)
+    end
+  end
+
   test "advance! handles tool_use input deltas and parses partial json" do
     assistant = build_assistant
     fake_adapter = build_fake_adapter(

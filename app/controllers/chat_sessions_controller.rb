@@ -36,6 +36,6 @@ class ChatSessionsController < ApplicationController
     end
 
     def default_model
-      ENV.fetch("MOP_DEFAULT_MODEL") { "claude-opus-4-7" }
+      ENV.fetch("MOP_DEFAULT_MODEL") { Llm::Pricing.models_for("anthropic").first }
     end
 end

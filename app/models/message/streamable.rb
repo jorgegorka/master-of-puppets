@@ -121,9 +121,10 @@ module Message::Streamable
     end
 
     def needs_tool_loop?
-      content_blocks.any? do |b|
-        b.is_a?(Hash) && b["type"] == "tool_use" && tool_calls.where(provider_tool_id: b["id"]).where.not(status: :succeeded).exists?
-      end
+      pending_ids = content_blocks.filter_map { |b| b["id"] if b.is_a?(Hash) && b["type"] == "tool_use" }
+      return false if pending_ids.empty?
+      succeeded_ids = tool_calls.where(provider_tool_id: pending_ids, status: :succeeded).pluck(:provider_tool_id).to_set
+      pending_ids.any? { |id| !succeeded_ids.include?(id) }
     end
 
     def run_tool_calls!
@@ -154,16 +155,4 @@ module Message::Streamable
       end
     end
 
-    def compute_cost
-      Llm::Pricing.compute(
-        provider:              provider,
-        model:                 model,
-        prompt_tokens:         prompt_tokens,
-        completion_tokens:     completion_tokens,
-        cache_read_tokens:     cache_read_tokens,
-        cache_creation_tokens: cache_creation_tokens
-      )
-    rescue Llm::Pricing::UnknownModel
-      0
-    end
 end

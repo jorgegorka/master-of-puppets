@@ -9,7 +9,7 @@
     </label>
     <label class="flex flex-column gap-half">
       <span>Model</span>
-      <%= f.select :model, %w[claude-opus-4-7 claude-sonnet-4-6 claude-haiku-4-5] %>
+      <%= f.select :model, Llm::Pricing.models_for("anthropic") %>
     </label>
     <%= f.hidden_field :provider, value: "anthropic" %>
     <%= f.submit "Create" %>
