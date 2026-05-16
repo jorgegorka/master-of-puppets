@@ -1,0 +1,1042 @@
+# Phase 2 — Memory + Files + Theme switcher
+
+> **Executor:** Use `superpowers:subagent-driven-development` (or `superpowers:executing-plans`) to drive these tasks one at a time. Each `- [ ]` step has file paths, a failing test, the minimal impl, the verification command + expected output, and a commit. Tick the box as you complete each step.
+
+**Parent plan:** [`docs/plans/workflows.md`](workflows.md) § Phase 2.
+
+**Goal:** edit memory markdown in the browser, persist to disk, full-text-search returns snippets; file browser lists the workspace tree with a traversal guard; theme switch persists across reloads.
+
+**Adds (high level):**
+
+- Wire `Rails.application.config.x.mop_home` + boot the workspace tree (`memory/`, `skills/`, `profiles/`, `artifacts/`, `logs/`).
+- `WorkspacePath` value object — single guard for every disk read/write.
+- `memory_files` on `primary` + `memory_files_fts` virtual table on `content`.
+- `MemoryFile` model with `Reindexable`, `Writable`, `Searchable` concerns + `Eventable`.
+- `Memory::IndexerJob` (3-line wrapper).
+- Memory page: tree + show + edit + search (textarea editor; Monaco upgrade is Phase 4).
+- `WorkspaceFile.tree(root:, ...)` + Files page (tree + read + write, textarea editor).
+- `theme_controller.js` + Settings UI for theme/accent.
+- `bin/agents_supervisor` v1: `listen` watcher for `${MOP_HOME}/memory/`, posts `memory.changed` over the UNIX-socket bridge back to a Rails-side enqueuer that fires `Memory::IndexerJob`.
+
+**Exit criteria:** see Task 2.12.
+
+---
+
+## Task 2.0 — Phase 1 cleanup (deferred review findings)
+
+These were called out in workflows.md § Phase 2 "Phase 1 cleanup". Land them first so Phase 2 work doesn't compound on the same rough edges.
+
+- [ ] **Step 1: Collapse `Message::Streamable#needs_tool_loop?` N×`exists?` into one query.**
+
+  Hydrate the in-memory `Set` of succeeded `provider_tool_id`s for this message in a single `pluck`, then check each `tool_use` block against the set. Add a model test that creates 3 succeeded `ToolCall`s + 1 `tool_use` block missing a counterpart and asserts the method returns `true` with exactly 1 SQL query (use `assert_queries_count 1`, Rails 8.1's built-in matcher).
+
+- [ ] **Step 2: Downgrade `ChatChannel#subscribed` to a logged `reject`.**
+
+  Replace the implicit `RecordNotFound` raise (from `Current.user.chat_sessions.find(params[:chat_session_id])`) with `find_by` + `reject` + `Rails.logger.info`. Update the channel test that currently expects a raise to assert `subscription.rejected?`.
+
+- [ ] **Step 3: Replace the empty `Message::Costable` placeholder.**
+
+  Pick one (Phase 2 task list owns the decision):
+  - **(a)** Move `compute_cost` + the four token attribute helpers out of `Message::Streamable` into `Message::Costable`. Update `Message` includes; tests stay green.
+  - **(b)** Delete `app/models/message/costable.rb` entirely and remove the `include Message::Costable` from `Message`. The placeholder is gone with zero behaviour change.
+
+  Default to **(a)** — it matches the concern-per-capability pattern in `docs/patterns-and-best-practices.md` and keeps `Streamable` focused on the stream loop.
+
+- [ ] **Step 4: Share the model dropdown source.**
+
+  Add `Llm::Pricing.models_for(provider)` returning the array of model IDs from the pricing table. Use it in `chat_sessions/new.html.erb` for the model dropdown and in `ChatSessionsController#new` for the default-model fallback. The `ENV["MOP_DEFAULT_MODEL"]` env var stays as an override but must be one of `models_for("anthropic")` (validate at boot in `config/initializers/llm_pricing_check.rb` — fail loud on a typo).
+
+- [ ] **Step 5: Deep-freeze `Llm::Pricing::TABLE`.**
+
+  ```ruby
+  TABLE = { "claude-opus-4-7" => { input: …, output: … }, … }
+            .transform_values(&:freeze)
+            .freeze
+  ```
+
+  No behaviour change; protects against a downstream mutation.
+
+- [ ] **Step 6: Run + commit**
+
+  ```bash
+  bin/rails test
+  ```
+  Expected: 56 → ~60 runs, 0 failures. Then:
+
+  ```bash
+  git commit -m "Phase 2 prep: clean up Phase 1 review leftovers"
+  ```
+
+---
+
+## Task 2.1 — `Rails.application.config.x.mop_home` + workspace bootstrap
+
+The single source of truth for `${MOP_HOME}`. Every disk-touching model reads from `Rails.application.config.x.mop_home` — never `ENV["MOP_HOME"]` directly outside this file.
+
+- [ ] **Step 1: Set `config.x.mop_home` in `config/application.rb`.**
+
+  Inside the `class Application < Rails::Application` block, after `config.autoload_lib`:
+
+  ```ruby
+  config.x.mop_home = ENV.fetch("MOP_HOME") { Rails.root.join("storage/workspace").to_s }
+  ```
+
+- [ ] **Step 2: Bootstrap the workspace tree on boot.**
+
+  New initializer `config/initializers/workspace_bootstrap.rb`:
+
+  ```ruby
+  Rails.application.config.after_initialize do
+    next if Rails.env.test?  # tests manage their own MOP_HOME via fixtures
+
+    root = Pathname.new(Rails.application.config.x.mop_home)
+    %w[memory skills profiles artifacts logs].each do |sub|
+      FileUtils.mkdir_p(root.join(sub))
+    end
+
+    memory_md = root.join("memory/MEMORY.md")
+    File.write(memory_md, "# Memory\n\nIndex of memory notes.\n") unless memory_md.exist?
+  end
+  ```
+
+  Why `unless Rails.env.test?`: tests use `Dir.mktmpdir` per test where they need a real workspace; we don't want every test boot creating `storage/workspace/`.
+
+- [ ] **Step 3: Tests for the bootstrap.**
+
+  `test/initializers/workspace_bootstrap_test.rb` runs the initializer block manually against a `Dir.mktmpdir` and asserts the five subdirs + seed `MEMORY.md` exist.
+
+- [ ] **Step 4: Commit**
+
+  ```bash
+  git add config/application.rb config/initializers/workspace_bootstrap.rb test/initializers
+  git commit -m "Phase 2: config.x.mop_home + workspace bootstrap"
+  ```
+
+---
+
+## Task 2.2 — `WorkspacePath` value object
+
+Single guard for every disk read/write. Refuses anything that escapes `${MOP_HOME}` after `File.realpath`. Lives at `app/models/workspace_path.rb` (per `docs/patterns-and-best-practices.md` value-objects-go-in-app/models).
+
+- [ ] **Step 1: Failing tests** at `test/models/workspace_path_test.rb`:
+
+  ```ruby
+  require "test_helper"
+
+  class WorkspacePathTest < ActiveSupport::TestCase
+    setup do
+      @tmp = Dir.mktmpdir
+      @prev_home = Rails.application.config.x.mop_home
+      Rails.application.config.x.mop_home = @tmp
+      FileUtils.mkdir_p(File.join(@tmp, "memory/notes"))
+      File.write(File.join(@tmp, "memory/notes/a.md"), "hi")
+    end
+
+    teardown do
+      FileUtils.rm_rf(@tmp)
+      Rails.application.config.x.mop_home = @prev_home
+    end
+
+    test "resolves a clean path under root" do
+      path = WorkspacePath.resolve(root: "memory", raw: "notes/a.md")
+      assert_equal File.realpath(File.join(@tmp, "memory/notes/a.md")), path.to_s
+    end
+
+    test "refuses traversal via .." do
+      assert_raises(WorkspacePath::EscapeAttempt) do
+        WorkspacePath.resolve(root: "memory", raw: "../../../etc/passwd")
+      end
+    end
+
+    test "refuses absolute paths" do
+      assert_raises(WorkspacePath::EscapeAttempt) do
+        WorkspacePath.resolve(root: "memory", raw: "/etc/passwd")
+      end
+    end
+
+    test "refuses symlinks that point outside the root" do
+      File.symlink("/etc", File.join(@tmp, "memory/escape"))
+      assert_raises(WorkspacePath::EscapeAttempt) do
+        WorkspacePath.resolve(root: "memory", raw: "escape/passwd")
+      end
+    end
+
+    test "refuses null byte injection" do
+      assert_raises(WorkspacePath::EscapeAttempt) do
+        WorkspacePath.resolve(root: "memory", raw: "notes/a.md\0/etc/passwd")
+      end
+    end
+
+    test "rel returns path relative to the named root" do
+      path = WorkspacePath.resolve(root: "memory", raw: "notes/a.md")
+      assert_equal "notes/a.md", path.rel
+    end
+  end
+  ```
+
+- [ ] **Step 2: Implement** `app/models/workspace_path.rb`:
+
+  ```ruby
+  class WorkspacePath
+    class EscapeAttempt < StandardError; end
+
+    attr_reader :absolute, :rel, :root_key
+
+    def self.resolve(root:, raw:)
+      new(root: root, raw: raw)
+    end
+
+    def initialize(root:, raw:)
+      raise EscapeAttempt, "null byte" if raw.to_s.include?("\0")
+      raise EscapeAttempt, "absolute path" if Pathname.new(raw).absolute?
+      @root_key = root
+      base = Pathname.new(File.join(Rails.application.config.x.mop_home, root)).realpath
+      candidate = base.join(raw)
+      @absolute =
+        if candidate.exist?
+          candidate.realpath
+        else
+          # For paths that don't exist yet (e.g. a new file we're about to
+          # write), realpath the parent and append the basename.
+          parent = candidate.dirname
+          parent.realpath.join(candidate.basename)
+        end
+      unless @absolute.to_s.start_with?(base.to_s + File::SEPARATOR) || @absolute == base
+        raise EscapeAttempt, "#{raw.inspect} escapes #{root}"
+      end
+      @rel = @absolute.relative_path_from(base).to_s
+    end
+
+    def to_s = absolute.to_s
+    def to_pathname = absolute
+    def read = File.read(absolute)
+    def exist? = absolute.exist?
+  end
+  ```
+
+- [ ] **Step 3: Pass + commit**
+
+  ```bash
+  bin/rails test test/models/workspace_path_test.rb
+  git commit -am "Phase 2: WorkspacePath value object guards disk access"
+  ```
+
+---
+
+## Task 2.3 — `memory_files` table + `MemoryFile` model
+
+`primary` DB table. The body lives on disk at `${MOP_HOME}/memory/<path>`; the row is an index/cache.
+
+- [ ] **Step 1: Migration**
+
+  ```bash
+  bin/rails g migration CreateMemoryFiles
+  ```
+
+  Edit:
+
+  ```ruby
+  class CreateMemoryFiles < ActiveRecord::Migration[8.1]
+    def change
+      create_table :memory_files do |t|
+        t.string  :path,           null: false
+        t.string  :title
+        t.json    :tags,           default: []
+        t.string  :content_digest, null: false
+        t.integer :byte_size,      null: false
+        t.datetime :disk_mtime,    null: false
+        t.timestamps
+      end
+      add_index :memory_files, :path, unique: true
+      add_index :memory_files, :disk_mtime
+    end
+  end
+  ```
+
+- [ ] **Step 2: Model** at `app/models/memory_file.rb`:
+
+  ```ruby
+  class MemoryFile < ApplicationRecord
+    include Eventable
+
+    validates :path, presence: true, uniqueness: true
+
+    scope :recently_changed, -> { order(disk_mtime: :desc) }
+
+    def workspace_path
+      WorkspacePath.resolve(root: "memory", raw: path)
+    end
+
+    def body
+      workspace_path.read
+    end
+  end
+  ```
+
+  No `Reindexable`/`Writable`/`Searchable` yet — they land in Tasks 2.4–2.6 with their own concerns.
+
+- [ ] **Step 3: Tests** at `test/models/memory_file_test.rb` — basic create/uniqueness/`body` round-trip. Use `Dir.mktmpdir` setup pattern from Task 2.2 so the file actually exists on disk.
+
+- [ ] **Step 4: Fixtures** at `test/fixtures/memory_files.yml`:
+
+  ```yaml
+  index:
+    path: MEMORY.md
+    title: Memory
+    tags: []
+    content_digest: <%= Digest::SHA256.hexdigest("# Memory\n") %>
+    byte_size: 10
+    disk_mtime: <%= 1.day.ago.utc %>
+  ```
+
+  Note: the fixture is metadata only — tests that touch `body` must create the file in `setup`.
+
+- [ ] **Step 5: Run + commit**
+
+  ```bash
+  bin/rails db:migrate db:test:prepare
+  bin/rails test test/models/memory_file_test.rb
+  git add db/migrate app/models/memory_file.rb test/models/memory_file_test.rb test/fixtures/memory_files.yml
+  git commit -m "Phase 2: memory_files table + MemoryFile model"
+  ```
+
+---
+
+## Task 2.4 — `memory_files_fts` virtual table + `Searchable` concern
+
+FTS5 virtual table on the `content` database. Searchable from `MemoryFile`, with `Skill` + `Message` joining the same concern in later phases.
+
+- [ ] **Step 1: Content migration**
+
+  Create `db/content_migrate/<timestamp>_create_memory_files_fts.rb`:
+
+  ```ruby
+  class CreateMemoryFilesFts < ActiveRecord::Migration[8.1]
+    def up
+      execute <<~SQL
+        CREATE VIRTUAL TABLE memory_files_fts USING fts5(
+          memory_file_id UNINDEXED,
+          path,
+          title,
+          tags,
+          body,
+          tokenize = 'porter'
+        );
+      SQL
+    end
+
+    def down
+      execute "DROP TABLE IF EXISTS memory_files_fts;"
+    end
+  end
+  ```
+
+  Run with:
+
+  ```bash
+  bin/rails db:migrate:primary
+  bin/rails db:migrate:content
+  bin/rails db:test:prepare
+  ```
+
+- [ ] **Step 2: `ContentRecord` abstract base** at `app/models/content_record.rb` (per workflows.md § 4.3):
+
+  ```ruby
+  class ContentRecord < ApplicationRecord
+    self.abstract_class = true
+    connects_to database: { writing: :content, reading: :content }
+  end
+  ```
+
+- [ ] **Step 3: `MemoryFileFts` virtual model** at `app/models/memory_file_fts.rb`:
+
+  ```ruby
+  class MemoryFileFts < ContentRecord
+    self.table_name = "memory_files_fts"
+    self.primary_key = nil
+  end
+  ```
+
+- [ ] **Step 4: `Searchable` concern** at `app/models/concerns/searchable.rb` (shared, but Phase 2 only wires `MemoryFile`):
+
+  ```ruby
+  module Searchable
+    extend ActiveSupport::Concern
+
+    class_methods do
+      def matching(query)
+        return none if query.blank?
+        sanitized = query.to_s.gsub('"', '""')
+        ids = MemoryFileFts
+          .where("memory_files_fts MATCH ?", "\"#{sanitized}\"")
+          .order(Arel.sql("bm25(memory_files_fts)"))
+          .limit(50)
+          .pluck(:memory_file_id)
+        where(id: ids).order(Arel.sql("instr(',' || ? || ',', ',' || id || ',')").gsub("?", ids.join(",").presence || "0"))
+      end
+    end
+  end
+  ```
+
+  *(If the `instr` ordering trick reads awkward, replace it with an `index_with` after-load sort — but the SQL form keeps the query in one shot.)*
+
+- [ ] **Step 5: Tests** at `test/models/memory_file_search_test.rb`:
+
+  - Insert 3 memory files into both `MemoryFile` and `MemoryFileFts` (raw insert; the trigger-driven sync lands in Task 2.5).
+  - Assert `MemoryFile.matching("hello")` returns the right rows in `bm25()` order.
+  - Assert `MemoryFile.matching("")` returns `none`.
+  - Assert a query with embedded quotes (`'foo"bar'`) doesn't blow up.
+
+- [ ] **Step 6: Commit**
+
+  ```bash
+  git add db/content_migrate app/models/content_record.rb app/models/memory_file_fts.rb \
+          app/models/concerns/searchable.rb app/models/memory_file.rb test/models
+  git commit -m "Phase 2: memory_files_fts + Searchable concern"
+  ```
+
+---
+
+## Task 2.5 — `Reindexable` concern + `Memory::IndexerJob`
+
+Single-file reindex (`reindex!`) and whole-tree walk (`reindex_all`). Keeps the FTS row in sync with disk.
+
+- [ ] **Step 1: Concern** at `app/models/memory_file/reindexable.rb`:
+
+  ```ruby
+  module MemoryFile::Reindexable
+    extend ActiveSupport::Concern
+
+    class_methods do
+      def reindex_all
+        root = Pathname.new(Rails.application.config.x.mop_home).join("memory")
+        seen = []
+        Pathname.glob(root.join("**/*.md")).each do |file|
+          rel = file.relative_path_from(root).to_s
+          MemoryFile.reindex(rel)
+          seen << rel
+        end
+        MemoryFile.where.not(path: seen).delete_all  # tombstone deleted files
+        seen
+      end
+
+      def reindex(path)
+        file = MemoryFile.find_or_initialize_by(path: path)
+        file.reindex!
+      end
+    end
+
+    def reindex!
+      transaction do
+        wsp = workspace_path
+        unless wsp.exist?
+          destroy if persisted?
+          return self
+        end
+
+        body = wsp.read
+        update!(
+          title:          extract_title(body) || path,
+          tags:           extract_tags(body),
+          content_digest: Digest::SHA256.hexdigest(body),
+          byte_size:      body.bytesize,
+          disk_mtime:     File.mtime(wsp.absolute)
+        )
+
+        MemoryFileFts.connection.execute(
+          ActiveRecord::Base.sanitize_sql(["DELETE FROM memory_files_fts WHERE memory_file_id = ?", id])
+        )
+        MemoryFileFts.connection.execute(
+          ActiveRecord::Base.sanitize_sql([
+            "INSERT INTO memory_files_fts (memory_file_id, path, title, tags, body) VALUES (?, ?, ?, ?, ?)",
+            id, path, title, Array(tags).join(" "), body
+          ])
+        )
+        track_event :reindexed, byte_size: byte_size
+      end
+      self
+    end
+
+    private
+      def extract_title(body)
+        body.lines.first&.match(/\A#\s+(.+)$/)&.captures&.first&.strip
+      end
+
+      def extract_tags(body)
+        body.scan(/(?:^|\s)#([\w\-]+)/).flatten.uniq.first(20)
+      end
+  end
+  ```
+
+  Wire `include MemoryFile::Reindexable` + `include Searchable` + `include Eventable` into `app/models/memory_file.rb`.
+
+- [ ] **Step 2: Job** at `app/jobs/memory/indexer_job.rb`:
+
+  ```ruby
+  class Memory::IndexerJob < ApplicationJob
+    def perform(path) = MemoryFile.reindex(path)
+  end
+  ```
+
+  Paired `_later` enqueue on the model — already idiomatic from `Message::AdvanceJob`:
+
+  ```ruby
+  # in MemoryFile
+  def self.reindex_later(path) = Memory::IndexerJob.perform_later(path)
+  ```
+
+- [ ] **Step 3: Tests** at `test/models/memory_file/reindexable_test.rb`:
+
+  - `reindex!` on an existing file populates digest/mtime/tags/title and writes one FTS row.
+  - `reindex!` on a deleted file destroys the row and clears its FTS entry.
+  - `reindex_all` finds new files, updates changed ones, and tombstones removed ones.
+  - `track_event :reindexed` is fired once per call.
+  - `Memory::IndexerJob` is a 3-line wrapper — assert `assert_enqueued_with(job: Memory::IndexerJob, args: ["foo.md"])` from `MemoryFile.reindex_later("foo.md")`.
+
+- [ ] **Step 4: Commit**
+
+  ```bash
+  bin/rails test test/models/memory_file
+  git add app/models/memory_file/ app/jobs/memory/ app/models/memory_file.rb test/models
+  git commit -m "Phase 2: MemoryFile::Reindexable + Memory::IndexerJob"
+  ```
+
+---
+
+## Task 2.6 — `Writable` concern (atomic write + indexer enqueue)
+
+`MemoryFile#write(content, user:)` writes to disk atomically (tmp → fsync → rename), reindexes synchronously, and tracks an `:edited` event. Atomicity matters because the filesystem watcher (Task 2.11) will pick up the rename and *also* try to reindex — but the digest will match, so it's a no-op.
+
+- [ ] **Step 1: Concern** at `app/models/memory_file/writable.rb`:
+
+  ```ruby
+  module MemoryFile::Writable
+    extend ActiveSupport::Concern
+
+    def write(content)
+      transaction do
+        wsp = WorkspacePath.resolve(root: "memory", raw: path)
+        FileUtils.mkdir_p(wsp.absolute.dirname)
+
+        tmp = wsp.absolute.dirname.join(".#{wsp.absolute.basename}.#{SecureRandom.hex(4)}.tmp")
+        File.open(tmp, "w") do |f|
+          f.write(content)
+          f.fsync
+        end
+        File.rename(tmp, wsp.absolute)
+        reindex!
+        track_event :edited, byte_size: byte_size
+      end
+      self
+    end
+
+    def self.write_at(path, content)
+      file = MemoryFile.find_or_initialize_by(path: path)
+      file.assign_attributes(content_digest: "pending", byte_size: 0, disk_mtime: Time.current) unless file.persisted?
+      file.save!(validate: false) unless file.persisted?
+      file.write(content)
+    end
+  end
+  ```
+
+  Wire `include MemoryFile::Writable` into `MemoryFile`.
+
+- [ ] **Step 2: Tests** at `test/models/memory_file/writable_test.rb`:
+
+  - `write` creates the file on disk, updates digest/byte_size/disk_mtime, fires `track_event :edited`, and writes an FTS row.
+  - `write` on a path inside a nested directory creates intermediate dirs.
+  - `write` is atomic: simulate a partial write by raising mid-`f.write` and assert the original file (if any) is untouched.
+  - `MemoryFile::Writable.write_at("new/path.md", "...")` creates a new row + file.
+
+- [ ] **Step 3: Commit**
+
+  ```bash
+  bin/rails test test/models/memory_file/writable_test.rb
+  git add app/models/memory_file/writable.rb app/models/memory_file.rb test/models
+  git commit -m "Phase 2: MemoryFile::Writable with atomic disk write"
+  ```
+
+---
+
+## Task 2.7 — Memory page (controllers + views)
+
+Routes already exist (workflows.md § 9 ships them as part of Phase 2 — they are not in `config/routes.rb` yet from Phase 1). Add the three controllers + views.
+
+- [ ] **Step 1: Add routes** to `config/routes.rb`:
+
+  ```ruby
+  resource :memory, controller: "memory", only: [:show] do
+    scope module: :memory do
+      resources :files,    only: %i[show update create destroy],
+                constraints: { id: %r{[^?]+} }, defaults: { format: :html }
+      resources :searches, only: %i[create]
+    end
+  end
+  ```
+
+- [ ] **Step 2: `MemoryController#show`** at `app/controllers/memory_controller.rb`:
+
+  ```ruby
+  class MemoryController < ApplicationController
+    def show
+      @files = MemoryFile.recently_changed
+      @tree  = WorkspaceFile.tree(root: "memory")
+    end
+  end
+  ```
+
+  *(Task 2.8 ships `WorkspaceFile.tree`. Stub it as `[]` here and remove the stub when 2.8 lands.)*
+
+- [ ] **Step 3: `Memory::FilesController`** at `app/controllers/memory/files_controller.rb`:
+
+  ```ruby
+  class Memory::FilesController < ApplicationController
+    before_action :set_file, only: %i[show update destroy]
+
+    def show
+      render :edit
+    end
+
+    def create
+      MemoryFile::Writable.write_at(params.require(:path), params.fetch(:content, ""))
+      redirect_to memory_file_path(params.require(:path))
+    end
+
+    def update
+      @file.write(params.require(:content))
+      redirect_to memory_file_path(@file.path)
+    end
+
+    def destroy
+      @file.workspace_path.to_pathname.delete
+      @file.destroy
+      redirect_to memory_path
+    end
+
+    private
+      def set_file
+        @file = MemoryFile.find_by!(path: params[:id])
+      end
+  end
+  ```
+
+- [ ] **Step 4: `Memory::SearchesController`** at `app/controllers/memory/searches_controller.rb`:
+
+  ```ruby
+  class Memory::SearchesController < ApplicationController
+    def create
+      @query   = params.require(:query)
+      @results = MemoryFile.matching(@query)
+      render :results
+    end
+  end
+  ```
+
+- [ ] **Step 5: Views** — minimal but functional:
+
+  - `app/views/memory/show.html.erb` — left rail tree (recursive partial `memory/_node.html.erb`), right pane "Pick a file" placeholder, search form posting to `memory_searches_path`.
+  - `app/views/memory/files/edit.html.erb` — textarea (rows: 30, name: `content`), Save button posting to `memory_file_path(@file.path)` with `method: :patch`, raw markdown preview via `Kramdown::Document.new(@file.body).to_html` (simple_format fallback if `kramdown` isn't pinned yet — defer to Phase 4 when Monaco lands).
+  - `app/views/memory/searches/results.html.erb` — list of matches with `link_to` to `memory_file_path(file.path)`.
+
+- [ ] **Step 6: Controller + system tests**:
+
+  - `test/controllers/memory_controller_test.rb` — signed-in shows tree, signed-out redirects.
+  - `test/controllers/memory/files_controller_test.rb` — show/update/create/destroy roundtrip; path-traversal probe (`PATCH /memory/files/..%2Fetc%2Fpasswd` returns 4xx, not 200).
+  - `test/system/memory_test.rb` — sign in, click into a memory file, edit textarea, save, see the change reflected in the right pane and in the FTS search.
+
+- [ ] **Step 7: Commit**
+
+  ```bash
+  bin/rails test test/controllers/memory test/system/memory_test.rb
+  git commit -am "Phase 2: Memory page (show/edit/search)"
+  ```
+
+---
+
+## Task 2.8 — `WorkspaceFile.tree(...)`
+
+The disk-walk that backs both the Memory page (Task 2.7) and the Files page (Task 2.9). Keep it bounded — `max_depth` and `max_entries` caps protect against `node_modules` accidentally living in `${MOP_HOME}`.
+
+- [ ] **Step 1: Implement** at `app/models/workspace_file.rb`:
+
+  ```ruby
+  class WorkspaceFile
+    DEFAULT_IGNORE = %w[node_modules .git .next .turbo .cache __pycache__ .venv dist].freeze
+
+    Node = Data.define(:name, :path, :directory, :children, :size_bytes, :mtime)
+
+    def self.tree(root:, max_depth: 3, max_entries: 20_000, ignore: DEFAULT_IGNORE)
+      base = WorkspacePath.resolve(root: root, raw: ".")
+      counter = { count: 0 }
+      walk(base.to_pathname, base.to_pathname, depth: 0, max_depth:, max_entries:, ignore:, counter:)
+    end
+
+    def self.walk(base, dir, depth:, max_depth:, max_entries:, ignore:, counter:)
+      return [] if depth > max_depth
+      entries = []
+      dir.each_child do |child|
+        break if counter[:count] >= max_entries
+        next if ignore.include?(child.basename.to_s)
+        counter[:count] += 1
+        rel = child.relative_path_from(base).to_s
+        if child.directory?
+          children = walk(base, child, depth: depth + 1, max_depth:, max_entries:, ignore:, counter:)
+          entries << Node.new(child.basename.to_s, rel, true, children, nil, child.mtime)
+        else
+          entries << Node.new(child.basename.to_s, rel, false, [], child.size, child.mtime)
+        end
+      end
+      entries.sort_by { |n| [ n.directory ? 0 : 1, n.name.downcase ] }
+    end
+  end
+  ```
+
+- [ ] **Step 2: Tests** at `test/models/workspace_file_test.rb`:
+
+  - Walks a 3-level fixture tree (built with `Dir.mktmpdir`) and returns it in dirs-first/alpha order.
+  - `max_depth: 1` truncates beyond one level.
+  - `max_entries: 5` stops after 5 nodes.
+  - `node_modules/` is omitted; `.git/` is omitted.
+  - Symlinks pointing outside root are excluded (don't crash, just skip).
+
+- [ ] **Step 3: Replace the `[]` stub in `MemoryController#show` from Task 2.7.**
+
+- [ ] **Step 4: Commit**
+
+  ```bash
+  bin/rails test test/models/workspace_file_test.rb
+  git commit -am "Phase 2: WorkspaceFile.tree"
+  ```
+
+---
+
+## Task 2.9 — Files page (`/files`)
+
+Read-write file browser for the whole `${MOP_HOME}` workspace (not just `memory/`). Textarea editor; Monaco upgrade is Phase 4.
+
+- [ ] **Step 1: Add routes** to `config/routes.rb`:
+
+  ```ruby
+  resource :files, controller: "files", only: [:show] do
+    scope module: :files do
+      resources :nodes, only: %i[index show create update destroy],
+                constraints: { id: %r{[^?]+} }, defaults: { format: :html }
+    end
+  end
+  ```
+
+- [ ] **Step 2: `FilesController#show`** at `app/controllers/files_controller.rb`:
+
+  ```ruby
+  class FilesController < ApplicationController
+    def show
+      @tree = WorkspaceFile.tree(root: ".")
+    end
+  end
+  ```
+
+- [ ] **Step 3: `Files::NodesController`** at `app/controllers/files/nodes_controller.rb`:
+
+  ```ruby
+  class Files::NodesController < ApplicationController
+    before_action :resolve_path
+
+    def index;   render json: WorkspaceFile.tree(root: @rel); end
+    def show;    @body = @wsp.read; render :show; end
+    def update
+      File.write(@wsp.absolute, params.require(:content))
+      redirect_to files_node_path(@rel)
+    end
+    def create
+      FileUtils.mkdir_p(@wsp.absolute.dirname)
+      File.write(@wsp.absolute, params.fetch(:content, ""))
+      redirect_to files_node_path(@rel)
+    end
+    def destroy
+      @wsp.absolute.directory? ? FileUtils.rm_rf(@wsp.absolute) : @wsp.absolute.delete
+      redirect_to files_path
+    end
+
+    private
+      def resolve_path
+        @rel = params[:id] || "."
+        @wsp = WorkspacePath.resolve(root: ".", raw: @rel)
+      rescue WorkspacePath::EscapeAttempt => e
+        render plain: "forbidden: #{e.message}", status: :forbidden
+      end
+  end
+  ```
+
+  Note: writes here are *not* run through `MemoryFile#write` — only `memory/*.md` lives in the `memory_files` table. Edits to `skills/...` or `profiles/...` rely on Phase 3/6 wiring; this controller is the generic admin view of the workspace.
+
+- [ ] **Step 4: Views** — `files/show.html.erb` (tree partial reused from memory), `files/nodes/show.html.erb` (textarea + Save).
+
+- [ ] **Step 5: Tests**:
+
+  - Controller test: GET `/files/nodes/.gitignore` returns the body, PATCH writes new content, traversal probes return 403.
+  - System test: open `/files`, click a node, edit it, save, see the change.
+
+- [ ] **Step 6: Commit**
+
+  ```bash
+  git commit -am "Phase 2: Files page (tree + read/write/delete)"
+  ```
+
+---
+
+## Task 2.10 — Theme switcher
+
+8 themes per `docs/style-guide.md` (Claude Official + Light, Claude Classic + Light, Slate + Light, Mono + Light). `theme_controller.js` writes `data-theme` + `data-accent` to `<html>`. Selection persists on `UserSetting`.
+
+- [ ] **Step 1: Stimulus controller** at `app/javascript/controllers/theme_controller.js`:
+
+  ```js
+  import { Controller } from "@hotwired/stimulus"
+
+  export default class extends Controller {
+    static values = { theme: String, accent: String, persistUrl: String }
+    static targets = [ "themeSelect", "accentSelect" ]
+
+    connect() {
+      this.apply()
+    }
+
+    select(event) {
+      const target = event.target
+      if (target.dataset.themeKind === "theme")  this.themeValue  = target.value
+      if (target.dataset.themeKind === "accent") this.accentValue = target.value
+      this.apply()
+      this.persist()
+    }
+
+    apply() {
+      document.documentElement.dataset.theme  = this.themeValue
+      document.documentElement.dataset.accent = this.accentValue
+    }
+
+    async persist() {
+      if (!this.persistUrlValue) return
+      const token = document.querySelector('meta[name="csrf-token"]')?.content
+      await fetch(this.persistUrlValue, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": token },
+        body: JSON.stringify({ user_setting: { theme: this.themeValue, accent: this.accentValue } })
+      })
+    }
+  }
+  ```
+
+- [ ] **Step 2: `SettingsController#update`** — extend to accept `user_setting[theme]` + `user_setting[accent]`.
+
+  ```ruby
+  def update
+    Current.user.user_setting.update!(user_setting_params)
+    redirect_to settings_path
+  end
+
+  private
+    def user_setting_params
+      params.require(:user_setting).permit(:theme, :accent, :editor_font_size, :sidebar_collapsed)
+    end
+  ```
+
+  Allow `format: :json` so the Stimulus `persist()` round-trip succeeds without a redirect dance.
+
+- [ ] **Step 3: Layout binding** — `app/views/layouts/application.html.erb` already reads `Current.user&.user_setting&.theme` into `data-theme`. Confirm + parameterize the `data-accent` attribute the same way.
+
+- [ ] **Step 4: Settings UI** — add the theme/accent dropdowns to `app/views/settings/show.html.erb` inside a div wrapping `data-controller="theme" data-theme-theme-value=… data-theme-accent-value=… data-theme-persist-url-value="<%= settings_path %>.json"`.
+
+  Selects: `data-theme-kind="theme"` (8 options) + `data-theme-kind="accent"` (5 options from style-guide).
+
+- [ ] **Step 5: Tests**:
+
+  - `test/controllers/settings_controller_test.rb` — PATCH `/settings.json` updates `UserSetting` and returns 204.
+  - `test/system/theme_switcher_test.rb` — sign in, change theme dropdown, reload, assert `<html data-theme="…">` matches the new value.
+
+- [ ] **Step 6: Commit**
+
+  ```bash
+  git commit -am "Phase 2: theme switcher (Stimulus + UserSetting persist)"
+  ```
+
+---
+
+## Task 2.11 — `bin/agents_supervisor` v1: memory file watcher
+
+Phase 1 left the supervisor with only `health.ping`. Phase 2 adds a `listen` watcher on `${MOP_HOME}/memory/` that emits a server-initiated notification, and a Rails-side client that converts that notification into a `Memory::IndexerJob` enqueue.
+
+- [ ] **Step 1: Add the watcher thread** in `bin/agents_supervisor`.
+
+  After the socket setup, before the accept loop:
+
+  ```ruby
+  require "listen"
+
+  memory_root = Pathname.new(Rails.application.config.x.mop_home).join("memory")
+  FileUtils.mkdir_p(memory_root)
+
+  CLIENTS = Concurrent::Array.new
+
+  listener = Listen.to(memory_root.to_s, only: /\.md\z/, latency: 0.5) do |modified, added, removed|
+    paths = (modified + added + removed).map { |abs| Pathname.new(abs).relative_path_from(memory_root).to_s }
+    notification = { jsonrpc: "2.0", method: "memory.changed", params: { paths: paths } }.to_json
+    CLIENTS.each do |client|
+      begin
+        client.puts(notification)
+      rescue IOError, Errno::EPIPE
+        CLIENTS.delete(client)
+      end
+    end
+  end
+  listener.start
+  ```
+
+  Push each accepted client into `CLIENTS` and remove on disconnect.
+
+  Add `gem "concurrent-ruby"` to the Gemfile if it isn't pulled in transitively already (it is via Rails — confirm with `bundle list concurrent-ruby` before adding).
+
+- [ ] **Step 2: Rails-side IPC client** at `app/services/agents_supervisor/client.rb`:
+
+  ```ruby
+  module AgentsSupervisor
+    class Client
+      SOCKET_PATH = Rails.root.join("tmp/sockets/agents_supervisor.sock")
+
+      def self.subscribe_to_memory_changes
+        Thread.new { new.run }
+      end
+
+      def run
+        loop do
+          UNIXSocket.open(SOCKET_PATH) do |socket|
+            socket.puts({ jsonrpc: "2.0", id: 1, method: "health.ping" }.to_json)
+            socket.gets  # drop pong
+            socket.each_line do |line|
+              msg = JSON.parse(line) rescue next
+              next unless msg["method"] == "memory.changed"
+              msg.dig("params", "paths").to_a.each { |p| Memory::IndexerJob.perform_later(p) }
+            end
+          end
+        rescue Errno::ENOENT, Errno::ECONNREFUSED
+          sleep 2  # supervisor not up yet; retry
+        rescue => e
+          Rails.logger.error("[AgentsSupervisor::Client] #{e.class}: #{e.message}")
+          sleep 2
+        end
+      end
+    end
+  end
+  ```
+
+- [ ] **Step 3: Boot the client** from an initializer that runs only in the web/worker processes (not in tests, not in console).
+
+  `config/initializers/agents_supervisor_client.rb`:
+
+  ```ruby
+  Rails.application.config.after_initialize do
+    next if Rails.env.test?
+    next if defined?(Rails::Console)
+    next if defined?(Rails::Generators)
+
+    AgentsSupervisor::Client.subscribe_to_memory_changes if Rails.application.config.x.mop_home
+  end
+  ```
+
+  *Acceptable shortcut for Phase 2:* this is "one client per Puma worker". Phase 4 supervisor v2 introduces a server-side fan-out and a single client-per-process discipline. Leave a TODO breadcrumb.
+
+- [ ] **Step 4: Tests** — supervisor itself is hard to test in CI without a long-running socket. Coverage:
+
+  - Unit-test `AgentsSupervisor::Client#run` by stubbing `UNIXSocket.open` to yield a fake IO that emits a canned `memory.changed` JSON line; assert `Memory::IndexerJob` enqueued with the right paths.
+  - Integration test (`test/integration/agents_supervisor_test.rb`): boot the supervisor in a child process via `Process.spawn`, write a file under `tmp/test_workspace/memory/`, assert that within 5 s a `memory.changed` notification arrives on a UNIX-socket subscriber. Mark as `slow` so it can be excluded from the default suite if it's flaky.
+
+- [ ] **Step 5: Commit**
+
+  ```bash
+  git commit -am "Phase 2: supervisor v1 memory file watcher + Rails IPC client"
+  ```
+
+---
+
+## Task 2.12 — Phase 2 exit criteria + verification
+
+- [ ] User edits a memory file in the browser → it persists to disk under `${MOP_HOME}/memory/`.
+- [ ] Editing a memory file out-of-band on disk → the supervisor watcher fires `memory.changed`, `Memory::IndexerJob` runs, and a reload of `/memory` shows the new title/digest.
+- [ ] Full-text search at `/memory/searches` returns hits with `bm25()` ranking.
+- [ ] `/files` page renders the workspace tree; opening a node shows the body; editing + saving roundtrips.
+- [ ] Path-traversal probes (`..%2Fetc%2Fpasswd`, absolute paths, null bytes, symlinks pointing outside `${MOP_HOME}`) all return 403/422 and never read or write outside the workspace.
+- [ ] Theme switch persists on `UserSetting` and survives a full page reload.
+- [ ] All tests pass:
+  ```bash
+  bin/rails db:migrate db:test:prepare
+  bin/rails test
+  bin/rails test:system
+  bundle exec brakeman -A
+  bundle exec bundler-audit check --update
+  ```
+  Expected: zero failures, no high-severity findings.
+- [ ] Commit the verification log and tag:
+  ```bash
+  git tag phase-2
+  ```
+
+---
+
+## Phase 2 hardening gate (must-fix before declaring Phase 2 done)
+
+These are the items future-review will flag if we skip them — fixing them in-phase keeps Phase 3 from carrying technical debt.
+
+- [ ] **FTS sync runs in a single transaction with the row update.** The implementation in Task 2.5 already does this — the gate is a test that fails if `MemoryFile#reindex!` raises after the FTS DELETE but before the INSERT, asserting both tables roll back together. (Cross-database transactions are best-effort in SQLite; if the test reveals a partial-failure window, switch to a small replay-on-boot reconciliation: `MemoryFile.where("disk_mtime > ?", last_seen).each(&:reindex!)`.)
+- [ ] **`WorkspacePath` rejects on Windows-style backslashes** (`..\..\etc`). Add a probe test and (if it fails) extend the guard.
+- [ ] **`Files::NodesController` requires admin** — the workspace browser can edit anything under `${MOP_HOME}`, including `skills/` source. Gate the controller with `before_action :require_admin` and add a non-admin test that asserts redirect.
+- [ ] **`AgentsSupervisor::Client` thread dies cleanly on Puma shutdown** — register an `at_exit` or use Puma's `on_worker_shutdown` to set a `@shutting_down` flag the loop checks. Without this, `kill -9` is the only way to stop dev.
+- [ ] **`Memory::IndexerJob` is idempotent** — running it twice on the same path with no disk change produces zero FTS row churn. Test: enqueue twice, assert the FTS row's `rowid` is unchanged (or use `content_digest` to short-circuit when the digest hasn't moved).
+
+---
+
+## Critical files map (Phase 2 additions)
+
+```
+config/application.rb                                    # config.x.mop_home
+config/initializers/workspace_bootstrap.rb               # mkdir + seed MEMORY.md
+config/initializers/agents_supervisor_client.rb          # boot the IPC client thread
+config/initializers/llm_pricing_check.rb                 # MOP_DEFAULT_MODEL validation (Task 2.0 step 4)
+config/routes.rb                                          # +memory, +files routes
+db/migrate/<ts>_create_memory_files.rb
+db/content_migrate/<ts>_create_memory_files_fts.rb
+app/models/workspace_path.rb
+app/models/workspace_file.rb
+app/models/content_record.rb
+app/models/memory_file.rb
+app/models/memory_file_fts.rb
+app/models/memory_file/reindexable.rb
+app/models/memory_file/writable.rb
+app/models/concerns/searchable.rb
+app/jobs/memory/indexer_job.rb
+app/controllers/memory_controller.rb
+app/controllers/memory/files_controller.rb
+app/controllers/memory/searches_controller.rb
+app/controllers/files_controller.rb
+app/controllers/files/nodes_controller.rb
+app/views/memory/{show.html.erb,_node.html.erb}
+app/views/memory/files/{edit.html.erb,new.html.erb}
+app/views/memory/searches/results.html.erb
+app/views/files/show.html.erb
+app/views/files/nodes/show.html.erb
+app/javascript/controllers/theme_controller.js
+bin/agents_supervisor                                     # +listen watcher
+app/services/agents_supervisor/client.rb
+test/models/{workspace_path_test.rb,workspace_file_test.rb,memory_file_test.rb,memory_file_search_test.rb}
+test/models/memory_file/{reindexable_test.rb,writable_test.rb}
+test/controllers/{memory_controller_test.rb,memory/files_controller_test.rb,memory/searches_controller_test.rb}
+test/controllers/{files_controller_test.rb,files/nodes_controller_test.rb,settings_controller_test.rb}
+test/system/{memory_test.rb,theme_switcher_test.rb,files_test.rb}
+test/integration/agents_supervisor_test.rb
+test/initializers/workspace_bootstrap_test.rb
+```
+
+## Open items (Phase 2 only — surface as you hit them, don't pre-decide)
+
+- Markdown rendering: `simple_format` is fine for Phase 2; switch to `kramdown` if/when wikilinks land in Phase 3.
+- Tag extraction in `MemoryFile::Reindexable` is a naive `#word` scan. Good enough until a memory page needs Markdown-aware metadata.
+- The `Files` page allows editing anything under `${MOP_HOME}`. The hardening-gate item adds an `admin` gate, but the broader question — "should `files/` route through model wrappers for `skills/` and `profiles/`?" — is a Phase 3/6 concern, not Phase 2.
+- `listen` polling vs FSEvents on macOS: defaults work in dev; revisit in Phase 4 if events go missing.
