@@ -425,7 +425,7 @@ Single-file reindex (`reindex!`) and whole-tree walk (`reindex_all`). Keeps the 
 
 `MemoryFile#write(content, user:)` writes to disk atomically (tmp → fsync → rename), reindexes synchronously, and tracks an `:edited` event. Atomicity matters because the filesystem watcher (Task 2.11) will pick up the rename and *also* try to reindex — but the digest will match, so it's a no-op.
 
-- [ ] **Step 1: Concern** at `app/models/memory_file/writable.rb`:
+- [x] **Step 1: Concern** at `app/models/memory_file/writable.rb`. *(Adds `rescue` cleanup of the `.tmp` so a failed rename doesn't leave half-baked files around. Also extended `WorkspacePath` to handle paths whose intermediate directories don't exist yet — walk-up to the first existing ancestor and rejoin — needed so `write` can resolve before `mkdir_p`.)*
 
   ```ruby
   module MemoryFile::Writable
@@ -459,20 +459,9 @@ Single-file reindex (`reindex!`) and whole-tree walk (`reindex_all`). Keeps the 
 
   Wire `include MemoryFile::Writable` into `MemoryFile`.
 
-- [ ] **Step 2: Tests** at `test/models/memory_file/writable_test.rb`:
+- [x] **Step 2: Tests** at `test/models/memory_file/writable_test.rb` — 4 tests cover `write_at` row+disk+FTS, nested dir creation, atomic rollback on rename failure (original body preserved, tmp cleaned up), and Active Record rollback on FTS sync failure (row digest unchanged).
 
-  - `write` creates the file on disk, updates digest/byte_size/disk_mtime, fires `track_event :edited`, and writes an FTS row.
-  - `write` on a path inside a nested directory creates intermediate dirs.
-  - `write` is atomic: simulate a partial write by raising mid-`f.write` and assert the original file (if any) is untouched.
-  - `MemoryFile::Writable.write_at("new/path.md", "...")` creates a new row + file.
-
-- [ ] **Step 3: Commit**
-
-  ```bash
-  bin/rails test test/models/memory_file/writable_test.rb
-  git add app/models/memory_file/writable.rb app/models/memory_file.rb test/models
-  git commit -m "Phase 2: MemoryFile::Writable with atomic disk write"
-  ```
+- [x] **Step 3: Commit** — `606a1ea`. 90 tests / 223 assertions.
 
 ---
 
