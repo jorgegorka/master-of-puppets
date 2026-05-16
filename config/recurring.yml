@@ -16,3 +16,6 @@ production:
   sweep_expired_sessions:
     class: Session::SweepJob
     schedule: every hour at minute 7
+  sweep_terminals:
+    class: Terminal::SweepJob
+    schedule: every 15 minutes
