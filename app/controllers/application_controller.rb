@@ -10,10 +10,19 @@ class ApplicationController < ActionController::Base
 
   private
     def set_current
-      Current.session    = Session.find_by(id: cookies.signed[:session_id])
-      Current.user       = Current.session&.user
+      session = Session.find_by(id: cookies.signed[:session_id])
+      if session&.expired?
+        session.destroy
+        cookies.delete(:session_id)
+        flash[:alert] = "Session expired. Please sign in again."
+        Current.session = Current.user = nil
+        redirect_to(new_session_path) and return
+      end
+      Current.session    = session
+      Current.user       = session&.user
       Current.ip_address = request.remote_ip
       Current.user_agent = request.user_agent
+      session&.touch_and_maybe_rotate!
     end
 
     def require_sign_in
