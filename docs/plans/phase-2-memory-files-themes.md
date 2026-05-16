@@ -331,7 +331,7 @@ FTS5 virtual table on the `content` database. Searchable from `MemoryFile`, with
 
 Single-file reindex (`reindex!`) and whole-tree walk (`reindex_all`). Keeps the FTS row in sync with disk.
 
-- [ ] **Step 1: Concern** at `app/models/memory_file/reindexable.rb`:
+- [x] **Step 1: Concern** at `app/models/memory_file/reindexable.rb`. *(Spec extended: short-circuit when `content_digest` is unchanged so repeat runs don't churn the FTS row; `after_destroy_commit` clears the FTS row on row destroy. Both behaviours back the Task 2.5/2.12 hardening-gate idempotency item.)*
 
   ```ruby
   module MemoryFile::Reindexable
@@ -400,7 +400,7 @@ Single-file reindex (`reindex!`) and whole-tree walk (`reindex_all`). Keeps the 
 
   Wire `include MemoryFile::Reindexable` + `include Searchable` + `include Eventable` into `app/models/memory_file.rb`.
 
-- [ ] **Step 2: Job** at `app/jobs/memory/indexer_job.rb`:
+- [x] **Step 2: Job** at `app/jobs/memory/indexer_job.rb`:
 
   ```ruby
   class Memory::IndexerJob < ApplicationJob
@@ -415,21 +415,9 @@ Single-file reindex (`reindex!`) and whole-tree walk (`reindex_all`). Keeps the 
   def self.reindex_later(path) = Memory::IndexerJob.perform_later(path)
   ```
 
-- [ ] **Step 3: Tests** at `test/models/memory_file/reindexable_test.rb`:
+- [x] **Step 3: Tests** at `test/models/memory_file/reindexable_test.rb` — 6 tests cover populate, deleted-file destroy + FTS clear, idempotency (no event diff, same FTS `rowid`), `reindex_all` walk + tombstone, `reindex_later` enqueue, and the job perform.
 
-  - `reindex!` on an existing file populates digest/mtime/tags/title and writes one FTS row.
-  - `reindex!` on a deleted file destroys the row and clears its FTS entry.
-  - `reindex_all` finds new files, updates changed ones, and tombstones removed ones.
-  - `track_event :reindexed` is fired once per call.
-  - `Memory::IndexerJob` is a 3-line wrapper — assert `assert_enqueued_with(job: Memory::IndexerJob, args: ["foo.md"])` from `MemoryFile.reindex_later("foo.md")`.
-
-- [ ] **Step 4: Commit**
-
-  ```bash
-  bin/rails test test/models/memory_file
-  git add app/models/memory_file/ app/jobs/memory/ app/models/memory_file.rb test/models
-  git commit -m "Phase 2: MemoryFile::Reindexable + Memory::IndexerJob"
-  ```
+- [x] **Step 4: Commit** — `ec9774f`. 86 tests / 209 assertions.
 
 ---
 
@@ -919,7 +907,7 @@ These are the items future-review will flag if we skip them — fixing them in-p
 - [x] **`WorkspacePath` rejects on Windows-style backslashes** (`..\..\etc`). Landed in Task 2.2 — probe test passes.
 - [ ] **`Files::NodesController` requires admin** — the workspace browser can edit anything under `${MOP_HOME}`, including `skills/` source. Gate the controller with `before_action :require_admin` and add a non-admin test that asserts redirect.
 - [ ] **`AgentsSupervisor::Client` thread dies cleanly on Puma shutdown** — register an `at_exit` or use Puma's `on_worker_shutdown` to set a `@shutting_down` flag the loop checks. Without this, `kill -9` is the only way to stop dev.
-- [ ] **`Memory::IndexerJob` is idempotent** — running it twice on the same path with no disk change produces zero FTS row churn. Test: enqueue twice, assert the FTS row's `rowid` is unchanged (or use `content_digest` to short-circuit when the digest hasn't moved).
+- [x] **`Memory::IndexerJob` is idempotent** — covered in Task 2.5: `reindex!` short-circuits when the digest matches, and the test "reindex! is idempotent when the digest is unchanged" asserts the FTS row's `rowid` is unchanged across re-runs.
 
 ---
 
