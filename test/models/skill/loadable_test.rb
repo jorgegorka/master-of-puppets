@@ -56,4 +56,18 @@ class Skill::LoadableTest < ActiveSupport::TestCase
     skill = Skill.new(source_path: Pathname.new(@tmp).join("skills/io/filesystem/SKILL.md").to_s)
     assert_raises(Skill::Loadable::MalformedSkill) { skill.load_from_path! }
   end
+
+  test "#body raises MalformedSkill on a file with no frontmatter (parity with load_from_path!)" do
+    Pathname.new(@tmp).join("skills/io/filesystem/SKILL.md").write("no frontmatter here")
+    skill = Skill.new(source_path: Pathname.new(@tmp).join("skills/io/filesystem/SKILL.md").to_s)
+    assert_raises(Skill::Loadable::MalformedSkill) { skill.body }
+  end
+
+  test "#body is memoized after load_from_path!" do
+    Skill.destroy_all
+    skill = Skill.new(source_path: Pathname.new(@tmp).join("skills/io/filesystem/SKILL.md").to_s)
+    skill.load_from_path!
+    Pathname.new(skill.source_path).delete  # if not memoized, the next call would raise Errno::ENOENT
+    assert_nothing_raised { skill.body }
+  end
 end

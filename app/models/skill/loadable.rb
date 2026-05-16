@@ -23,14 +23,7 @@ module Skill::Loadable
 
   def load_from_path!
     path = Pathname.new(source_path)
-    raw  = path.read
-    match = raw.match(FRONTMATTER_RE)
-    raise MalformedSkill, "no frontmatter at #{source_path}" unless match
-
-    manifest_yaml = YAML.safe_load(match[1], permitted_classes: [ Symbol ])
-    raise MalformedSkill, "frontmatter must be a Hash" unless manifest_yaml.is_a?(Hash)
-    manifest_yaml = manifest_yaml.deep_stringify_keys
-    body = match[2]
+    manifest_yaml, body = parse_frontmatter!(path.read)
     digest = Digest::SHA256.hexdigest(body)
 
     return self if persisted? && digest == body_digest
@@ -50,11 +43,13 @@ module Skill::Loadable
       )
       track_event :reloaded, body_digest: digest
     end
+    @body = body
     self
   end
 
   def body
-    Pathname.new(source_path).read.split(/\A---\s*\n.*?\n---\s*\n/m, 2).last.to_s
+    return @body if defined?(@body)
+    @body = parse_frontmatter!(Pathname.new(source_path).read).last
   end
 
   private
@@ -62,5 +57,13 @@ module Skill::Loadable
     # honour the frontmatter declaration with `safe` as the default.
     def derive_security_level(manifest, _body)
       Skill.security_levels.fetch(manifest["security_level"].to_s, 0)
+    end
+
+    def parse_frontmatter!(raw)
+      match = raw.match(FRONTMATTER_RE)
+      raise MalformedSkill, "no frontmatter at #{source_path}" unless match
+      manifest_yaml = YAML.safe_load(match[1], permitted_classes: [ Symbol ])
+      raise MalformedSkill, "frontmatter must be a Hash" unless manifest_yaml.is_a?(Hash)
+      [ manifest_yaml.deep_stringify_keys, match[2] ]
     end
 end
