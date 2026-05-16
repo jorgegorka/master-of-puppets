@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_15_205413) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_16_083050) do
   create_table "api_tokens", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "last_used_at"
@@ -72,6 +72,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_15_205413) do
     t.index ["creator_id"], name: "index_events_on_creator_id"
     t.index ["eventable_type", "eventable_id"], name: "index_events_on_eventable_type_and_eventable_id"
     t.index ["occurred_at"], name: "index_events_on_occurred_at"
+  end
+
+  create_table "memory_files", force: :cascade do |t|
+    t.integer "byte_size", null: false
+    t.string "content_digest", null: false
+    t.datetime "created_at", null: false
+    t.datetime "disk_mtime", null: false
+    t.string "path", null: false
+    t.json "tags", default: []
+    t.string "title"
+    t.datetime "updated_at", null: false
+    t.index ["disk_mtime"], name: "index_memory_files_on_disk_mtime"
+    t.index ["path"], name: "index_memory_files_on_path", unique: true
   end
 
   create_table "messages", force: :cascade do |t|

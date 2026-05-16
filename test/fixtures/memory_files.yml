@@ -1,0 +1,9 @@
+<% seed_body = "# Memory\n" %>
+
+index:
+  path: MEMORY.md
+  title: Memory
+  tags: []
+  content_digest: <%= Digest::SHA256.hexdigest(seed_body) %>
+  byte_size: <%= seed_body.bytesize %>
+  disk_mtime: <%= 1.day.ago.utc.iso8601 %>
