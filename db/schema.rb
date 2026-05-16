@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_16_152845) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_16_154038) do
   create_table "api_tokens", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "last_used_at"
@@ -72,6 +72,40 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_16_152845) do
     t.index ["creator_id"], name: "index_events_on_creator_id"
     t.index ["eventable_type", "eventable_id"], name: "index_events_on_eventable_type_and_eventable_id"
     t.index ["occurred_at"], name: "index_events_on_occurred_at"
+  end
+
+  create_table "mcp_servers", force: :cascade do |t|
+    t.text "auth_payload"
+    t.integer "auth_type", default: 0, null: false
+    t.string "command_template"
+    t.datetime "created_at", null: false
+    t.text "env_payload"
+    t.datetime "last_checked_at"
+    t.string "last_error"
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.integer "status", default: 0, null: false
+    t.json "tool_list", default: []
+    t.integer "tool_mode", default: 0, null: false
+    t.integer "transport_type", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.string "url"
+    t.integer "user_id", null: false
+    t.index ["user_id", "slug"], name: "index_mcp_servers_on_user_id_and_slug", unique: true
+    t.index ["user_id"], name: "index_mcp_servers_on_user_id"
+  end
+
+  create_table "mcp_tools", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.datetime "discovered_at"
+    t.json "input_schema", default: {}, null: false
+    t.integer "mcp_server_id", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.index ["mcp_server_id", "name"], name: "index_mcp_tools_on_mcp_server_id_and_name", unique: true
+    t.index ["mcp_server_id"], name: "index_mcp_tools_on_mcp_server_id"
+    t.index ["name"], name: "index_mcp_tools_on_name"
   end
 
   create_table "memory_files", force: :cascade do |t|
@@ -234,6 +268,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_16_152845) do
   add_foreign_key "chat_sessions", "chat_sessions", column: "forked_from_id"
   add_foreign_key "chat_sessions", "users"
   add_foreign_key "events", "users", column: "creator_id"
+  add_foreign_key "mcp_servers", "users"
+  add_foreign_key "mcp_tools", "mcp_servers"
   add_foreign_key "messages", "chat_sessions"
   add_foreign_key "sessions", "users"
   add_foreign_key "skill_enablements", "skills"

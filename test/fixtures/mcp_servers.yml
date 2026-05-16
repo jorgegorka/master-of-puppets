@@ -1,0 +1,30 @@
+context7_http:
+  user: one
+  slug: context7
+  name: Context7
+  transport_type: 0 # http
+  url: https://example.invalid/mcp
+  auth_type: 0
+  tool_mode: 0
+  status: 1 # reachable
+  last_checked_at: <%= Time.current.iso8601 %>
+
+stdio_only:
+  user: one
+  slug: github
+  name: GitHub MCP
+  transport_type: 2 # stdio
+  command_template: "/usr/local/bin/github-mcp"
+  auth_type: 0
+  tool_mode: 0
+  status: 0 # unknown
+
+disabled_server:
+  user: one
+  slug: disabled
+  name: Disabled server
+  transport_type: 0 # http
+  url: https://example.invalid/disabled
+  auth_type: 0
+  tool_mode: 0
+  status: 3 # disabled

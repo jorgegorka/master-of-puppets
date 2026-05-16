@@ -1,0 +1,23 @@
+context7_search:
+  mcp_server: context7_http
+  name: search
+  description: Search docs for a topic.
+  input_schema:
+    type: object
+    properties:
+      query:
+        type: string
+    required: [query]
+  discovered_at: <%= Time.current.iso8601 %>
+
+context7_fetch:
+  mcp_server: context7_http
+  name: fetch
+  description: Fetch a doc by URL.
+  input_schema:
+    type: object
+    properties:
+      url:
+        type: string
+    required: [url]
+  discovered_at: <%= Time.current.iso8601 %>
