@@ -1,5 +1,6 @@
 class Skill < ApplicationRecord
   include Eventable
+  include Skill::Enableable
   include Skill::Installable
   include Skill::Loadable
   include Skill::SecurityAnalyzable
