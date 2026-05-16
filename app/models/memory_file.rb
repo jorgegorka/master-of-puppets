@@ -2,6 +2,7 @@ class MemoryFile < ApplicationRecord
   include Eventable
   include Searchable
   include Reindexable
+  include Writable
 
   validates :path, presence: true, uniqueness: true
 

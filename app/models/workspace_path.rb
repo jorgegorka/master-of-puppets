@@ -28,10 +28,13 @@ class WorkspacePath
       if cleaned.exist?
         cleaned.realpath
       else
-        # For paths that don't exist yet (e.g. a new file we're about to
-        # write), realpath the parent and append the basename so we still
-        # get a canonical, symlink-resolved absolute path.
-        cleaned.dirname.realpath.join(cleaned.basename)
+        # The path doesn't exist yet (e.g. a new file we're about to write,
+        # possibly under a directory tree that hasn't been mkdir'd). Walk
+        # up to the closest existing ancestor, realpath that (to resolve
+        # any symlinks), then rejoin the still-virtual tail.
+        ancestor = cleaned
+        ancestor = ancestor.parent until ancestor.exist?
+        ancestor.realpath.join(cleaned.relative_path_from(ancestor))
       end
 
     # Second check after realpath catches symlinks that point outside the
