@@ -206,7 +206,7 @@ Single guard for every disk read/write. Refuses anything that escapes `${MOP_HOM
 
 `primary` DB table. The body lives on disk at `${MOP_HOME}/memory/<path>`; the row is an index/cache.
 
-- [ ] **Step 1: Migration**
+- [x] **Step 1: Migration**
 
   ```bash
   bin/rails g migration CreateMemoryFiles
@@ -232,7 +232,7 @@ Single guard for every disk read/write. Refuses anything that escapes `${MOP_HOM
   end
   ```
 
-- [ ] **Step 2: Model** at `app/models/memory_file.rb`:
+- [x] **Step 2: Model** at `app/models/memory_file.rb`:
 
   ```ruby
   class MemoryFile < ApplicationRecord
@@ -254,9 +254,9 @@ Single guard for every disk read/write. Refuses anything that escapes `${MOP_HOM
 
   No `Reindexable`/`Writable`/`Searchable` yet — they land in Tasks 2.4–2.6 with their own concerns.
 
-- [ ] **Step 3: Tests** at `test/models/memory_file_test.rb` — basic create/uniqueness/`body` round-trip. Use `Dir.mktmpdir` setup pattern from Task 2.2 so the file actually exists on disk.
+- [x] **Step 3: Tests** at `test/models/memory_file_test.rb` — 4 tests cover uniqueness, body round-trip, traversal rejection, and the `recently_changed` scope.
 
-- [ ] **Step 4: Fixtures** at `test/fixtures/memory_files.yml`:
+- [x] **Step 4: Fixtures** at `test/fixtures/memory_files.yml`:
 
   ```yaml
   index:
@@ -270,14 +270,7 @@ Single guard for every disk read/write. Refuses anything that escapes `${MOP_HOM
 
   Note: the fixture is metadata only — tests that touch `body` must create the file in `setup`.
 
-- [ ] **Step 5: Run + commit**
-
-  ```bash
-  bin/rails db:migrate db:test:prepare
-  bin/rails test test/models/memory_file_test.rb
-  git add db/migrate app/models/memory_file.rb test/models/memory_file_test.rb test/fixtures/memory_files.yml
-  git commit -m "Phase 2: memory_files table + MemoryFile model"
-  ```
+- [x] **Step 5: Run + commit** — `dd8a42e`. 76 tests / 179 assertions.
 
 ---
 
