@@ -1,0 +1,43 @@
+<% content_for :title, @skill.name %>
+
+<section class="pad max-width center">
+  <header>
+    <h1><%= @skill.name %></h1>
+    <p>
+      Category: <%= @skill.category %>
+      <%= security_badge(@skill) %>
+    </p>
+  </header>
+
+  <section>
+    <%= simple_format(@skill.body) %>
+  </section>
+
+  <section>
+    <h2>Installation</h2>
+    <% if @installed %>
+      <p>Installed.</p>
+      <%= button_to "Uninstall", skill_installation_path(@skill), method: :delete %>
+    <% else %>
+      <%= button_to "Install", skill_installation_path(@skill), method: :post %>
+    <% end %>
+  </section>
+
+  <section>
+    <h2>Enablement</h2>
+    <% if @enabled %>
+      <p>Enabled.</p>
+      <%= button_to "Disable", skill_enablement_path(@skill), method: :delete %>
+    <% else %>
+      <%= button_to "Enable", skill_enablement_path(@skill), method: :post %>
+    <% end %>
+  </section>
+
+  <% if Current.user.admin? %>
+    <section>
+      <h2>Admin</h2>
+      <%= button_to "Reload from disk", skill_path(@skill), method: :patch %>
+      <%= button_to "Delete", skill_path(@skill), method: :delete, data: { turbo_confirm: "Sure?" } %>
+    </section>
+  <% end %>
+</section>

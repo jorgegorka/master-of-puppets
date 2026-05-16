@@ -1,0 +1,32 @@
+<% content_for :title, "Skills" %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1>Skills</h1>
+  </header>
+
+  <%= form_with(url: skills_path, method: :get, local: true, class: "pad-block") do |f| %>
+    <%= f.label :q, "Search:" %>
+    <%= f.text_field :q, value: @query, placeholder: "skill name or body" %>
+    <%= f.submit "Search" %>
+  <% end %>
+
+  <% if @skills.empty? %>
+    <p class="txt-subtle">No skills <%= @query.present? ? "matched #{@query.inspect}" : "installed yet" %>.</p>
+  <% else %>
+    <% @skills.group_by(&:category).each do |category, skills_in_cat| %>
+      <section>
+        <h2><%= category %></h2>
+        <ul>
+          <% skills_in_cat.each do |skill| %>
+            <li>
+              <%= link_to skill.name, skill %>
+              <%= security_badge(skill) %>
+              — <%= skill.description.to_s.truncate(100) %>
+            </li>
+          <% end %>
+        </ul>
+      </section>
+    <% end %>
+  <% end %>
+</section>

@@ -42,4 +42,11 @@ Rails.application.routes.draw do
                 constraints: { id: %r{[^?]+} }, defaults: { format: :html }
     end
   end
+
+  resources :skills, only: %i[index show update destroy] do
+    scope module: :skills do
+      resource :installation, only: %i[create destroy]
+      resource :enablement,   only: %i[create destroy]
+    end
+  end
 end
