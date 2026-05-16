@@ -10,14 +10,22 @@
   <%= form_with model: @user_setting, url: settings_path, method: :patch, class: "flex flex-column gap" do |f| %>
     <% if flash[:notice] %><p class="txt-positive"><%= flash[:notice] %></p><% end %>
 
-    <label class="flex flex-column gap-half">
-      <span>Theme</span>
-      <%= f.select :theme, %w[claude-official claude-official-light claude-classic slate mono] %>
-    </label>
-    <label class="flex flex-column gap-half">
-      <span>Accent</span>
-      <%= f.select :accent, %w[indigo green red yellow] %>
-    </label>
+    <div data-controller="theme"
+         data-theme-theme-value="<%= @user_setting.theme %>"
+         data-theme-accent-value="<%= @user_setting.accent %>"
+         data-theme-persist-url-value="<%= settings_path(format: :json) %>"
+         class="flex flex-column gap">
+      <label class="flex flex-column gap-half">
+        <span>Theme</span>
+        <%= f.select :theme, UserSetting::THEMES, {},
+              data: { theme_target: "themeSelect", theme_kind: "theme", action: "change->theme#select" } %>
+      </label>
+      <label class="flex flex-column gap-half">
+        <span>Accent</span>
+        <%= f.select :accent, UserSetting::ACCENTS, {},
+              data: { theme_target: "accentSelect", theme_kind: "accent", action: "change->theme#select" } %>
+      </label>
+    </div>
     <label class="flex flex-column gap-half">
       <span>Editor font size (px)</span>
       <%= f.number_field :editor_font_size, min: 10, max: 24 %>

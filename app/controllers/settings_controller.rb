@@ -5,7 +5,11 @@ class SettingsController < ApplicationController
 
   def update
     Current.user.user_setting.update!(user_setting_params)
-    redirect_to settings_path, notice: "Saved."
+
+    respond_to do |format|
+      format.html { redirect_to settings_path, notice: "Saved." }
+      format.json { head :no_content }
+    end
   end
 
   private
