@@ -278,40 +278,9 @@ Single guard for every disk read/write. Refuses anything that escapes `${MOP_HOM
 
 FTS5 virtual table on the `content` database. Searchable from `MemoryFile`, with `Skill` + `Message` joining the same concern in later phases.
 
-- [ ] **Step 1: Content migration**
+- [x] **Step 1: Content migration** — switched from raw `execute` SQL to the Rails 8 `create_virtual_table :memory_files_fts, :fts5, COLUMNS` helper so schema dumps survive (the raw form trips the SQLite schema dumper on multi-line `CREATE VIRTUAL TABLE … USING …(…)` SQL).
 
-  Create `db/content_migrate/<timestamp>_create_memory_files_fts.rb`:
-
-  ```ruby
-  class CreateMemoryFilesFts < ActiveRecord::Migration[8.1]
-    def up
-      execute <<~SQL
-        CREATE VIRTUAL TABLE memory_files_fts USING fts5(
-          memory_file_id UNINDEXED,
-          path,
-          title,
-          tags,
-          body,
-          tokenize = 'porter'
-        );
-      SQL
-    end
-
-    def down
-      execute "DROP TABLE IF EXISTS memory_files_fts;"
-    end
-  end
-  ```
-
-  Run with:
-
-  ```bash
-  bin/rails db:migrate:primary
-  bin/rails db:migrate:content
-  bin/rails db:test:prepare
-  ```
-
-- [ ] **Step 2: `ContentRecord` abstract base** at `app/models/content_record.rb` (per workflows.md § 4.3):
+- [x] **Step 2: `ContentRecord` abstract base** at `app/models/content_record.rb` (per workflows.md § 4.3):
 
   ```ruby
   class ContentRecord < ApplicationRecord
@@ -320,7 +289,7 @@ FTS5 virtual table on the `content` database. Searchable from `MemoryFile`, with
   end
   ```
 
-- [ ] **Step 3: `MemoryFileFts` virtual model** at `app/models/memory_file_fts.rb`:
+- [x] **Step 3: `MemoryFileFts` virtual model** at `app/models/memory_file_fts.rb`:
 
   ```ruby
   class MemoryFileFts < ContentRecord
@@ -329,7 +298,7 @@ FTS5 virtual table on the `content` database. Searchable from `MemoryFile`, with
   end
   ```
 
-- [ ] **Step 4: `Searchable` concern** at `app/models/concerns/searchable.rb` (shared, but Phase 2 only wires `MemoryFile`):
+- [x] **Step 4: `Searchable` concern** at `app/models/concerns/searchable.rb` (shared, but Phase 2 only wires `MemoryFile`). *(Spec's `instr(...)` ordering trick rewritten as an after-load `index_by`/`filter_map` — same one-shot SQL for the FTS query, simpler ordering on the Ruby side, returns an Array consistently.)*
 
   ```ruby
   module Searchable
@@ -352,20 +321,9 @@ FTS5 virtual table on the `content` database. Searchable from `MemoryFile`, with
 
   *(If the `instr` ordering trick reads awkward, replace it with an `index_with` after-load sort — but the SQL form keeps the query in one shot.)*
 
-- [ ] **Step 5: Tests** at `test/models/memory_file_search_test.rb`:
+- [x] **Step 5: Tests** at `test/models/memory_file_search_test.rb` — 4 tests cover bm25 ordering, blank/nil → `[]`, no-match → `[]`, and embedded-quote safety.
 
-  - Insert 3 memory files into both `MemoryFile` and `MemoryFileFts` (raw insert; the trigger-driven sync lands in Task 2.5).
-  - Assert `MemoryFile.matching("hello")` returns the right rows in `bm25()` order.
-  - Assert `MemoryFile.matching("")` returns `none`.
-  - Assert a query with embedded quotes (`'foo"bar'`) doesn't blow up.
-
-- [ ] **Step 6: Commit**
-
-  ```bash
-  git add db/content_migrate app/models/content_record.rb app/models/memory_file_fts.rb \
-          app/models/concerns/searchable.rb app/models/memory_file.rb test/models
-  git commit -m "Phase 2: memory_files_fts + Searchable concern"
-  ```
+- [x] **Step 6: Commit** — `5ec8483`. 80 tests / 190 assertions.
 
 ---
 
