@@ -14,6 +14,7 @@ class Skill < ApplicationRecord
   validates :slug, presence: true, uniqueness: true
   validates :name, :category, :source_path, :body_digest, presence: true
 
+  # Associations live in Skill::Installable / Skill::Enableable (included above).
   scope :enabled_for,   ->(user) { joins(:enablements).where(skill_enablements: { user_id: user.id }) }
   scope :installed_for, ->(user) { joins(:installations).where(skill_installations: { user_id: user.id }) }
 end

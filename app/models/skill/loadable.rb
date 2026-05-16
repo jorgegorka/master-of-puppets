@@ -18,15 +18,17 @@ module Skill::Loadable
       root = Pathname.new(Rails.application.config.x.mop_home).join("skills")
       seen = Pathname.glob(root.join("**/SKILL.md")).map(&:to_s)
       where.not(source_path: seen).destroy_all
-      seen.each do |path|
-        skill = find_or_initialize_by(source_path: path)
-        begin
-          skill.load_from_path!
-        rescue MalformedSkill => e
-          Rails.logger.warn("[Skill::Loadable] skipping #{path}: #{e.message}")
-        end
-      end
+      seen.each { |path| reload_path(path) }
       seen
+    end
+
+    # Load a single SKILL.md, tolerating a malformed file by logging a
+    # warning rather than raising. Used by the watcher / boot-replay paths
+    # so a single broken file doesn't blow up the whole reload pass.
+    def reload_path(path)
+      find_or_initialize_by(source_path: path).load_from_path!
+    rescue MalformedSkill => e
+      Rails.logger.warn("[Skill::Loadable] skipping #{path}: #{e.message}")
     end
   end
 

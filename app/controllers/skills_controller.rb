@@ -1,11 +1,10 @@
 class SkillsController < ApplicationController
-  before_action :require_admin, only: %i[update destroy]
-  before_action :set_skill, only: %i[show update destroy]
+  before_action :require_admin, only: %i[update]
+  before_action :set_skill, only: %i[show update]
 
   def index
     @query  = params[:q].to_s
     @skills = @query.present? ? Skill.matching(@query) : Skill.all.order(:category, :name)
-    @categories = Skill.distinct.pluck(:category).sort
   end
 
   def show
@@ -14,13 +13,8 @@ class SkillsController < ApplicationController
   end
 
   def update
-    @skill.load_from_path!
-    redirect_to @skill, notice: "Reloaded from disk."
-  end
-
-  def destroy
-    @skill.destroy
-    redirect_to skills_path, notice: "Removed."
+    Skill::ReloadJob.perform_later(path: @skill.source_path)
+    redirect_to @skill, notice: "Reload queued."
   end
 
   private

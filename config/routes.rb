@@ -43,7 +43,7 @@ Rails.application.routes.draw do
     end
   end
 
-  resources :skills, only: %i[index show update destroy] do
+  resources :skills, only: %i[index show update] do
     scope module: :skills do
       resource :installation, only: %i[create destroy]
       resource :enablement,   only: %i[create destroy]

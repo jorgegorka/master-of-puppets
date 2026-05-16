@@ -37,7 +37,6 @@
     <section>
       <h2>Admin</h2>
       <%= button_to "Reload from disk", skill_path(@skill), method: :patch %>
-      <%= button_to "Delete", skill_path(@skill), method: :delete, data: { turbo_confirm: "Sure?" } %>
     </section>
   <% end %>
 </section>

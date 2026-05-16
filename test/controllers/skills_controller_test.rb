@@ -1,6 +1,8 @@
 require "test_helper"
 
 class SkillsControllerTest < ActionDispatch::IntegrationTest
+  include ActiveJob::TestHelper
+
   setup do
     @user   = users(:one)    # admin
     @member = users(:member)
@@ -27,17 +29,26 @@ class SkillsControllerTest < ActionDispatch::IntegrationTest
     assert_match @skill.security_level, response.body
   end
 
-  test "update reloads skill from disk (admin only)" do
+  test "update enqueues Skill::ReloadJob with the disk path (admin)" do
+    assert_enqueued_with(job: Skill::ReloadJob, args: [ { path: @skill.source_path } ]) do
+      patch skill_path(@skill)
+    end
+    assert_redirected_to @skill
+    assert_match(/Reload queued/, flash[:notice])
+  end
+
+  test "update is admin-only" do
     sign_in_as(@member)
-    patch skill_path(@skill)
+    assert_no_enqueued_jobs(only: Skill::ReloadJob) do
+      patch skill_path(@skill)
+    end
     assert_redirected_to root_path
   end
 
-  test "destroy removes skill (admin only)" do
-    sign_in_as(@member)
-    delete skill_path(@skill)
-    assert_redirected_to root_path
-    assert Skill.exists?(@skill.id), "non-admin should not have deleted the skill"
+  test "destroy route is not defined any more (U4)" do
+    assert_raises(ActionController::UrlGenerationError) do
+      url_for(controller: "skills", action: "destroy", id: @skill.id, only_path: true)
+    end
   end
 
   test "signed-out users are redirected" do

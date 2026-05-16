@@ -10,6 +10,10 @@ class SkillsTest < ApplicationSystemTestCase
     sign_in(@user)
 
     visit skills_path
+    # Trip the assertion if the badge CSS is ever removed — the helper
+    # emits `.badge.badge--<variant>` and the system test needs the
+    # styles to actually exist for the page to render correctly.
+    assert_selector ".badge.badge--ok, .badge.badge--warn, .badge.badge--danger"
     click_link @skill.name
     click_button "Install"
     assert_text "Installed."

@@ -1843,32 +1843,32 @@ After all three land, retag (`git tag -d phase-3 && git tag phase-3`) so the tag
 
 ### 3.16c — Skills UI & wiring
 
-- [ ] **U1 — Ship CSS for `.badge` / `.badge--ok|warn|danger`.** Helper is in the wild emitting these classes with no matching styles. App uses pure custom CSS (`@layer`, OKLCH tokens) — pick existing semantic color tokens (success / warning / danger).
+- [x] **U1 — Ship CSS for `.badge` / `.badge--ok|warn|danger`.** Helper is in the wild emitting these classes with no matching styles. App uses pure custom CSS (`@layer`, OKLCH tokens) — pick existing semantic color tokens (success / warning / danger).
   - **File:** `app/assets/stylesheets/base.css` (or new `components/badges.css` if the project uses an `@layer components` slot — follow whatever pattern other components use, e.g. `.button`).
   - **Test:** `test/system/skills_test.rb` — extend the existing assertion to `assert_selector ".badge.badge--ok, .badge.badge--warn, .badge.badge--danger"` so future CSS removal trips the system test.
 
-- [ ] **U2 — `SkillsController#update` enqueues `Skill::ReloadJob` instead of running `load_from_path!` synchronously.** Job already exists; this aligns with the `_now/_later` pattern.
+- [x] **U2 — `SkillsController#update` enqueues `Skill::ReloadJob` instead of running `load_from_path!` synchronously.** Job already exists; this aligns with the `_now/_later` pattern.
   - **File:** `app/controllers/skills_controller.rb` — replace inline `@skill.load_from_path!` with `Skill::ReloadJob.perform_later(path: @skill.source_path)`; flash → `"Reload queued."`.
   - **Test:** `test/controllers/skills_controller_test.rb` — `assert_enqueued_with(job: Skill::ReloadJob, args: [{ path: @skill.source_path }])`.
 
-- [ ] **U3 — Guard `workspace_bootstrap` initializer against console/rake/migrate contexts.** Current `defined?(Skill)` guard is a no-op (Zeitwerk). Copy the guard block from `config/initializers/agents_supervisor_client.rb` (skip on `Rails::Console`, `Rails::Generators`, Rake top-level tasks) and add `next unless ActiveRecord::Base.connection.data_source_exists?("skills")` so fresh `db:prepare` doesn't blow up.
+- [x] **U3 — Guard `workspace_bootstrap` initializer against console/rake/migrate contexts.** Current `defined?(Skill)` guard is a no-op (Zeitwerk). Copy the guard block from `config/initializers/agents_supervisor_client.rb` (skip on `Rails::Console`, `Rails::Generators`, Rake top-level tasks) and add `next unless ActiveRecord::Base.connection.data_source_exists?("skills")` so fresh `db:prepare` doesn't blow up.
   - **File:** `config/initializers/workspace_bootstrap.rb`
   - **Test:** lightweight unit test, or simply boot `bin/rails runner '0'` and assert no `Skill::ReloadJob` is enqueued (`SolidQueue::Job.count` unchanged).
 
-- [ ] **U4 — Remove `SkillsController#destroy` + route.** Disk is the source of truth; the action deletes the DB row but the next `Skill::ReloadJob` (boot replay, watcher, or supervisor reconnect) recreates it. Misleading affordance with no durable effect. Aligns with the Open-items note that the Web UI cannot mutate SKILL.md in Phase 3.
+- [x] **U4 — Remove `SkillsController#destroy` + route.** Disk is the source of truth; the action deletes the DB row but the next `Skill::ReloadJob` (boot replay, watcher, or supervisor reconnect) recreates it. Misleading affordance with no durable effect. Aligns with the Open-items note that the Web UI cannot mutate SKILL.md in Phase 3.
   - **File:** `app/controllers/skills_controller.rb` — delete `#destroy`; remove `:destroy` from `before_action` lists.
   - **File:** `config/routes.rb` — change `resources :skills` to `only: %i[index show update]`.
   - **Test:** `test/controllers/skills_controller_test.rb` — remove the destroy test.
 
-- [ ] **U5 — `Skill::ReloadJob` becomes a one-liner; `Skill.reload_path(path)` owns the branching.** Restores the `_now/_later` job convention.
+- [x] **U5 — `Skill::ReloadJob` becomes a one-liner; `Skill.reload_path(path)` owns the branching.** Restores the `_now/_later` job convention.
   - **File:** `app/models/skill/loadable.rb` — add class method `def reload_path(path); find_or_initialize_by(source_path: path).load_from_path!; rescue MalformedSkill => e; Rails.logger.warn("…"); end` (gives the supervisor/watcher path the same `rescue MalformedSkill` insulation that `reload_from_disk` got in Task 3.15).
   - **File:** `app/jobs/skill/reload_job.rb` — body becomes `path ? Skill.reload_path(path) : Skill.reload_from_disk`.
   - **Test:** `test/models/skill/loadable_test.rb` — add "reload_path tolerates malformed SKILL.md" mirroring the existing `reload_from_disk` test.
 
-- [ ] **U8 — Delete unused `@categories` in `SkillsController#index`.** The view derives sections via `@skills.group_by(&:category)`; `@categories` is set and never read.
+- [x] **U8 — Delete unused `@categories` in `SkillsController#index`.** The view derives sections via `@skills.group_by(&:category)`; `@categories` is set and never read.
   - **File:** `app/controllers/skills_controller.rb` — delete the `@categories = …` line.
 
-- [ ] **C2 / docs — Add direct scope tests for `Skill.enabled_for` / `installed_for`.** The associations live in `Skill::Installable` / `Skill::Enableable` (review false positive — they exist), but no test exercises the scopes directly. Add coverage so a future regression is caught at the unit layer, not in a full streaming integration test.
+- [x] **C2 / docs — Add direct scope tests for `Skill.enabled_for` / `installed_for`.** The associations live in `Skill::Installable` / `Skill::Enableable` (review false positive — they exist), but no test exercises the scopes directly. Add coverage so a future regression is caught at the unit layer, not in a full streaming integration test.
   - **File:** `app/models/skill.rb` — add a one-line comment above the two scopes: `# Associations live in Skill::Installable / Skill::Enableable (included above).`
   - **Test:** `test/models/skill_test.rb` — `enabled_for returns only skills enabled by the given user`; same shape for `installed_for`.
 

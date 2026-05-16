@@ -30,10 +30,21 @@ end
 
 Rails.application.config.after_initialize do
   next if Rails.env.test?
+  next if defined?(Rails::Console)
+  next if defined?(Rails::Generators)
+  # `Rake.application` is autoloaded but raises NoMethodError when not set
+  # (e.g. `bin/rails routes` triggers Rake's autoload without calling
+  # `Rake.application=`). Guard with `respond_to?` so non-rake commands
+  # don't blow up here.
+  next if defined?(Rake) && Rake.respond_to?(:application) && Rake.application&.top_level_tasks&.any?
+  next unless Rails.application.config.x.mop_home
 
   WorkspaceBootstrap.run(Rails.application.config.x.mop_home)
 
   # Replay any skill edits that happened while Puma was down. Idempotent
-  # because Skill::Loadable short-circuits on unchanged body_digest.
-  Skill::ReloadJob.perform_later if defined?(Skill)
+  # because Skill::Loadable short-circuits on unchanged body_digest, and
+  # Skill::ReloadJob's concurrency control collapses duplicate enqueues
+  # across Puma workers.
+  next unless ActiveRecord::Base.connection.data_source_exists?("skills")
+  Skill::ReloadJob.perform_later
 end

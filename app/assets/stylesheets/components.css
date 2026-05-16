@@ -1,0 +1,42 @@
+@layer components {
+  .badge {
+    --badge-background:   var(--color-canvas-sunken);
+    --badge-color:        var(--color-ink);
+    --badge-border-color: var(--color-rule);
+    --badge-padding:      0.125rem 0.5rem;
+    --badge-font-size:    var(--text-x-small);
+    --badge-radius:       99rem;
+
+    display:           inline-flex;
+    align-items:       center;
+    gap:               var(--inline-space-half);
+    padding:           var(--badge-padding);
+    background:        var(--badge-background);
+    color:             var(--badge-color);
+    border:            1px solid var(--badge-border-color);
+    border-radius:     var(--badge-radius);
+    font-size:         var(--badge-font-size);
+    font-weight:       500;
+    line-height:       1.2;
+    text-transform:    uppercase;
+    letter-spacing:    0.02em;
+  }
+
+  .badge--ok {
+    --badge-background:   color-mix(in srgb, var(--color-positive) 12%, var(--color-canvas));
+    --badge-color:        color-mix(in srgb, var(--color-positive) 70%, var(--color-ink));
+    --badge-border-color: color-mix(in srgb, var(--color-positive) 30%, var(--color-rule));
+  }
+
+  .badge--warn {
+    --badge-background:   color-mix(in srgb, var(--color-highlight) 18%, var(--color-canvas));
+    --badge-color:        color-mix(in srgb, var(--color-ink) 90%, var(--color-highlight));
+    --badge-border-color: color-mix(in srgb, var(--color-highlight) 35%, var(--color-rule));
+  }
+
+  .badge--danger {
+    --badge-background:   color-mix(in srgb, var(--color-negative) 12%, var(--color-canvas));
+    --badge-color:        color-mix(in srgb, var(--color-negative) 70%, var(--color-ink));
+    --badge-border-color: color-mix(in srgb, var(--color-negative) 30%, var(--color-rule));
+  }
+}
