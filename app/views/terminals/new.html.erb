@@ -1,0 +1,18 @@
+<% content_for :title, "New terminal" %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1>New terminal</h1>
+    <%= link_to "Cancel", terminals_path, class: "btn btn-secondary" %>
+  </header>
+
+  <%= form_with model: @terminal_session, url: terminals_path, local: true do |f| %>
+    <% if flash[:alert] %><p role="alert"><%= flash[:alert] %></p><% end %>
+    <div class="flex flex-column gap-half">
+      <%= f.label :cwd, "Working directory (relative to MOP_HOME)" %>
+      <%= f.text_field :cwd, value: "." %>
+      <p class="txt-subtle txt-x-small">Default: <code>.</code> opens at the workspace root.</p>
+      <%= f.submit "Open terminal", class: "btn" %>
+    </div>
+  <% end %>
+</section>

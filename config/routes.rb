@@ -49,4 +49,6 @@ Rails.application.routes.draw do
       resource :enablement,   only: %i[create destroy]
     end
   end
+
+  resources :terminals, only: %i[index show new create destroy]
 end

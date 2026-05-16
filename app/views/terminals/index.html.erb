@@ -1,0 +1,27 @@
+<% content_for :title, "Terminals" %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1>Terminals</h1>
+    <%= link_to "+ New terminal", new_terminal_path, class: "btn" %>
+  </header>
+
+  <% if flash[:alert] %><p role="alert"><%= flash[:alert] %></p><% end %>
+  <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
+
+  <% if @terminal_sessions.any? %>
+    <ul class="flex flex-column gap-half">
+      <% @terminal_sessions.each do |t| %>
+        <li class="pad-block-half flex justify-between align-center">
+          <%= link_to "Terminal #{t.id}", terminal_path(t) %>
+          <span class="txt-subtle txt-x-small">
+            <%= t.status %> · cwd <%= t.cwd %> · <%= time_ago_in_words(t.last_activity_at) %> ago
+          </span>
+          <%= button_to "Close", terminal_path(t), method: :delete, class: "btn btn-danger txt-x-small", data: { turbo_confirm: "Close this terminal?" } %>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p class="txt-subtle">No terminals open.</p>
+  <% end %>
+</section>

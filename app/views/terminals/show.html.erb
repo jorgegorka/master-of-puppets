@@ -1,0 +1,20 @@
+<% content_for :title, "Terminal #{@terminal_session.id}" %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <div>
+      <h1>Terminal <%= @terminal_session.id %></h1>
+      <p class="txt-subtle txt-x-small">
+        <%= @terminal_session.status %> · cwd <%= @terminal_session.cwd %>
+      </p>
+    </div>
+    <div class="flex gap-half">
+      <%= link_to "Back to terminals", terminals_path, class: "btn btn-secondary" %>
+      <%= button_to "Close", terminal_path(@terminal_session), method: :delete, class: "btn btn-danger", data: { turbo_confirm: "Close this terminal?" } %>
+    </div>
+  </header>
+
+  <div data-controller="terminal"
+       data-terminal-session-id-value="<%= @terminal_session.id %>"
+       class="terminal-host"></div>
+</section>

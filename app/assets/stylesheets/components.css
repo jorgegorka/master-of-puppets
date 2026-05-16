@@ -39,4 +39,14 @@
     --badge-color:        color-mix(in srgb, var(--color-negative) 70%, var(--color-ink));
     --badge-border-color: color-mix(in srgb, var(--color-negative) 30%, var(--color-rule));
   }
+
+  .terminal-host {
+    block-size:         70vh;
+    inline-size:        100%;
+    margin-block-start: var(--block-space);
+    padding:            var(--inline-space-half);
+    background:         oklch(15% 0.01 280);
+    border-radius:      var(--radius);
+    overflow:           hidden;
+  }
 }
