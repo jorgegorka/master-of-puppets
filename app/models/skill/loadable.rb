@@ -5,6 +5,10 @@ module Skill::Loadable
 
   FRONTMATTER_RE = /\A---\s*\n(.*?)\n---\s*\n(.*)\z/m
 
+  included do
+    after_destroy_commit :clear_fts_entry!
+  end
+
   class_methods do
     # Walks ${MOP_HOME}/skills/**/SKILL.md, upserts a row per file, and
     # tombstones rows whose source_path is gone. Returns the array of
@@ -41,6 +45,7 @@ module Skill::Loadable
         body_digest:    digest,
         discovered_at:  Time.current
       )
+      reindex_fts!(body)
       track_event :reloaded, body_digest: digest
     end
     @body = body
@@ -50,6 +55,25 @@ module Skill::Loadable
   def body
     return @body if defined?(@body)
     @body = parse_frontmatter!(Pathname.new(source_path).read).last
+  end
+
+  def reindex_fts!(body = nil)
+    body ||= self.body
+    SkillFts.connection.execute(
+      ActiveRecord::Base.sanitize_sql([ "DELETE FROM skills_fts WHERE skill_id = ?", id ])
+    )
+    SkillFts.connection.execute(
+      ActiveRecord::Base.sanitize_sql([
+        "INSERT INTO skills_fts (skill_id, slug, name, category, description, body) VALUES (?, ?, ?, ?, ?, ?)",
+        id, slug, name, category, description.to_s, body
+      ])
+    )
+  end
+
+  def clear_fts_entry!
+    SkillFts.connection.execute(
+      ActiveRecord::Base.sanitize_sql([ "DELETE FROM skills_fts WHERE skill_id = ?", id ])
+    )
   end
 
   private

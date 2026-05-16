@@ -1,9 +1,12 @@
 class Skill < ApplicationRecord
   include Eventable
-  include Skill::Enableable
-  include Skill::Installable
+  include Searchable
+  searchable_via SkillFts, foreign_key: :skill_id
+
   include Skill::Loadable
   include Skill::SecurityAnalyzable
+  include Skill::Installable
+  include Skill::Enableable
 
   enum :origin,         { builtin: 0, agent_created: 1, marketplace: 2 }
   enum :security_level, { safe: 0, low: 1, medium: 2, high: 3 }

@@ -10,9 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_16_104043) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_16_104044) do
 
   # Virtual tables defined in this database.
   # Note that virtual tables may not work with other database engines. Be careful if changing database.
   create_virtual_table "memory_files_fts", "fts5", ["memory_file_id UNINDEXED", "path", "title", "tags", "body", "tokenize = 'porter'"]
+  create_virtual_table "skills_fts", "fts5", ["skill_id UNINDEXED", "slug", "name", "category", "description", "body", "tokenize = 'porter'"]
 end
