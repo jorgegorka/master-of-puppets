@@ -56,6 +56,21 @@ class MemoryFile::ReindexableTest < ActiveSupport::TestCase
     assert_equal rowid, fts_rowid_for(file.id)
   end
 
+  test "reindex_all does not tombstone existing rows when the memory tree is empty" do
+    # Same defensive guard as Skill::Loadable — an empty walk must not be read
+    # as "all rows are stale". Phase 3 reaches this on every cold start via
+    # Memory::FullReindexJob, so a transient empty disk would otherwise nuke
+    # every memory row + FTS entry.
+    write_memory("here.md", "# Here\n")
+    file = MemoryFile.reindex("here.md")
+    File.delete(File.join(@tmp, "memory/here.md"))
+    Dir.glob(File.join(@tmp, "memory/*")).each { |p| File.delete(p) if File.file?(p) }
+
+    paths = MemoryFile.reindex_all
+    assert_empty paths
+    assert MemoryFile.exists?(file.id), "must not destroy rows when disk walk is empty"
+  end
+
   test "reindex_all walks the tree, refreshes changes, and tombstones missing files" do
     write_memory("a.md",        "# A\n")
     write_memory("nested/b.md", "# B\n")

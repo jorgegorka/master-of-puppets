@@ -97,4 +97,36 @@ class Tool::Internal::WriteFileTest < ActiveSupport::TestCase
     refute result.is_error
     assert_equal "replacement", File.read(target)
   end
+
+  # Skills and profiles are org-wide source-of-truth files — their bodies are
+  # spliced into the system prompt for every user with that skill enabled. A
+  # non-admin must not be able to mint or overwrite one via the model.
+  test "refuses to write under skills/ unless the user is admin" do
+    result = Tool::Internal::WriteFile.invoke(
+      input: { "path" => "skills/io/filesystem/SKILL.md", "content" => "---\nname: x\n---\nbody" },
+      user: users(:member)
+    )
+    assert result.is_error
+    assert_match(/admin/i, result.error)
+    refute File.exist?(File.join(@tmp, "skills/io/filesystem/SKILL.md"))
+  end
+
+  test "refuses to write under profiles/ unless the user is admin" do
+    result = Tool::Internal::WriteFile.invoke(
+      input: { "path" => "profiles/default.yml", "content" => "x" },
+      user: users(:member)
+    )
+    assert result.is_error
+    assert_match(/admin/i, result.error)
+    refute File.exist?(File.join(@tmp, "profiles/default.yml"))
+  end
+
+  test "admins may write under skills/" do
+    result = Tool::Internal::WriteFile.invoke(
+      input: { "path" => "skills/io/custom/SKILL.md", "content" => "---\nname: custom\n---\nbody" },
+      user: users(:one)
+    )
+    refute result.is_error
+    assert File.exist?(File.join(@tmp, "skills/io/custom/SKILL.md"))
+  end
 end

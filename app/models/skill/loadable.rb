@@ -17,7 +17,11 @@ module Skill::Loadable
     def reload_from_disk
       root = Pathname.new(Rails.application.config.x.mop_home).join("skills")
       seen = Pathname.glob(root.join("**/SKILL.md")).map(&:to_s)
-      where.not(source_path: seen).destroy_all
+      # `where.not(source_path: [])` collapses to `WHERE 1=1` in AR and would
+      # destroy every Skill row — defend against a transient empty disk
+      # (fresh install, missed seed copy, I/O blip) by skipping the tombstone
+      # branch entirely when the walk found nothing.
+      where.not(source_path: seen).destroy_all if seen.any?
       seen.each { |path| reload_path(path) }
       seen
     end
@@ -25,7 +29,15 @@ module Skill::Loadable
     # Load a single SKILL.md, tolerating a malformed file by logging a
     # warning rather than raising. Used by the watcher / boot-replay paths
     # so a single broken file doesn't blow up the whole reload pass.
+    #
+    # If the file is gone (the watcher fired `skills.changed` for a delete),
+    # tombstone the row instead of raising — that's the only signal we get
+    # back from the supervisor since it doesn't differentiate event kinds.
     def reload_path(path)
+      unless File.exist?(path)
+        find_by(source_path: path)&.destroy
+        return
+      end
       find_or_initialize_by(source_path: path).load_from_path!
     rescue MalformedSkill => e
       Rails.logger.warn("[Skill::Loadable] skipping #{path}: #{e.message}")
@@ -77,6 +89,10 @@ module Skill::Loadable
   def body
     return @body if defined?(@body)
     @body = parse_frontmatter!(Pathname.new(source_path).read).last
+  rescue Errno::ENOENT
+    # The source file was deleted between reloads — render paths (Skill#show)
+    # and FTS rebuilds must not 500. The next reload pass tombstones the row.
+    @body = ""
   end
 
   def reindex_fts!(body = nil)

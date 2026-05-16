@@ -18,7 +18,11 @@ module MemoryFile::Reindexable
         reindex(rel)
         seen << rel
       end
-      where.not(path: seen).destroy_all
+      # `where.not(path: [])` collapses to `WHERE 1=1` in AR — would destroy
+      # every row on a transient empty walk. Cold-start callers (Phase 3
+      # Memory::FullReindexJob) must not nuke the index because of a missed
+      # mount or first-boot ordering glitch.
+      where.not(path: seen).destroy_all if seen.any?
       seen
     end
 

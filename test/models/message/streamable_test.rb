@@ -191,6 +191,29 @@ class Message::StreamableTest < ActiveSupport::TestCase
     end
   end
 
+  # A :failed tool_call already gets an is_error tool_result appended by
+  # run_tool_calls! (see lines around 176-184) so the LLM can recover. Treat
+  # those failures as resolved — otherwise needs_tool_loop? keeps spinning
+  # until MAX_TOOL_ITERATIONS even after the model emits a clean text reply.
+  test "needs_tool_loop? treats :failed tool_calls as resolved" do
+    session = chat_sessions(:one)
+    assistant = session.messages.create!(
+      role: :assistant, status: :streaming,
+      model: session.model, provider: "anthropic",
+      content_blocks: [
+        { "type" => "tool_use", "id" => "toolu_a", "name" => "read_file", "input" => {} },
+        { "type" => "tool_use", "id" => "toolu_b", "name" => "read_file", "input" => {} },
+        { "type" => "tool_use", "id" => "toolu_c", "name" => "garbage",   "input" => {} }
+      ]
+    )
+    assistant.tool_calls.create!(provider_tool_id: "toolu_a", name: "read_file", source: :internal, status: :succeeded, input: {})
+    assistant.tool_calls.create!(provider_tool_id: "toolu_b", name: "read_file", source: :internal, status: :succeeded, input: {})
+    assistant.tool_calls.create!(provider_tool_id: "toolu_c", name: "garbage",   source: :unknown,  status: :failed,    input: {}, error_message: "unknown tool")
+
+    refute assistant.send(:needs_tool_loop?),
+      "failed tool_calls must be treated as resolved (the is_error tool_result is already appended)"
+  end
+
   test "advance! handles tool_use input deltas and parses partial json" do
     assistant = build_assistant
     fake_adapter = build_fake_adapter(
@@ -362,19 +385,6 @@ class Message::StreamableTest < ActiveSupport::TestCase
     refute_nil block
     assert_equal "not found", block["content"]
     assert block["is_error"]
-  end
-
-  test "tool_loop_round_trip: stream → tool_call → succeeded → tool_result block appended" do
-    skip "needs VCR cassette" unless File.exist?(Rails.root.join("test/fixtures/vcr/anthropic_tool_call.yml"))
-    VCR.use_cassette("anthropic_tool_call") do
-      session = chat_sessions(:one)
-      session.messages.create!(role: :user, content_blocks: [ { type: "text", text: "Read memory/MEMORY.md" } ], status: :completed)
-      assistant = session.messages.create!(role: :assistant, content_blocks: [], status: :pending,
-        model: "claude-haiku-4-5", provider: "anthropic")
-      assistant.advance!
-      assert assistant.tool_calls.where(name: "read_file", status: :succeeded).exists?
-      assert assistant.content_blocks.any? { |b| b["type"] == "tool_result" }
-    end
   end
 
   private

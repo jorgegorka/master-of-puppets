@@ -156,8 +156,11 @@ module Message::Streamable
     def needs_tool_loop?
       pending_ids = content_blocks.filter_map { |b| b["id"] if b.is_a?(Hash) && b["type"] == "tool_use" }
       return false if pending_ids.empty?
-      succeeded_ids = tool_calls.where(provider_tool_id: pending_ids, status: :succeeded).pluck(:provider_tool_id).to_set
-      pending_ids.any? { |id| !succeeded_ids.include?(id) }
+      # :failed counts as resolved — run_tool_calls! appends an is_error
+      # tool_result for those so the LLM can recover. Otherwise a single
+      # failed call would keep the loop alive until MAX_TOOL_ITERATIONS.
+      resolved_ids = tool_calls.where(provider_tool_id: pending_ids, status: %i[succeeded failed]).pluck(:provider_tool_id).to_set
+      pending_ids.any? { |id| !resolved_ids.include?(id) }
     end
 
     def run_tool_calls!

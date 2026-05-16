@@ -1,5 +1,10 @@
 class Tool::Internal::WriteFile < Tool::Internal
   MAX_BYTES = 1 * 1024 * 1024 # 1 MiB
+  # Skills bodies are spliced into the system prompt for every user that has
+  # that skill enabled; profiles likewise drive org-wide agent config. A
+  # non-admin writing here would be an indirect prompt-injection vector
+  # against other users — match run_shell's admin gate.
+  ADMIN_ONLY_ROOTS = %w[skills profiles].freeze
 
   def self.tool_name;   "write_file"; end
   def self.description; "Write content to a file in the workspace (atomic: tmp → fsync → rename). Refuses to overwrite an existing file unless overwrite: true."; end
@@ -21,6 +26,9 @@ class Tool::Internal::WriteFile < Tool::Internal
     return Tool::Result.failure("content too large") if content.bytesize > MAX_BYTES
 
     wsp = WorkspacePath.resolve(root: ".", raw: input.fetch("path"))
+    if admin_only_root?(wsp) && !user&.admin?
+      return Tool::Result.failure("forbidden: writes under #{ADMIN_ONLY_ROOTS.join('/')}/ are admin-only")
+    end
     if wsp.absolute.exist? && !overwrite
       return Tool::Result.failure("file exists; pass overwrite: true to replace")
     end
@@ -39,5 +47,10 @@ class Tool::Internal::WriteFile < Tool::Internal
     Tool::Result.failure("write failed: #{e.class}: #{e.message}")
   ensure
     File.delete(tmp) if defined?(tmp) && tmp && File.exist?(tmp)
+  end
+
+  def self.admin_only_root?(wsp)
+    head = wsp.rel.to_s.split(File::SEPARATOR, 2).first
+    ADMIN_ONLY_ROOTS.include?(head)
   end
 end

@@ -1,10 +1,6 @@
 require "test_helper"
 require "ostruct"
 
-# We stub the SDK at the @client.messages.stream level rather than recording a
-# VCR cassette, because cassette recording requires a real ANTHROPIC_API_KEY.
-# When credentials are available, set ANTHROPIC_API_KEY and switch to VCR-based
-# replay; the contract verified here is the same.
 module Llm
   class AnthropicTest < ActiveSupport::TestCase
     setup do

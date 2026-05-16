@@ -24,6 +24,23 @@ class Skill::LoadableTest < ActiveSupport::TestCase
     Rails.application.config.x.mop_home = @prev_home
   end
 
+  test "reload_from_disk does not tombstone existing rows when the skills tree is empty" do
+    # Defensive guard against transient I/O / fresh-install-with-no-seeds. If
+    # the disk walk turns up zero SKILL.md files, treat it as "no information"
+    # and leave the DB untouched rather than nuking every row.
+    existing = Skill.create!(
+      slug: "keep-me", name: "Keep me", category: "io",
+      source_path: Pathname.new(@tmp).join("skills/io/keep-me/SKILL.md").to_s,
+      body_digest: "abc", discovered_at: 1.hour.ago, manifest: {}
+    )
+    FileUtils.rm_rf(Pathname.new(@tmp).join("skills"))
+    Pathname.new(@tmp).join("skills").mkpath
+
+    paths = Skill.reload_from_disk
+    assert_empty paths
+    assert Skill.exists?(existing.id), "must not destroy rows when disk walk is empty"
+  end
+
   test "reload_from_disk creates one Skill per SKILL.md and tombstones missing ones" do
     stale = Skill.create!(
       slug: "ghost", name: "Ghost", category: "io",
@@ -69,6 +86,37 @@ class Skill::LoadableTest < ActiveSupport::TestCase
     skill.load_from_path!
     Pathname.new(skill.source_path).delete  # if not memoized, the next call would raise Errno::ENOENT
     assert_nothing_raised { skill.body }
+  end
+
+  test "#body returns '' instead of raising when the source file has vanished" do
+    # A fresh worker (no @body memo) rendering Skill#show 500s if the disk
+    # file disappeared between reloads. Tolerate it — the next reload pass
+    # tombstones the row.
+    Skill.destroy_all
+    path = Pathname.new(@tmp).join("skills/io/filesystem/SKILL.md")
+    skill = Skill.new(source_path: path.to_s)
+    skill.load_from_path!
+    skill_id = skill.id
+    path.delete
+
+    fresh = Skill.find(skill_id) # bypasses the @body memo
+    assert_nothing_raised { fresh.body }
+    assert_equal "", fresh.body
+  end
+
+  test "reload_path destroys the row when the source file has vanished" do
+    # Watcher fires `skills.changed` for any change including deletes — the
+    # ReloadJob path branch calls reload_path with the now-missing source.
+    # Tombstone the orphan instead of crashing on Pathname#read.
+    Skill.destroy_all
+    path = Pathname.new(@tmp).join("skills/io/filesystem/SKILL.md")
+    Skill.reload_path(path.to_s)
+    skill = Skill.find_by!(source_path: path.to_s)
+
+    path.delete
+    Skill.reload_path(path.to_s)
+
+    refute Skill.exists?(skill.id), "orphaned row must be destroyed"
   end
 
   test "reload_path tolerates a malformed SKILL.md (logs and returns)" do

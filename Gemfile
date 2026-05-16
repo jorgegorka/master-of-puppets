@@ -77,7 +77,7 @@ group :test do
   gem "capybara"
   gem "selenium-webdriver"
 
-  # HTTP stubbing + replay for adapter tests
-  gem "vcr", "~> 6.3"
+  # HTTP stubbing for adapter tests — adapters are tested by stubbing the SDK
+  # client directly. We never record cassettes against a live LLM API.
   gem "webmock", "~> 3.23"
 end
