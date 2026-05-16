@@ -6,15 +6,15 @@ class Mcp::HttpClientTest < ActiveSupport::TestCase
     Current.session = sessions(:one)
     @server = mcp_servers(:context7_http)
     @url    = @server.url
-    # OutboundGuard runs Resolv.getaddress(host); keep it offline by stubbing
+    # OutboundGuard runs Resolv.getaddresses(host); keep it offline by stubbing
     # to a public-looking address that the guard's RFC1918 list won't match.
-    Resolv.singleton_class.alias_method(:__real_getaddress, :getaddress)
-    Resolv.define_singleton_method(:getaddress) { |_h| "93.184.216.34" }
+    Resolv.singleton_class.alias_method(:__real_getaddresses, :getaddresses)
+    Resolv.define_singleton_method(:getaddresses) { |_h| ["93.184.216.34"] }
   end
 
   teardown do
-    Resolv.singleton_class.alias_method(:getaddress, :__real_getaddress)
-    Resolv.singleton_class.send(:remove_method, :__real_getaddress)
+    Resolv.singleton_class.alias_method(:getaddresses, :__real_getaddresses)
+    Resolv.singleton_class.send(:remove_method, :__real_getaddresses)
   end
 
   test "list_tools returns normalized tool definitions" do
@@ -58,8 +58,33 @@ class Mcp::HttpClientTest < ActiveSupport::TestCase
   end
 
   test "SSRF guard runs at construction time and blocks private IPs" do
-    Resolv.define_singleton_method(:getaddress) { |_h| "10.0.0.5" }
+    Resolv.define_singleton_method(:getaddresses) { |_h| ["10.0.0.5"] }
     assert_raises(RuntimeError) { Mcp::HttpClient.new(@server) }
+  end
+
+  test "response body over MAX_RESPONSE_BYTES is rejected" do
+    cap     = Mcp::HttpClient::MAX_RESPONSE_BYTES
+    payload = { jsonrpc: "2.0", id: "x", result: { "tools" => [ { "name" => "x", "description" => "y" * (cap + 1) } ] } }.to_json
+    WebMock.stub_request(:post, @url).to_return(
+      status:  200,
+      headers: { "Content-Type" => "application/json", "Content-Length" => payload.bytesize.to_s },
+      body:    payload
+    )
+    err = assert_raises(RuntimeError) { Mcp::HttpClient.new(@server).list_tools }
+    assert_match(/response too large/i, err.message)
+  end
+
+  test "declared Content-Length over MAX_RESPONSE_BYTES is rejected even if body is small" do
+    # A lying server might advertise a huge length but stream a tiny body. The
+    # Content-Length advisory still trips the cap so we never trust a server
+    # that has signalled intent to flood.
+    WebMock.stub_request(:post, @url).to_return(
+      status:  200,
+      headers: { "Content-Type" => "application/json", "Content-Length" => ((Mcp::HttpClient::MAX_RESPONSE_BYTES + 1)).to_s },
+      body:    { jsonrpc: "2.0", id: "x", result: { "tools" => [] } }.to_json
+    )
+    err = assert_raises(RuntimeError) { Mcp::HttpClient.new(@server).list_tools }
+    assert_match(/response too large/i, err.message)
   end
 
   test "bearer auth header is injected from auth_payload" do

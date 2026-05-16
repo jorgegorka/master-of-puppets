@@ -128,9 +128,16 @@ module AgentsSupervisor
         nil
       end
 
+      # Non-blocking: a slow consumer must not stall a pool thread (we only
+      # have POOL_SIZE of them — 16 by default — so 16 wedged push_responses
+      # would freeze the supervisor). Same policy as #notify: drop the slow
+      # client by closing rather than back-pressuring the pool.
       def push_response(payload)
         return if closed?
-        @write_queue.push(ensure_newline(payload))
+        @write_queue.push(ensure_newline(payload), true)
+      rescue ThreadError
+        Rails.logger.warn("[supervisor] write queue full, closing slow consumer")
+        close!
       rescue ClosedQueueError
         nil
       end
@@ -175,6 +182,7 @@ module AgentsSupervisor
     SCRUBBED = %w[
       DATABASE_URL
       RAILS_MASTER_KEY
+      SECRET_KEY_BASE
       ANTHROPIC_API_KEY
       OPENAI_API_KEY
       MOP_SUPERVISOR_SOCKET
@@ -198,27 +206,43 @@ module AgentsSupervisor
 
       r_out, w_out = IO.pipe
       r_err, w_err = IO.pipe
-      pid = Process.spawn(env, command, **opts, out: w_out, err: w_err, in: :close)
-      w_out.close
-      w_err.close
+      out = +""
+      err = +""
+      reader_threads = nil
+      begin
+        pid = Process.spawn(env, command, **opts, out: w_out, err: w_err, in: :close)
+        # Close the parent's write ends so EOF on the read ends reflects child
+        # exit (otherwise readers block forever even after the child dies).
+        w_out.close
+        w_err.close
 
-      out = ""
-      err = ""
-      reader_threads = [
-        Thread.new { while (chunk = r_out.read(4096)); out << chunk; end rescue nil },
-        Thread.new { while (chunk = r_err.read(4096)); err << chunk; end rescue nil }
-      ]
+        reader_threads = [
+          Thread.new { while (chunk = r_out.read(4096)); out << chunk; end rescue nil },
+          Thread.new { while (chunk = r_err.read(4096)); err << chunk; end rescue nil }
+        ]
 
-      status, timed_out = wait_with_timeout(pid, timeout)
-      reader_threads.each { |t| t.join(0.5) }
-      [out, err].each { |s| s.replace(s.byteslice(0, MAX_OUTPUT_BYTES).to_s.scrub + "\n…[truncated]") if s.bytesize > MAX_OUTPUT_BYTES }
+        status, timed_out = wait_with_timeout(pid, timeout)
+        # Wait unconditionally for the readers to drain: once the child (and
+        # its pgroup) is reaped, the kernel-side write fds are released and
+        # both pipes hit EOF, so the readers must exit. join'ing without a
+        # bound guarantees we don't read out/err while a writer thread is
+        # still appending to them.
+        reader_threads.each(&:join)
+        [out, err].each { |s| s.replace(s.byteslice(0, MAX_OUTPUT_BYTES).to_s.scrub + "\n…[truncated]") if s.bytesize > MAX_OUTPUT_BYTES }
 
-      {
-        stdout:    out,
-        stderr:    err,
-        exit_code: status&.exitstatus.to_i,
-        timed_out: timed_out
-      }
+        {
+          stdout:    out,
+          stderr:    err,
+          exit_code: status&.exitstatus.to_i,
+          timed_out: timed_out
+        }
+      ensure
+        # Always release the read fds — a Process.spawn failure (path missing,
+        # rlimit setup error) leaves the pipes dangling otherwise. Already-closed
+        # is fine and IO#close raises IOError in that case; swallow it.
+        [w_out, w_err, r_out, r_err].each { |io| io.close rescue nil }
+        reader_threads&.each { |t| t.kill if t.alive? }
+      end
     end
 
     private

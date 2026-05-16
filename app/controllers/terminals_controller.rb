@@ -10,16 +10,12 @@ class TerminalsController < ApplicationController
   end
 
   def create
-    @terminal_session = Current.user.terminal_sessions.create!(
-      cwd:  params.dig(:terminal_session, :cwd).presence || ".",
-      cols: 120,
-      rows: 40
+    @terminal_session = TerminalSession.open!(
+      user: Current.user,
+      cwd:  params.dig(:terminal_session, :cwd).presence || "."
     )
-    Terminal::TmuxManager.create(@terminal_session)
-    @terminal_session.attach!
     redirect_to terminal_path(@terminal_session)
   rescue WorkspacePath::EscapeAttempt => e
-    @terminal_session&.destroy
     redirect_to new_terminal_path, alert: "Invalid working directory: #{e.message}"
   end
 

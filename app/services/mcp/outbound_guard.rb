@@ -19,21 +19,31 @@ module Mcp
       IPAddr.new("fe80::/10")
     ].freeze
 
+    # Resolves the hostname once, validates *every* A/AAAA record (a dual-stack
+    # host with one safe and one metadata-IP record must not slip through), and
+    # returns the resolved IP so the caller can pin it onto the socket — closes
+    # the TOCTOU window where Faraday would otherwise re-resolve at connect
+    # time and pick up a flipped, low-TTL record.
     def self.allowed!(url)
       uri = URI.parse(url.to_s)
       raise "denied: non-http(s) scheme #{uri.scheme.inspect}" unless %w[http https].include?(uri.scheme)
-      raise "denied: missing host" if uri.host.nil? || uri.host.empty?
+      host = uri.hostname
+      raise "denied: missing host" if host.nil? || host.empty?
 
-      address = Resolv.getaddress(uri.host)
-      raise "denied: cloud metadata IP #{address}" if DENYLIST.include?(address)
+      addresses = Resolv.getaddresses(host)
+      raise "denied: #{host} did not resolve" if addresses.empty?
 
-      ip = IPAddr.new(address)
-      private_match = PRIVATE_RANGES.any? { |range| range.include?(ip) }
-      if private_match && ENV["MOP_MCP_ALLOW_PRIVATE"] != "1"
-        raise "denied: #{address} is in a private range — set MOP_MCP_ALLOW_PRIVATE=1 to override"
+      addresses.each do |address|
+        raise "denied: cloud metadata IP #{address}" if DENYLIST.include?(address)
+
+        ip = IPAddr.new(address)
+        private_match = PRIVATE_RANGES.any? { |range| range.include?(ip) }
+        if private_match && ENV["MOP_MCP_ALLOW_PRIVATE"] != "1"
+          raise "denied: #{address} is in a private range — set MOP_MCP_ALLOW_PRIVATE=1 to override"
+        end
       end
 
-      true
+      addresses.first
     end
   end
 end

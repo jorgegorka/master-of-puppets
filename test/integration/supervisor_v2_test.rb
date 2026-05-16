@@ -98,6 +98,20 @@ class SupervisorV2Test < ActiveSupport::TestCase
     assert_equal true, response.dig("result", "timed_out")
   end
 
+  test "shell.run scrubs SECRET_KEY_BASE (and the rest of the deny list) from the child env" do
+    # The supervisor inherits the parent's env. Verify each entry on the deny
+    # list is genuinely absent from the child. SECRET_KEY_BASE is the Rails
+    # cookie signing key — if it leaked into a tool-invoked shell, a run_shell
+    # call could fabricate session cookies.
+    script = %w[DATABASE_URL RAILS_MASTER_KEY SECRET_KEY_BASE ANTHROPIC_API_KEY OPENAI_API_KEY MOP_SUPERVISOR_SOCKET]
+      .map { |v| "echo #{v}=$#{v}" }.join("; ")
+    response = rpc(method: "shell.run", params: { command: script, cwd: @mop_home.to_s, timeout: 5 }, timeout: 10)
+    stdout = response.dig("result", "stdout").to_s
+    %w[DATABASE_URL RAILS_MASTER_KEY SECRET_KEY_BASE ANTHROPIC_API_KEY OPENAI_API_KEY MOP_SUPERVISOR_SOCKET].each do |var|
+      assert_match(/^#{var}=$/, stdout, "expected #{var} to be scrubbed from child env, stdout was:\n#{stdout}")
+    end
+  end
+
   test "terminal.create + capture + close cycle through tmux" do
     omit "tmux not installed" unless system("which tmux > /dev/null 2>&1")
 

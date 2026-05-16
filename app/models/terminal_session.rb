@@ -14,6 +14,22 @@ class TerminalSession < ApplicationRecord
 
   scope :reattachable, -> { detached.where("last_activity_at > ?", Sweepable::DETACH_TTL.ago) }
 
+  # Three-step open: create the row, ask the supervisor to spawn the tmux
+  # session, then flip to :live. Wrapped so a supervisor failure (RPC error
+  # or path-traversal rejection) doesn't leave a phantom :starting row with
+  # no backing tmux process — the controller used to do this inline.
+  def self.open!(user:, cwd:, cols: 120, rows: 40)
+    session = user.terminal_sessions.create!(cwd: cwd, cols: cols, rows: rows)
+    begin
+      Terminal::TmuxManager.create(session)
+      session.attach!
+    rescue StandardError
+      session.destroy
+      raise
+    end
+    session
+  end
+
   def attach!
     transaction do
       update!(status: :live, last_activity_at: Time.current)

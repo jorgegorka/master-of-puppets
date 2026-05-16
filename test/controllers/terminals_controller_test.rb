@@ -52,6 +52,20 @@ class TerminalsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/Invalid working directory/, flash[:alert])
   end
 
+  test "create does not leave an orphan :starting row when the supervisor fails" do
+    AgentsSupervisor::Client.define_singleton_method(:call) do |method, params = {}, **|
+      raise AgentsSupervisor::SupervisorError, "supervisor down" if method == "terminal.create"
+      { "ok" => true }
+    end
+
+    before_count = Current.user.terminal_sessions.count
+    assert_raises(AgentsSupervisor::SupervisorError) do
+      post terminals_path, params: { terminal_session: { cwd: "." } }
+    end
+    assert_equal before_count, Current.user.terminal_sessions.count,
+      "phantom :starting row should be cleaned up after supervisor failure"
+  end
+
   test "show renders an active terminal" do
     terminal = users(:one).terminal_sessions.create!(cwd: ".", cols: 80, rows: 24, status: :live)
     get terminal_path(terminal)

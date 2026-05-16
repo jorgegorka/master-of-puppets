@@ -49,11 +49,21 @@ class TerminalChannel < ApplicationCable::Channel
       fifo = Terminal::TmuxManager.fifo_path(@terminal_session)
       return unless fifo.exist?
 
+      # Defensive on re-entry: if subscribed somehow runs twice on the same
+      # channel instance, the previous pump must die before we orphan it.
+      @pump_thread&.kill
+
       target = @terminal_session  # capture for the thread closure
       @pump_thread = Thread.new do
         begin
           File.open(fifo.to_s, "r") do |f|
-            while (chunk = f.readpartial(4096))
+            loop do
+              chunk = f.readpartial(4096)
+              # readpartial *should* raise EOFError on EOF, but some libc /
+              # platform combinations have been observed to return "" instead
+              # when both ends of a FIFO close simultaneously. Treat that as
+              # EOF so we don't spin a CPU-burning loop on a dead pipe.
+              break if chunk.nil? || chunk.empty?
               TerminalChannel.broadcast_to(target, { type: "chunk", data: chunk })
             end
           end

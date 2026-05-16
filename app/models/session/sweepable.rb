@@ -29,8 +29,10 @@ module Session::Sweepable
     rotate = (expires_at - now) < ROTATION_WINDOW
     attrs  = { last_seen_at: now }
     attrs[:expires_at] = now + DEFAULT_TTL if rotate
-    update_columns(attrs)
-    track_event :rotated if rotate
+    transaction do
+      update_columns(attrs)
+      track_event :rotated if rotate
+    end
   end
 
   class_methods do

@@ -11,6 +11,7 @@ class Tool::Internal::RunShell < Tool::Internal
   SCRUBBED_ENV = %w[
     DATABASE_URL
     RAILS_MASTER_KEY
+    SECRET_KEY_BASE
     ANTHROPIC_API_KEY
     OPENAI_API_KEY
   ].freeze
@@ -45,7 +46,10 @@ class Tool::Internal::RunShell < Tool::Internal
   # If the supervisor isn't reachable, fall back to the in-process path so
   # dev environments without a running supervisor can still test the tool.
   def self.invoke_via_supervisor(command)
-    cwd = Rails.application.config.x.mop_home.to_s
+    # Run mop_home through WorkspacePath so a symlinked or relocated config
+    # value is realpath-resolved before the supervisor uses it as cwd —
+    # matches the resolution every other workspace-touching path takes.
+    cwd = WorkspacePath.resolve(root: ".", raw: ".").absolute.to_s
     result = AgentsSupervisor::Client.call("shell.run", { command: command, cwd: cwd, timeout: TIMEOUT_SECONDS }, timeout: TIMEOUT_SECONDS + 5)
 
     if result["timed_out"]

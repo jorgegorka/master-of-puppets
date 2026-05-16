@@ -23,7 +23,7 @@ class McpServers::TestsControllerTest < ActionDispatch::IntegrationTest
   test "create marks server error and flashes alert when ping raises" do
     server = mcp_servers(:context7_http)
     failing = Object.new
-    failing.define_singleton_method(:ping) { raise "boom" }
+    failing.define_singleton_method(:ping) { raise "boom: 10.0.0.5 connection refused" }
 
     with_singleton_method(Mcp::HttpClient, :new, ->(_s) { failing }) do
       post mcp_server_test_path(server)
@@ -32,6 +32,11 @@ class McpServers::TestsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to mcp_server_path(server)
     assert server.reload.error?
     assert_match(/boom/, server.last_error)
+    # Raw exception message must NOT leak into the flash — could reveal IPs,
+    # internal hostnames, or auth fragments.
+    refute_match(/boom/, flash[:alert].to_s)
+    refute_match(/10\.0\.0\.5/, flash[:alert].to_s)
+    assert_match(/Unreachable/, flash[:alert].to_s)
   end
 end
 
