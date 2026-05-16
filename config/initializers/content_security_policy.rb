@@ -1,29 +1,22 @@
-# Be sure to restart your server when you modify this file.
+# Phase 4 § 15.7: application-wide CSP. The directives are chosen to support
+# xterm.js (inline styles), the (future) Monaco editor via esm.sh, and the
+# Action Cable WebSocket. Each directive is scoped tightly — bumping it
+# requires a comment line explaining what new surface needs it.
 
-# Define an application-wide content security policy.
-# See the Securing Rails Applications Guide for more information:
-# https://guides.rubyonrails.org/security.html#content-security-policy-header
+Rails.application.config.content_security_policy do |policy|
+  policy.default_src :self
+  policy.style_src   :self, :unsafe_inline                  # xterm.js + monaco inline styles
+  policy.script_src  :self, "https://esm.sh"                # Monaco CDN (Phase 4.5)
+  policy.worker_src  :self, :blob                           # Monaco workers
+  policy.connect_src :self, "wss:", "ws:"                   # Action Cable
+  policy.img_src     :self, :data, :blob
+  policy.media_src   :self, :data
+  policy.font_src    :self, :data
+  policy.object_src  :none
+  policy.base_uri    :self
+  policy.frame_ancestors :none
+end
 
-# Rails.application.configure do
-#   config.content_security_policy do |policy|
-#     policy.default_src :self, :https
-#     policy.font_src    :self, :https, :data
-#     policy.img_src     :self, :https, :data
-#     policy.object_src  :none
-#     policy.script_src  :self, :https
-#     policy.style_src   :self, :https
-#     # Specify URI for violation reports
-#     # policy.report_uri "/csp-violation-report-endpoint"
-#   end
-#
-#   # Generate session nonces for permitted importmap, inline scripts, and inline styles.
-#   config.content_security_policy_nonce_generator = ->(request) { request.session.id.to_s }
-#   config.content_security_policy_nonce_directives = %w(script-src style-src)
-#
-#   # Automatically add `nonce` to `javascript_tag`, `javascript_include_tag`, and `stylesheet_link_tag`
-#   # if the corresponding directives are specified in `content_security_policy_nonce_directives`.
-#   # config.content_security_policy_nonce_auto = true
-#
-#   # Report violations without enforcing the policy.
-#   # config.content_security_policy_report_only = true
-# end
+Rails.application.config.content_security_policy_nonce_generator = ->(_request) { SecureRandom.base64(16) }
+Rails.application.config.content_security_policy_nonce_directives = %w[script-src]
+Rails.application.config.content_security_policy_report_only = false
