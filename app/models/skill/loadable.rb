@@ -53,10 +53,9 @@ module Skill::Loadable
   end
 
   private
-    # Phase 3 Task 3.3 replaces this with Skill::SecurityAnalyzable. For now
-    # honour the frontmatter declaration with `safe` as the default.
-    def derive_security_level(manifest, _body)
-      Skill.security_levels.fetch(manifest["security_level"].to_s, 0)
+    def derive_security_level(manifest, body)
+      analysis = Skill::SecurityAnalysis.from(declared: manifest["security_level"] || "safe", body: body)
+      Skill.security_levels[analysis.final_level.to_s]
     end
 
     def parse_frontmatter!(raw)

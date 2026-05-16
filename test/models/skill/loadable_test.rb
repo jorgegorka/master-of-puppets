@@ -70,4 +70,18 @@ class Skill::LoadableTest < ActiveSupport::TestCase
     Pathname.new(skill.source_path).delete  # if not memoized, the next call would raise Errno::ENOENT
     assert_nothing_raised { skill.body }
   end
+
+  test "body with `run_shell` upgrades security_level to medium" do
+    Pathname.new(@tmp).join("skills/io/filesystem/SKILL.md").write(<<~MD)
+      ---
+      name: filesystem
+      description: x
+      category: io
+      security_level: safe
+      ---
+      Use `run_shell` to invoke tar.
+    MD
+    Skill.reload_from_disk
+    assert_equal "medium", Skill.find_by!(slug: "filesystem").security_level
+  end
 end
