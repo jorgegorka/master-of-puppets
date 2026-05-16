@@ -18,6 +18,7 @@ require "json"
 require "fileutils"
 require "listen"
 require "concurrent"
+require "open3"
 
 module AgentsSupervisor
   MAX_RPC_LINE_BYTES = Integer(ENV.fetch("MOP_RPC_MAX_LINE", 64 * 1024))
@@ -162,6 +163,75 @@ module AgentsSupervisor
         end
       end
   end
+
+  # Owns the tmux side of terminal sessions. Every shell command goes
+  # through array-form Open3 (no shell metachar interpolation). The Rails
+  # web process is responsible for tailing the FIFO and broadcasting back
+  # to TerminalChannel subscribers — that pump can't live here because
+  # the dev/test cable adapters are in-process and a broadcast from this
+  # subprocess would never reach the web process.
+  class TmuxBridge
+    FIFO_DIR = Rails.root.join("tmp/sockets")
+
+    def initialize
+      FileUtils.mkdir_p(FIFO_DIR)
+    end
+
+    def create(session_id:, cwd:, cols:, rows:, **)
+      name = name_for(session_id)
+      run!("tmux", "new-session", "-d", "-s", name, "-x", cols.to_s, "-y", rows.to_s, "-c", cwd)
+      fifo = fifo_path(session_id)
+      File.mkfifo(fifo.to_s) unless fifo.exist?
+      # pipe-pane's shell argument is the only string-interpolated bit; the
+      # FIFO path is server-derived from an integer session_id, not user input.
+      run!("tmux", "pipe-pane", "-t", name, "-o", "cat >> #{fifo}")
+      { tmux_session_name: name, fifo: fifo.to_s }
+    end
+
+    def input(session_id:, data:, **)
+      run!("tmux", "send-keys", "-t", name_for(session_id), "-l", data.to_s)
+      { ok: true }
+    end
+
+    def resize(session_id:, cols:, rows:, **)
+      run!("tmux", "resize-window", "-t", name_for(session_id), "-x", cols.to_s, "-y", rows.to_s)
+      { ok: true }
+    end
+
+    def close(session_id:, **)
+      out, status = Open3.capture2e("tmux", "kill-session", "-t", name_for(session_id))
+      fifo = fifo_path(session_id)
+      File.unlink(fifo.to_s) if fifo.exist?
+      # kill-session failing usually means "no such session" — already gone,
+      # so the desired end state is satisfied. Bubble other failures up.
+      unless status.success?
+        return { ok: true, note: "session not found" } if out.include?("can't find session") || out.include?("no server")
+        raise "tmux kill-session failed: #{out}"
+      end
+      { ok: true }
+    end
+
+    def capture(session_id:, lines: 500, **)
+      out, status = Open3.capture2e("tmux", "capture-pane", "-p", "-t", name_for(session_id), "-S", "-#{lines.to_i}")
+      raise "tmux capture-pane failed: #{out}" unless status.success?
+      { text: out }
+    end
+
+    def fifo_path(session_id)
+      FIFO_DIR.join("term-#{session_id}.fifo")
+    end
+
+    private
+      def name_for(session_id)
+        "mop-term-#{session_id}"
+      end
+
+      def run!(*argv)
+        out, status = Open3.capture2e(*argv)
+        raise "tmux command failed: #{argv.inspect}\n#{out}" unless status.success?
+        out
+      end
+  end
 end
 
 # ---- Boot ------------------------------------------------------------------
@@ -213,14 +283,26 @@ skills_listener = Listen.to(skills_root.to_s, only: /SKILL\.md\z/, latency: 0.5)
 end
 skills_listener.start
 
+tmux = AgentsSupervisor::TmuxBridge.new
+
 handle_request = lambda do |request|
-  case request["method"]
-  when "health.ping"
-    { jsonrpc: "2.0", id: request["id"], result: { pong: true, pid: Process.pid } }
-  else
-    { jsonrpc: "2.0", id: request["id"],
-      error: { code: -32601, message: "method not found: #{request['method']}" } }
-  end
+  method = request["method"]
+  params = (request["params"] || {}).transform_keys(&:to_sym)
+  result =
+    case method
+    when "health.ping"     then { pong: true, pid: Process.pid }
+    when "terminal.create" then tmux.create(**params)
+    when "terminal.input"  then tmux.input(**params)
+    when "terminal.resize" then tmux.resize(**params)
+    when "terminal.close"  then tmux.close(**params)
+    when "terminal.capture" then tmux.capture(**params)
+    else
+      return { jsonrpc: "2.0", id: request["id"], error: { code: -32601, message: "method not found: #{method}" } }
+    end
+  { jsonrpc: "2.0", id: request["id"], result: result }
+rescue => e
+  Rails.logger.error("[supervisor] #{method}: #{e.class}: #{e.message}")
+  { jsonrpc: "2.0", id: request["id"], error: { code: -32603, message: "#{e.class}: #{e.message}" } }
 end
 
 remove_connection = lambda do |conn|

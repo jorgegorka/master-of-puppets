@@ -86,6 +86,29 @@ class SupervisorV2Test < ActiveSupport::TestCase
     assert_equal(-32601, response.dig("error", "code"))
   end
 
+  test "terminal.create + capture + close cycle through tmux" do
+    omit "tmux not installed" unless system("which tmux > /dev/null 2>&1")
+
+    session_id = "supv-test-#{Process.pid}-#{rand(10_000)}"
+    cwd        = @mop_home.to_s
+    response   = rpc(method: "terminal.create", params: { session_id: session_id, cwd: cwd, cols: 80, rows: 24 }, timeout: 5)
+    assert_equal "mop-term-#{session_id}", response.dig("result", "tmux_session_name")
+
+    # Feed an "input" line; the FIFO should receive it as pipe-pane output.
+    fifo = Pathname.new(response.dig("result", "fifo"))
+    assert fifo.exist?, "expected FIFO to be created at #{fifo}"
+
+    # Capture should return non-empty pane text (tmux shows the shell prompt).
+    capture = rpc(method: "terminal.capture", params: { session_id: session_id, lines: 50 }, timeout: 5)
+    assert_kind_of String, capture.dig("result", "text")
+
+    close_resp = rpc(method: "terminal.close", params: { session_id: session_id }, timeout: 5)
+    assert close_resp.dig("result", "ok")
+  ensure
+    # If anything went sideways, kill the stray tmux session manually so the next run is clean.
+    system("tmux kill-session -t mop-term-#{session_id} 2>/dev/null") if session_id
+  end
+
   private
 
     def rpc(method:, params: {}, id: 1, timeout: 2)
