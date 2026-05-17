@@ -20,16 +20,15 @@ class Skill < ApplicationRecord
   scope :installed_for, ->(user) { joins(:installations).where(skill_installations: { user_id: user.id }) }
 
   # Skills change either by user action (install/enable, reload from /skills/:id)
-  # or by the supervisor watcher firing Skill::ReloadJob. Turbo broadcasts
-  # surface both in /skills without a refresh.
+  # or by the supervisor watcher firing Skill::ReloadJob. Re-broadcast the whole
+  # list so creates/updates/destroys (and new categories) all surface on /skills
+  # without a refresh. Cheaper bespoke patches would need extra DOM container
+  # scaffolding per category — the full re-render is simpler and the list size
+  # is bounded by the on-disk skill count.
   after_commit -> {
     broadcast_replace_to "skills",
-      target:  ActionView::RecordIdentifier.dom_id(self),
-      partial: "skills/skill",
-      locals:  { skill: self }
-  }, on: %i[create update]
-
-  after_commit -> {
-    broadcast_remove_to "skills", target: ActionView::RecordIdentifier.dom_id(self)
-  }, on: :destroy
+      target:  "skills_list",
+      partial: "skills/list",
+      locals:  { skills_by_category: Skill.all.order(:category, :name).group_by(&:category) }
+  }, on: %i[create update destroy]
 end

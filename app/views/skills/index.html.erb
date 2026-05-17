@@ -26,17 +26,12 @@
   <% end %>
 
   <%= turbo_frame_tag "skill-results", target: "_top" do %>
-    <% if @skills.empty? %>
-      <p class="txt-subtle">No skills <%= @query.present? ? "matched #{@query.inspect}" : "installed yet" %>.</p>
+    <% if @skills.empty? && @query.present? %>
+      <p class="txt-subtle">No skills matched <%= @query.inspect %>.</p>
     <% else %>
-      <% @skills.group_by(&:category).each do |category, skills_in_cat| %>
-        <section>
-          <h2><%= category %></h2>
-          <ul>
-            <%= render skills_in_cat %>
-          </ul>
-        </section>
-      <% end %>
+      <div id="skills_list">
+        <%= render partial: "skills/list", locals: { skills_by_category: @skills.group_by(&:category) } %>
+      </div>
     <% end %>
   <% end %>
 </section>

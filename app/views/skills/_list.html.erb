@@ -1,0 +1,12 @@
+<% if skills_by_category.empty? %>
+  <p class="txt-subtle">No skills installed yet.</p>
+<% else %>
+  <% skills_by_category.each do |category, skills| %>
+    <section>
+      <h2><%= category %></h2>
+      <ul>
+        <%= render skills %>
+      </ul>
+    </section>
+  <% end %>
+<% end %>
