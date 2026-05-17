@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_16_154038) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_17_093145) do
   create_table "api_tokens", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "last_used_at"
@@ -166,7 +166,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_16_154038) do
 
   create_table "skill_enablements", force: :cascade do |t|
     t.datetime "created_at", null: false
-    t.datetime "enabled_at", null: false
     t.integer "skill_id", null: false
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
@@ -176,7 +175,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_16_154038) do
   end
 
   create_table "skill_installations", force: :cascade do |t|
-    t.datetime "accepted_at", null: false
     t.integer "accepted_security_level", null: false
     t.datetime "created_at", null: false
     t.integer "skill_id", null: false

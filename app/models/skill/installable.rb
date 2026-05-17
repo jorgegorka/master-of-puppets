@@ -14,7 +14,6 @@ module Skill::Installable
     transaction do
       installation = installations.find_or_create_by!(user: user) do |i|
         i.accepted_security_level = Skill.security_levels[security_level]
-        i.accepted_at = Time.current
       end
       track_event :installed, user_id: user.id, security_level: security_level
       installation
