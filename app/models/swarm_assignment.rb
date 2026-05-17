@@ -4,13 +4,9 @@ class SwarmAssignment < ApplicationRecord
   belongs_to :swarm_mission, inverse_of: :assignments
   belongs_to :agent_profile
   belongs_to :chat_session, optional: true
-  # Bridge: SwarmCheckpoint model lands in Task 6.7. The destroy cascade
-  # through SwarmMission → SwarmAssignment forces Rails to resolve the
-  # `dependent:` target class eagerly during User.destroy_all, so we
-  # declare the association without a cascade for now. Task 6.7 will
-  # re-add `dependent: :destroy` alongside the SwarmCheckpoint model.
-  has_many   :checkpoints, class_name: "SwarmCheckpoint",
-                           foreign_key: :swarm_assignment_id
+  has_many :checkpoints, class_name: "SwarmCheckpoint",
+                         foreign_key: :swarm_assignment_id,
+                         dependent: :destroy
 
   enum :state, { pending: 0, dispatched: 1, running: 2, completed: 3,
                  failed: 4, blocked: 5, cancelled: 6 }

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_17_174133) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_17_174134) do
   create_table "agent_profile_skills", force: :cascade do |t|
     t.integer "agent_profile_id", null: false
     t.datetime "created_at", null: false
@@ -304,6 +304,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_174133) do
     t.index ["swarm_mission_id"], name: "index_swarm_assignments_on_swarm_mission_id"
   end
 
+  create_table "swarm_checkpoints", force: :cascade do |t|
+    t.text "blocker"
+    t.json "commands_run", default: [], null: false
+    t.datetime "created_at", null: false
+    t.json "files_changed", default: [], null: false
+    t.text "next_action"
+    t.text "raw", null: false
+    t.text "result"
+    t.json "runtime_state", default: {}, null: false
+    t.string "state_label", null: false
+    t.integer "swarm_assignment_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["swarm_assignment_id", "created_at"], name: "index_swarm_checkpoints_on_swarm_assignment_id_and_created_at"
+    t.index ["swarm_assignment_id"], name: "index_swarm_checkpoints_on_swarm_assignment_id"
+  end
+
   create_table "swarm_events", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.json "data", default: {}, null: false
@@ -424,6 +440,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_174133) do
   add_foreign_key "swarm_assignments", "agent_profiles"
   add_foreign_key "swarm_assignments", "chat_sessions"
   add_foreign_key "swarm_assignments", "swarm_missions"
+  add_foreign_key "swarm_checkpoints", "swarm_assignments"
   add_foreign_key "swarm_events", "swarm_assignments"
   add_foreign_key "swarm_events", "swarm_missions"
   add_foreign_key "swarm_mission_cancellations", "swarm_missions"
