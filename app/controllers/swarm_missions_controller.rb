@@ -20,6 +20,7 @@ class SwarmMissionsController < ApplicationController
     if @swarm_mission.save
       @swarm_mission.track_event :created
       @swarm_mission.decompose_later
+      @swarm_mission.dispatch_later if @swarm_mission.auto?
       redirect_to swarm_mission_path(@swarm_mission)
     else
       render :new, status: :unprocessable_entity

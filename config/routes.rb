@@ -66,6 +66,7 @@ Rails.application.routes.draw do
     scope module: :swarm_missions do
       resources :assignments,  only: %i[update]
       resource  :cancellation, only: %i[create]
+      resource  :start,        only: %i[create]
     end
   end
   get "/swarm/kanban", to: "swarm_kanbans#show", as: :swarm_kanban

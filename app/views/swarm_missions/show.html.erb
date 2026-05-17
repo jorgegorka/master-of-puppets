@@ -17,6 +17,12 @@
       <%= f.submit "Save" %>
     <% end %>
 
+    <% if @swarm_mission.dispatching? -%>
+      <%= button_to "Start mission",
+                    swarm_mission_start_path(@swarm_mission), method: :post,
+                    class: "btn btn-primary" %>
+    <% end -%>
+
     <% unless @swarm_mission.cancelled? -%>
       <%= button_to "Cancel mission",
                     swarm_mission_cancellation_path(@swarm_mission), method: :post,
