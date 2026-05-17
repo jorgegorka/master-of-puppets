@@ -1,0 +1,10 @@
+<% content_for :title, "Runs – #{@scheduled_job.name}" %>
+
+<section class="pad max-width">
+  <h1>Runs for <%= @scheduled_job.name %></h1>
+  <ul class="card-list">
+    <% @runs.each do |run| %>
+      <%= render "run", run: run %>
+    <% end %>
+  </ul>
+</section>

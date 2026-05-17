@@ -1,0 +1,20 @@
+<% content_for :title, "Run – #{@run.scheduled_job.name}" %>
+
+<section class="pad max-width">
+  <h1>Run <%= @run.id %></h1>
+  <p>Status: <span class="badge badge-<%= @run.status %>"><%= @run.status %></span></p>
+  <p>Duration: <%= @run.duration_seconds %>s</p>
+  <p>Cost: $<%= @run.cost_usd %> (<%= @run.prompt_tokens %> + <%= @run.completion_tokens %> tokens)</p>
+
+  <h2>Output</h2>
+  <pre><%= @run.output %></pre>
+
+  <% if @run.failed? %>
+    <h2>Error</h2>
+    <pre><%= @run.error_message %></pre>
+  <% end %>
+
+  <% if @run.chat_session %>
+    <%= link_to "Open underlying chat", @run.chat_session %>
+  <% end %>
+</section>
