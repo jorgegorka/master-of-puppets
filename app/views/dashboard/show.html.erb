@@ -5,22 +5,22 @@
 <section class="pad max-width">
   <h1>Dashboard</h1>
 
-  <%= render "rollups", rollup: @rollup %>
+  <%= render "rollups", rollup: @dashboard.rollup %>
 
   <section class="recent-runs">
     <h2>Recent runs</h2>
-    <%= render "recent_runs", runs: @recent_runs %>
+    <%= render "recent_runs", runs: @dashboard.recent_runs %>
   </section>
 
   <section class="mcp-status">
     <h2>MCP servers</h2>
-    <%= render "mcp_status", mcp_servers: @mcp_servers %>
+    <%= render "mcp_status", mcp_servers: @dashboard.mcp_servers %>
   </section>
 
   <section class="incidents">
     <h2>Incidents</h2>
     <ul class="card-list">
-      <% @incidents.each do |ev| %>
+      <% @dashboard.incidents.each do |ev| %>
         <li><%= ev.occurred_at.iso8601 %> — <code><%= ev.action %></code> — <%= ev.particulars.to_json.truncate(140) %></li>
       <% end %>
     </ul>

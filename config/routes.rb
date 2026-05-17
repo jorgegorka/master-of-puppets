@@ -53,15 +53,12 @@ Rails.application.routes.draw do
   resources :terminals, only: %i[index show new create destroy]
 
   resources :scheduled_jobs, path: "jobs" do
-    collection do
-      # Read-only, stateless preview helper (no resource being mutated) —
-      # the rails-patterns rule against custom action routes targets
-      # state-changing routes; this is fine.
-      get :cron_preview
-    end
     scope module: :scheduled_jobs do
       resource  :pause, only: %i[create destroy]
       resources :runs,  only: %i[index show create]
+      collection do
+        resource :cron_preview, only: :show
+      end
     end
   end
 

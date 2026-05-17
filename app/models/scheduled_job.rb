@@ -18,7 +18,7 @@ class ScheduledJob < ApplicationRecord
   class << self
     def run_all_due(now: Time.current)
       active.due(now).find_each do |job|
-        ScheduledJob::RunnerJob.perform_later(job)
+        job.run_later
       end
     end
   end
@@ -39,15 +39,15 @@ class ScheduledJob < ApplicationRecord
     end
 
     def default_next_run_at
-      return if next_run_at.present?
-
-      self.next_run_at = compute_next_run_at
+      if next_run_at.blank?
+        self.next_run_at = compute_next_run_at
+      end
     end
 
     def cron_expression_parses
-      return if cron.blank?
-
-      ScheduledJob::Cron.new(cron)
+      if cron.present?
+        ScheduledJob::Cron.new(cron)
+      end
     rescue ScheduledJob::Cron::Invalid, ScheduledJob::Cron::TooFrequent => e
       errors.add(:cron, e.message)
     end

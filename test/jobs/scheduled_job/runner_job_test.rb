@@ -14,7 +14,7 @@ class ScheduledJob::RunnerJobTest < ActiveJob::TestCase
     sj = scheduled_jobs(:daily_digest)
     assert sj.active?
 
-    # Stub the LLM so #run! completes without HTTP.
+    # Stub the LLM so #run_now completes without HTTP.
     adapter = LlmStubs::StubAdapter.new(text: "ok")
     with_stubbed_llm(adapter) do
       assert_difference -> { JobRun.count }, +1 do

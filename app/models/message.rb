@@ -23,15 +23,26 @@ class Message < ApplicationRecord
   # save that flips the status TO completed, not on every subsequent edit
   # of an already-completed row. We OR with `previously_new_record? && completed?`
   # to cover the (rare) case where a message is created already-completed.
-  after_commit -> {
-    user_id = chat_session.user_id
-    Turbo::StreamsChannel.broadcast_replace_to(
-      "dashboard:#{user_id}",
-      target:  "dashboard-rollups",
-      partial: "dashboard/rollups",
-      locals:  { rollup: Dashboard::Rollup.new(
-        scope: Message.joins(:chat_session).where(chat_sessions: { user_id: user_id })
-      ) }
-    )
-  }, if: -> { previously_new_record? ? completed? : saved_change_to_status?(to: "completed") }
+  after_commit :broadcast_dashboard_rollup, if: :status_became_completed?
+
+  private
+    def broadcast_dashboard_rollup
+      user_id = chat_session.user_id
+      Turbo::StreamsChannel.broadcast_replace_to(
+        "dashboard:#{user_id}",
+        target:  "dashboard-rollups",
+        partial: "dashboard/rollups",
+        locals:  { rollup: Dashboard::Rollup.new(
+          scope: Message.joins(:chat_session).where(chat_sessions: { user_id: user_id })
+        ) }
+      )
+    end
+
+    def status_became_completed?
+      if previously_new_record?
+        completed?
+      else
+        saved_change_to_status?(to: "completed")
+      end
+    end
 end

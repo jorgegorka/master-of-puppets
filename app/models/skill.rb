@@ -25,10 +25,13 @@ class Skill < ApplicationRecord
   # without a refresh. Cheaper bespoke patches would need extra DOM container
   # scaffolding per category — the full re-render is simpler and the list size
   # is bounded by the on-disk skill count.
-  after_commit -> {
-    broadcast_replace_to "skills",
-      target:  "skills_list",
-      partial: "skills/list",
-      locals:  { skills_by_category: Skill.all.order(:category, :name).group_by(&:category) }
-  }, on: %i[create update destroy]
+  after_commit :broadcast_skills_list, on: %i[create update destroy]
+
+  private
+    def broadcast_skills_list
+      broadcast_replace_to "skills",
+        target:  "skills_list",
+        partial: "skills/list",
+        locals:  { skills_by_category: Skill.all.order(:category, :name).group_by(&:category) }
+    end
 end

@@ -11,7 +11,7 @@ class ScheduledJobs::RunsController < ApplicationController
   end
 
   def create
-    ScheduledJob::RunnerJob.perform_later(@scheduled_job)
+    @scheduled_job.run_later
     redirect_to @scheduled_job, notice: "Run queued."
   end
 

@@ -1,5 +1,6 @@
 class ScheduledJobsController < ApplicationController
-  before_action :set_scheduled_job, only: %i[show edit update destroy]
+  include ScheduledJobScoped
+  skip_before_action :set_scheduled_job, only: %i[index new create]
 
   def index
     @scheduled_jobs = Current.user.scheduled_jobs.includes(:pause_record).order(:name)
@@ -38,18 +39,7 @@ class ScheduledJobsController < ApplicationController
     redirect_to scheduled_jobs_path, notice: "Job removed."
   end
 
-  def cron_preview
-    cron = ScheduledJob::Cron.new(params[:cron])
-    render json: { next_run_at: cron.next_run_at.iso8601 }
-  rescue ScheduledJob::Cron::Invalid, ScheduledJob::Cron::TooFrequent => e
-    render json: { error: e.message }, status: :unprocessable_content
-  end
-
   private
-    def set_scheduled_job
-      @scheduled_job = Current.user.scheduled_jobs.find(params[:id])
-    end
-
     def scheduled_job_params
       params.expect(scheduled_job: [ :name, :cron, :prompt, :model, :provider, { skill_slugs: [] } ])
     end

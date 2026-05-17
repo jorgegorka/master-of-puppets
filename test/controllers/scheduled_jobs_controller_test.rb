@@ -54,7 +54,7 @@ class ScheduledJobsControllerTest < ActionDispatch::IntegrationTest
 
   test "GET /jobs/cron_preview returns next fire time" do
     sign_in_as users(:one)
-    get cron_preview_scheduled_jobs_path, params: { cron: "0 9 * * *" }
+    get cron_preview_path, params: { cron: "0 9 * * *" }
     assert_response :success
     json = JSON.parse(response.body)
     assert_match(/\d{4}-\d{2}-\d{2}/, json["next_run_at"])
@@ -62,12 +62,12 @@ class ScheduledJobsControllerTest < ActionDispatch::IntegrationTest
 
   test "GET /jobs/cron_preview returns 422 on garbage" do
     sign_in_as users(:one)
-    get cron_preview_scheduled_jobs_path, params: { cron: "wut" }
+    get cron_preview_path, params: { cron: "wut" }
     assert_response :unprocessable_content
   end
 
   test "GET /jobs/cron_preview requires authentication" do
-    get cron_preview_scheduled_jobs_path, params: { cron: "0 9 * * *" }
+    get cron_preview_path, params: { cron: "0 9 * * *" }
     assert_redirected_to new_session_path
   end
 end

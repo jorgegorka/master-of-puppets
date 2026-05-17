@@ -1,9 +1,9 @@
 import { Controller } from "@hotwired/stimulus"
 
-// Listens to the cron <input>, debounces 200ms, fetches /jobs/cron_preview?cron=…
-// and writes the next-run-at into a sibling <output> target. On invalid cron
-// the server returns 422 with { error: msg }; the controller renders that
-// instead.
+// Listens to the cron <input>, debounces 200ms, fetches the cron_preview
+// endpoint with ?cron=… and writes the next-run-at into a sibling <output>
+// target. On invalid cron the server returns 422 with { error: msg }; the
+// controller renders that instead.
 export default class extends Controller {
   static values  = { url: String, debounce: { type: Number, default: 200 } }
   static targets = [ "input", "result" ]
