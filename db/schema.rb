@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_17_174131) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_17_174132) do
   create_table "agent_profile_skills", force: :cascade do |t|
     t.integer "agent_profile_id", null: false
     t.datetime "created_at", null: false
@@ -304,6 +304,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_174131) do
     t.index ["swarm_mission_id"], name: "index_swarm_assignments_on_swarm_mission_id"
   end
 
+  create_table "swarm_mission_cancellations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "reason"
+    t.integer "swarm_mission_id", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["swarm_mission_id"], name: "index_swarm_mission_cancellations_on_swarm_mission_id", unique: true
+    t.index ["user_id"], name: "index_swarm_mission_cancellations_on_user_id"
+  end
+
   create_table "swarm_missions", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "created_by_id", null: false
@@ -400,6 +410,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_174131) do
   add_foreign_key "swarm_assignments", "agent_profiles"
   add_foreign_key "swarm_assignments", "chat_sessions"
   add_foreign_key "swarm_assignments", "swarm_missions"
+  add_foreign_key "swarm_mission_cancellations", "swarm_missions"
+  add_foreign_key "swarm_mission_cancellations", "users"
   add_foreign_key "swarm_missions", "users"
   add_foreign_key "swarm_missions", "users", column: "created_by_id"
   add_foreign_key "terminal_sessions", "users"

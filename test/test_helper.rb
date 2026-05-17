@@ -19,6 +19,10 @@ module ActiveSupport
     # Run tests in parallel with specified workers
     parallelize(workers: :number_of_processors)
 
+    # Map fixture file names to their namespaced model classes so the fixture
+    # loader can resolve `belongs_to` references like `swarm_mission: alpha`.
+    set_fixture_class swarm_mission_cancellations: "SwarmMission::Cancellation"
+
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 

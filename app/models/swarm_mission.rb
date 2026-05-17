@@ -1,5 +1,6 @@
 class SwarmMission < ApplicationRecord
   include Eventable
+  include Cancellable
 
   belongs_to :user,       default: -> { Current.user }
   belongs_to :created_by, class_name: "User", default: -> { Current.user }
