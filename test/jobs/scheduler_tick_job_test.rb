@@ -21,4 +21,10 @@ class SchedulerTickJobTest < ActiveJob::TestCase
       SchedulerTickJob.perform_now
     end
   end
+
+  test "limits_concurrency is configured with key 'scheduler_tick' and on_conflict :discard" do
+    assert_equal "scheduler_tick", SchedulerTickJob.concurrency_key
+    assert_equal 1,                SchedulerTickJob.concurrency_limit
+    assert_equal :discard,         SchedulerTickJob.concurrency_on_conflict
+  end
 end
