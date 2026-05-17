@@ -1,0 +1,26 @@
+<% content_for :title, @profile.display_name %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1><%= @profile.display_name %></h1>
+    <div class="flex gap-half">
+      <%= link_to "Edit", edit_agent_profile_path(@profile), class: "btn btn-secondary" %>
+      <%= button_to "Delete", agent_profile_path(@profile), method: :delete,
+            class: "btn btn-danger", data: { turbo_confirm: "Delete this profile?" } %>
+    </div>
+  </header>
+
+  <% if flash[:notice] %><p role="status"><%= flash[:notice] %></p><% end %>
+  <% if flash[:alert]  %><p role="alert"><%= flash[:alert] %></p><% end %>
+
+  <dl>
+    <dt>Slug</dt>         <dd><%= @profile.slug %></dd>
+    <dt>Role</dt>         <dd><%= @profile.role %></dd>
+    <dt>Model</dt>        <dd><%= @profile.model %> (<%= @profile.provider %>)</dd>
+    <dt>Specialties</dt>  <dd><%= @profile.specialties.join(", ") %></dd>
+    <dt>Avoid tasks</dt>  <dd><%= @profile.avoid_tasks.join(", ") %></dd>
+    <dt>cwd</dt>          <dd><%= @profile.cwd %></dd>
+    <dt>Status</dt>       <dd><%= @profile.status %></dd>
+    <dt>Enabled</dt>      <dd><%= @profile.enabled? %></dd>
+  </dl>
+</section>

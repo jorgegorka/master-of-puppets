@@ -1,0 +1,10 @@
+<% content_for :title, "New agent profile" %>
+
+<section class="pad max-width center">
+  <header class="flex justify-between align-center">
+    <h1>New agent profile</h1>
+    <%= link_to "Cancel", agent_profiles_path, class: "btn btn-secondary" %>
+  </header>
+
+  <%= render "form", profile: @profile %>
+</section>

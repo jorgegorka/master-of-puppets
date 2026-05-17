@@ -1,0 +1,44 @@
+<%= form_with model: profile, local: true, class: "flex flex-column gap" do |f| %>
+  <% if profile.errors.any? %>
+    <ul role="alert">
+      <% profile.errors.full_messages.each do |msg| %><li><%= msg %></li><% end %>
+    </ul>
+  <% end %>
+
+  <label class="flex flex-column gap-half">
+    <span>Slug</span>
+    <%= f.text_field :slug, required: true %>
+  </label>
+
+  <label class="flex flex-column gap-half">
+    <span>Display name</span>
+    <%= f.text_field :display_name, required: true %>
+  </label>
+
+  <label class="flex flex-column gap-half">
+    <span>Role</span>
+    <%= f.text_field :role, required: true %>
+  </label>
+
+  <label class="flex flex-column gap-half">
+    <span>Model</span>
+    <%= f.text_field :model, required: true %>
+  </label>
+
+  <label class="flex flex-column gap-half">
+    <span>Provider</span>
+    <%= f.text_field :provider, required: true %>
+  </label>
+
+  <label class="flex flex-column gap-half">
+    <span>cwd</span>
+    <%= f.text_field :cwd, required: true %>
+  </label>
+
+  <label class="flex align-center gap-half">
+    <%= f.check_box :enabled %>
+    <span>Enabled</span>
+  </label>
+
+  <%= f.submit class: "btn" %>
+<% end %>

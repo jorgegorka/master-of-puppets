@@ -70,6 +70,12 @@ Rails.application.routes.draw do
   end
   get "/swarm/kanban", to: "swarm_kanbans#show", as: :swarm_kanban
 
+  resources :agent_profiles, path: "swarm/agents" do
+    collection do
+      resource :sync, only: %i[create], controller: "agent_profile_syncs", as: :agent_profiles_sync
+    end
+  end
+
   resources :mcp_servers do
     scope module: :mcp_servers do
       resource :test,      only: %i[create]
