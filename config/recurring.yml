@@ -22,3 +22,6 @@ production:
   scheduler_tick:
     class: SchedulerTickJob
     schedule: every 1 minute
+  sweep_stale_job_runs:
+    class: JobRun::SweepStaleJob
+    schedule: every 15 minutes

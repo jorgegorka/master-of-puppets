@@ -6,8 +6,25 @@ class JobRun < ApplicationRecord
 
   enum :status, { pending: 0, running: 1, succeeded: 2, failed: 3, cancelled: 4 }
 
+  # If RunnerJob crashes after JobRun.create!(status: :running) but before
+  # ScheduledJob#run! returns, the row stays :running forever. The recurring
+  # JobRun::SweepStaleJob calls .sweep_stale! every 15 minutes to flip
+  # anything older than this threshold to :failed.
+  STALE_AFTER = 1.hour
+
   scope :recent,   -> { order(created_at: :desc) }
   scope :finished, -> { where(status: %i[succeeded failed cancelled]) }
+
+  def self.sweep_stale!(now: Time.current)
+    cutoff = now - STALE_AFTER
+    running.where(started_at: ..cutoff).find_each do |run|
+      run.update!(
+        status:        :failed,
+        finished_at:   now,
+        error_message: "stale — supervisor died mid-run"
+      )
+    end
+  end
 
   def duration_seconds
     return nil unless started_at && finished_at
