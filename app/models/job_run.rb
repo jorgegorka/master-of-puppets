@@ -42,7 +42,7 @@ class JobRun < ApplicationRecord
       "dashboard:#{scheduled_job.user_id}",
       target:  "dashboard-recent-runs",
       partial: "dashboard/recent_runs",
-      locals:  { runs: scheduled_job.user.job_runs.recent.limit(10) }
+      locals:  { runs: scheduled_job.user.job_runs.includes(:scheduled_job).recent.limit(10) }
     )
   }, on: %i[create update]
 end
