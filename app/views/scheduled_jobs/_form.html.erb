@@ -10,10 +10,17 @@
     <%= f.text_field :name, required: true %>
   </label>
 
-  <label class="flex flex-column gap-half">
-    <span>Cron</span>
-    <%= f.text_field :cron, required: true, placeholder: "0 9 * * *" %>
-  </label>
+  <div data-controller="cron-preview"
+       data-cron-preview-url-value="<%= cron_preview_scheduled_jobs_path %>"
+       class="flex flex-column gap-half">
+    <label class="flex flex-column gap-half">
+      <span>Cron</span>
+      <%= f.text_field :cron, required: true, placeholder: "0 9 * * *",
+                       data: { cron_preview_target: "input",
+                               action: "input->cron-preview#update" } %>
+    </label>
+    <output data-cron-preview-target="result"></output>
+  </div>
 
   <label class="flex flex-column gap-half">
     <span>Prompt</span>

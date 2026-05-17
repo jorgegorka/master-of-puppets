@@ -38,6 +38,13 @@ class ScheduledJobsController < ApplicationController
     redirect_to scheduled_jobs_path, notice: "Job removed."
   end
 
+  def cron_preview
+    cron = ScheduledJob::Cron.new(params[:cron])
+    render json: { next_run_at: cron.next_run_at.iso8601 }
+  rescue ScheduledJob::Cron::Invalid, ScheduledJob::Cron::TooFrequent => e
+    render json: { error: e.message }, status: :unprocessable_content
+  end
+
   private
     def set_scheduled_job
       @scheduled_job = Current.user.scheduled_jobs.find(params[:id])
