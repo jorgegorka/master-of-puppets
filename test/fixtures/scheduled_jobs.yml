@@ -1,0 +1,19 @@
+daily_digest:
+  user: one
+  name: "Daily digest"
+  cron: "0 9 * * *"
+  prompt: "Summarize yesterday's commits"
+  model: claude-haiku-4-5
+  provider: anthropic
+  skill_slugs: <%= [].to_json %>
+  next_run_at: <%= 1.hour.from_now.iso8601 %>
+
+hourly_lint:
+  user: one
+  name: "Hourly lint"
+  cron: "0 * * * *"
+  prompt: "Check rubocop"
+  model: claude-haiku-4-5
+  provider: anthropic
+  skill_slugs: <%= [].to_json %>
+  next_run_at: <%= 5.minutes.ago.iso8601 %>

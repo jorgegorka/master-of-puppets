@@ -8,6 +8,7 @@ class User < ApplicationRecord
   has_many :chat_sessions, dependent: :destroy
   has_many :terminal_sessions, dependent: :destroy
   has_many :mcp_servers, dependent: :destroy
+  has_many :scheduled_jobs, dependent: :destroy
 
   enum :role, member: 0, admin: 1
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_17_093145) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_17_093553) do
   create_table "api_tokens", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "last_used_at"
@@ -152,6 +152,34 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_093145) do
     t.index ["provider"], name: "index_provider_configs_on_provider", unique: true
   end
 
+  create_table "scheduled_job_pauses", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "reason"
+    t.integer "scheduled_job_id", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["scheduled_job_id"], name: "index_scheduled_job_pauses_on_scheduled_job_id"
+    t.index ["scheduled_job_id"], name: "index_scheduled_job_pauses_on_sjid_unique", unique: true
+    t.index ["user_id"], name: "index_scheduled_job_pauses_on_user_id"
+  end
+
+  create_table "scheduled_jobs", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "cron", null: false
+    t.datetime "last_run_at"
+    t.string "model", null: false
+    t.string "name", null: false
+    t.datetime "next_run_at"
+    t.text "prompt", null: false
+    t.string "provider", null: false
+    t.json "skill_slugs", default: [], null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["next_run_at"], name: "index_scheduled_jobs_on_next_run_at"
+    t.index ["user_id", "name"], name: "index_scheduled_jobs_on_user_id_and_name", unique: true
+    t.index ["user_id"], name: "index_scheduled_jobs_on_user_id"
+  end
+
   create_table "sessions", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "expires_at", null: false
@@ -269,6 +297,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_093145) do
   add_foreign_key "mcp_servers", "users"
   add_foreign_key "mcp_tools", "mcp_servers"
   add_foreign_key "messages", "chat_sessions"
+  add_foreign_key "scheduled_job_pauses", "scheduled_jobs"
+  add_foreign_key "scheduled_job_pauses", "users"
+  add_foreign_key "scheduled_jobs", "users"
   add_foreign_key "sessions", "users"
   add_foreign_key "skill_enablements", "skills"
   add_foreign_key "skill_enablements", "users"
