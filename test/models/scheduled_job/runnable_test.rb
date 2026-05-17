@@ -66,4 +66,26 @@ class ScheduledJob::RunnableTest < ActiveSupport::TestCase
            "output should be truncated near the cap, got #{run.output.bytesize} bytes"
     assert_match(/truncated/, run.output)
   end
+
+  test "run! records original byte size when output is truncated" do
+    big = "x" * (ScheduledJob::Runnable::MAX_OUTPUT_BYTES + 1024)
+    adapter = LlmStubs::StubAdapter.new(text: big)
+
+    run = nil
+    with_stubbed_llm(adapter) { run = @sj.run! }
+
+    assert run.succeeded?
+    assert_equal big.bytesize, run.output_truncated_at_bytes,
+                 "expected original size #{big.bytesize}, got #{run.output_truncated_at_bytes.inspect}"
+  end
+
+  test "run! leaves output_truncated_at_bytes nil when output fits" do
+    adapter = LlmStubs::StubAdapter.new(text: "short")
+
+    run = nil
+    with_stubbed_llm(adapter) { run = @sj.run! }
+
+    assert run.succeeded?
+    assert_nil run.output_truncated_at_bytes
+  end
 end

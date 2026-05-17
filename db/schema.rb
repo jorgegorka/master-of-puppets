@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_17_094103) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_17_120147) do
   create_table "api_tokens", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "last_used_at"
@@ -85,6 +85,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_094103) do
     t.integer "exit_code"
     t.datetime "finished_at"
     t.text "output"
+    t.integer "output_truncated_at_bytes"
     t.integer "prompt_tokens"
     t.integer "scheduled_job_id", null: false
     t.datetime "started_at"

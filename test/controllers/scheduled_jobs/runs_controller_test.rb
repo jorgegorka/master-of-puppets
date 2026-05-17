@@ -24,6 +24,24 @@ class ScheduledJobs::RunsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "GET show renders truncated-output banner when output_truncated_at_bytes is set" do
+    sign_in_as users(:one)
+    run = job_runs(:succeeded_one)
+    run.update!(output_truncated_at_bytes: 500_000)
+    get scheduled_job_run_path(run.scheduled_job, run)
+    assert_response :success
+    assert_match(/truncated/i, response.body)
+  end
+
+  test "GET show does not render banner when output is not truncated" do
+    sign_in_as users(:one)
+    run = job_runs(:succeeded_one)
+    assert_nil run.output_truncated_at_bytes
+    get scheduled_job_run_path(run.scheduled_job, run)
+    assert_response :success
+    assert_no_match(/truncated at \d+ bytes/i, response.body)
+  end
+
   test "cross-tenancy: 404 on other user's run" do
     sign_in_as users(:member)
     get scheduled_job_runs_path(scheduled_jobs(:daily_digest))

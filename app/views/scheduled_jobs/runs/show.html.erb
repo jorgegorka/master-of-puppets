@@ -7,6 +7,13 @@
   <p>Cost: $<%= @run.cost_usd %> (<%= @run.prompt_tokens %> + <%= @run.completion_tokens %> tokens)</p>
 
   <h2>Output</h2>
+  <% if @run.output_truncated_at_bytes.present? %>
+    <p class="txt-subtle">
+      Output truncated at <%= number_to_human_size(ScheduledJob::Runnable::MAX_OUTPUT_BYTES) %>
+      (original size <%= number_to_human_size(@run.output_truncated_at_bytes) %>).
+      The full transcript is available on the underlying chat session.
+    </p>
+  <% end %>
   <pre><%= @run.output %></pre>
 
   <% if @run.failed? %>

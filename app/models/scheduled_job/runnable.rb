@@ -40,19 +40,22 @@ module ScheduledJob::Runnable
     end
 
     def capture_success(run, chat)
-      assistant = chat.messages.where(role: :assistant).order(:created_at).last
-      text      = extract_text_output(assistant)
-      cost      = assistant.cost_usd || assistant.compute_cost
+      assistant      = chat.messages.where(role: :assistant).order(:created_at).last
+      text           = extract_text_output(assistant)
+      original_bytes = text.to_s.bytesize
+      truncated      = original_bytes > MAX_OUTPUT_BYTES
+      cost           = assistant.cost_usd || assistant.compute_cost
 
       run.update!(
-        status:                :succeeded,
-        finished_at:           Time.current,
-        output:                truncate_output(text),
-        prompt_tokens:         assistant.prompt_tokens,
-        completion_tokens:     assistant.completion_tokens,
-        cache_read_tokens:     assistant.cache_read_tokens,
-        cache_creation_tokens: assistant.cache_creation_tokens,
-        cost_usd:              cost
+        status:                    :succeeded,
+        finished_at:               Time.current,
+        output:                    truncate_output(text),
+        output_truncated_at_bytes: truncated ? original_bytes : nil,
+        prompt_tokens:             assistant.prompt_tokens,
+        completion_tokens:         assistant.completion_tokens,
+        cache_read_tokens:         assistant.cache_read_tokens,
+        cache_creation_tokens:     assistant.cache_creation_tokens,
+        cost_usd:                  cost
       )
       track_event :run_succeeded,
                   job_run_id: run.id,
