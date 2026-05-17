@@ -26,4 +26,10 @@ class ScheduledJobs::PausesControllerTest < ActionDispatch::IntegrationTest
     post scheduled_job_pause_path(scheduled_jobs(:daily_digest))
     assert_response :not_found
   end
+
+  test "cross-tenancy: cannot resume another user's job" do
+    sign_in_as users(:member)
+    delete scheduled_job_pause_path(scheduled_jobs(:daily_digest))
+    assert_response :not_found
+  end
 end

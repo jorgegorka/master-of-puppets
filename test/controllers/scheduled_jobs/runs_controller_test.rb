@@ -29,4 +29,18 @@ class ScheduledJobs::RunsControllerTest < ActionDispatch::IntegrationTest
     get scheduled_job_runs_path(scheduled_jobs(:daily_digest))
     assert_response :not_found
   end
+
+  test "cross-tenancy: POST create does not enqueue and returns 404" do
+    sign_in_as users(:member)
+    assert_no_enqueued_jobs only: ScheduledJob::RunnerJob do
+      post scheduled_job_runs_path(scheduled_jobs(:daily_digest))
+    end
+    assert_response :not_found
+  end
+
+  test "cross-tenancy: GET show of other user's run returns 404" do
+    sign_in_as users(:member)
+    get scheduled_job_run_path(scheduled_jobs(:daily_digest), job_runs(:succeeded_one))
+    assert_response :not_found
+  end
 end

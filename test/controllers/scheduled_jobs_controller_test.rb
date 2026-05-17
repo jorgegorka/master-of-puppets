@@ -27,6 +27,22 @@ class ScheduledJobsControllerTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "PATCH /jobs/:id of another user returns 404 (cross-tenancy)" do
+    sign_in_as users(:member)
+    patch scheduled_job_path(scheduled_jobs(:daily_digest)), params: {
+      scheduled_job: { name: "hijack" }
+    }
+    assert_response :not_found
+  end
+
+  test "DELETE /jobs/:id of another user returns 404 (cross-tenancy)" do
+    sign_in_as users(:member)
+    assert_no_difference -> { ScheduledJob.count } do
+      delete scheduled_job_path(scheduled_jobs(:daily_digest))
+    end
+    assert_response :not_found
+  end
+
   test "DELETE /jobs/:id of own job destroys it" do
     sign_in_as users(:one)
     sj = scheduled_jobs(:daily_digest)
@@ -48,5 +64,10 @@ class ScheduledJobsControllerTest < ActionDispatch::IntegrationTest
     sign_in_as users(:one)
     get cron_preview_scheduled_jobs_path, params: { cron: "wut" }
     assert_response :unprocessable_content
+  end
+
+  test "GET /jobs/cron_preview requires authentication" do
+    get cron_preview_scheduled_jobs_path, params: { cron: "0 9 * * *" }
+    assert_redirected_to new_session_path
   end
 end
