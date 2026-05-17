@@ -1,0 +1,28 @@
+profiles:
+  - slug: backend
+    display_name: Backend Worker
+    role: backend-engineer
+    model: claude-sonnet-4-5
+    provider: anthropic
+    specialties:
+      - Rails
+      - SQLite
+      - background jobs
+    avoid_tasks:
+      - frontend styling
+    cwd: agents/backend
+    enabled: true
+
+  - slug: frontend
+    display_name: Frontend Worker
+    role: frontend-engineer
+    model: claude-sonnet-4-5
+    provider: anthropic
+    specialties:
+      - Stimulus
+      - Turbo Streams
+      - CSS @layer
+    avoid_tasks:
+      - migrations
+    cwd: agents/frontend
+    enabled: true

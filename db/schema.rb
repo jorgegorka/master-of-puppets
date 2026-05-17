@@ -10,7 +10,25 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_17_121237) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_17_152357) do
+  create_table "agent_profiles", force: :cascade do |t|
+    t.json "avoid_tasks", default: [], null: false
+    t.string "body_digest"
+    t.datetime "created_at", null: false
+    t.string "cwd", null: false
+    t.string "display_name", null: false
+    t.boolean "enabled", default: true, null: false
+    t.string "model", null: false
+    t.string "provider", null: false
+    t.string "role", null: false
+    t.string "slug", null: false
+    t.json "specialties", default: [], null: false
+    t.integer "status", default: 2, null: false
+    t.datetime "updated_at", null: false
+    t.index ["enabled", "status"], name: "index_agent_profiles_on_enabled_and_status"
+    t.index ["slug"], name: "index_agent_profiles_on_slug", unique: true
+  end
+
   create_table "api_tokens", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "last_used_at"
