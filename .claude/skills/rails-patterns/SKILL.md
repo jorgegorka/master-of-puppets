@@ -1,12 +1,12 @@
 ---
-name: talento-rails-patterns
-description: Use whenever working on Ruby/Rails code in master-of-puppets — creating or modifying models, controllers, background jobs, tests, routes, concerns, presenters, or anything in app/, test/, lib/, or config/routes.rb. Encodes the Talento HQ opinionated patterns: concern-driven models, intention-revealing APIs, lambda association defaults, business-language scopes, sparing callbacks, thin controllers, RESTful resource nesting (never custom action routes), the _now/_later background-job pattern, automatic multi-tenancy via Current, and Talento HQ code-style conventions (expanded conditionals, method ordering, private indentation, bang naming). Load this skill BEFORE writing or editing Rails code so the output matches the team's idioms — even for "simple" changes that look like they don't need it.
+name: rails-patterns
+description: Use whenever working on Ruby/Rails code in master-of-puppets — creating or modifying models, controllers, background jobs, tests, routes, concerns, presenters, or anything in app/, test/, lib/, or config/routes.rb. Encodes the opinionated patterns: concern-driven models, intention-revealing APIs, lambda association defaults, business-language scopes, sparing callbacks, thin controllers, RESTful resource nesting (never custom action routes), the _now/_later background-job pattern, automatic multi-tenancy via Current, and code-style conventions (expanded conditionals, method ordering, private indentation, bang naming). Load this skill BEFORE writing or editing Rails code so the output matches the team's idioms — even for "simple" changes that look like they don't need it.
 ---
 
-# Talento HQ Rails Patterns
+# Rails Patterns
 
-This project follows the opinionated Rails patterns originally codified
-at Talento HQ. The canonical source is `docs/patterns-and-best-practices.md`;
+This project follows the opinionated Rails patterns.
+The canonical source is `docs/patterns-and-best-practices.md`;
 this skill is the working distillation that loads when you write code.
 
 ## The Worldview
