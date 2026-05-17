@@ -1,0 +1,15 @@
+alpha:
+  user:       one
+  created_by: one
+  title: "Alpha mission"
+  goal:  "Build the X feature"
+  state: 0
+  mode:  0
+
+alpha_cancelled:
+  user:       one
+  created_by: one
+  title: "Cancelled"
+  goal:  "Was cancelled"
+  state: 6
+  mode:  0

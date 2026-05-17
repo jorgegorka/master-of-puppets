@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_17_153127) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_17_153639) do
   create_table "agent_profile_skills", force: :cascade do |t|
     t.integer "agent_profile_id", null: false
     t.datetime "created_at", null: false
@@ -283,6 +283,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_153127) do
     t.index ["slug"], name: "index_skills_on_slug", unique: true
   end
 
+  create_table "swarm_missions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "created_by_id", null: false
+    t.text "decomposition_notes"
+    t.text "goal", null: false
+    t.integer "mode", default: 0, null: false
+    t.integer "state", default: 0, null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["created_by_id"], name: "index_swarm_missions_on_created_by_id"
+    t.index ["user_id", "state"], name: "index_swarm_missions_on_user_id_and_state"
+    t.index ["user_id"], name: "index_swarm_missions_on_user_id"
+  end
+
   create_table "terminal_sessions", force: :cascade do |t|
     t.integer "cols", default: 120, null: false
     t.datetime "created_at", null: false
@@ -361,6 +376,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_153127) do
   add_foreign_key "skill_enablements", "users"
   add_foreign_key "skill_installations", "skills"
   add_foreign_key "skill_installations", "users"
+  add_foreign_key "swarm_missions", "users"
+  add_foreign_key "swarm_missions", "users", column: "created_by_id"
   add_foreign_key "terminal_sessions", "users"
   add_foreign_key "tool_calls", "messages"
   add_foreign_key "user_settings", "users"

@@ -10,6 +10,7 @@ class User < ApplicationRecord
   has_many :mcp_servers, dependent: :destroy
   has_many :scheduled_jobs, dependent: :destroy
   has_many :job_runs, through: :scheduled_jobs, source: :runs
+  has_many :swarm_missions, dependent: :delete_all
 
   enum :role, member: 0, admin: 1
 
