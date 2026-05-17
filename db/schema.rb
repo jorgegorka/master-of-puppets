@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_17_153639) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_17_174131) do
   create_table "agent_profile_skills", force: :cascade do |t|
     t.integer "agent_profile_id", null: false
     t.datetime "created_at", null: false
@@ -283,6 +283,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_153639) do
     t.index ["slug"], name: "index_skills_on_slug", unique: true
   end
 
+  create_table "swarm_assignments", force: :cascade do |t|
+    t.integer "agent_profile_id", null: false
+    t.text "block_reason"
+    t.integer "chat_session_id"
+    t.datetime "created_at", null: false
+    t.json "depends_on", default: [], null: false
+    t.datetime "dispatched_at"
+    t.datetime "finished_at"
+    t.text "rationale"
+    t.boolean "review_required", default: false, null: false
+    t.integer "state", default: 0, null: false
+    t.integer "swarm_mission_id", null: false
+    t.text "task", null: false
+    t.string "tmux_session_name"
+    t.datetime "updated_at", null: false
+    t.index ["agent_profile_id"], name: "index_swarm_assignments_on_agent_profile_id"
+    t.index ["chat_session_id"], name: "index_swarm_assignments_on_chat_session_id"
+    t.index ["swarm_mission_id", "state"], name: "index_swarm_assignments_on_swarm_mission_id_and_state"
+    t.index ["swarm_mission_id"], name: "index_swarm_assignments_on_swarm_mission_id"
+  end
+
   create_table "swarm_missions", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.integer "created_by_id", null: false
@@ -376,6 +397,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_153639) do
   add_foreign_key "skill_enablements", "users"
   add_foreign_key "skill_installations", "skills"
   add_foreign_key "skill_installations", "users"
+  add_foreign_key "swarm_assignments", "agent_profiles"
+  add_foreign_key "swarm_assignments", "chat_sessions"
+  add_foreign_key "swarm_assignments", "swarm_missions"
   add_foreign_key "swarm_missions", "users"
   add_foreign_key "swarm_missions", "users", column: "created_by_id"
   add_foreign_key "terminal_sessions", "users"

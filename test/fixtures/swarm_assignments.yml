@@ -1,0 +1,13 @@
+alpha_t1:
+  swarm_mission: alpha
+  agent_profile: backend
+  task: "Do thing 1"
+  state: 0
+  depends_on: '[]'
+
+alpha_t2:
+  swarm_mission: alpha
+  agent_profile: frontend
+  task: "Do thing 2"
+  state: 0
+  depends_on: '[]'

@@ -3,6 +3,7 @@ require "test_helper"
 class AgentProfile::LoadableTest < ActiveSupport::TestCase
   test "refresh_from_yaml! upserts each profile + tracks events" do
     Current.user = users(:one)
+    SwarmAssignment.delete_all
     AgentProfile.delete_all
     assert_difference -> { AgentProfile.count }, 2 do
       AgentProfile.refresh_from_yaml!
@@ -15,6 +16,7 @@ class AgentProfile::LoadableTest < ActiveSupport::TestCase
 
   test "refresh_from_yaml! is idempotent — second call writes no rows" do
     Current.user = users(:one)
+    SwarmAssignment.delete_all
     AgentProfile.delete_all
     AgentProfile.refresh_from_yaml!
     assert_no_difference -> { AgentProfile.count } do
