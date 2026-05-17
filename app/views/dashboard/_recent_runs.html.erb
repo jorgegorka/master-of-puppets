@@ -1,0 +1,5 @@
+<ul id="dashboard-recent-runs" class="card-list">
+  <% runs.each do |run| %>
+    <%= render "scheduled_jobs/runs/run", run: run %>
+  <% end %>
+</ul>

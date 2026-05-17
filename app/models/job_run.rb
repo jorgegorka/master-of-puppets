@@ -27,10 +27,22 @@ class JobRun < ApplicationRecord
   # timing, cost, or output changes. The view subscribes via
   # `turbo_stream_from @scheduled_job`; the partial wraps the <li> in
   # `dom_id(run)` so the replace target matches.
+  #
+  # Also fans out to the per-user dashboard stream so the "Recent runs"
+  # rollup updates without a page reload. The stream key is a plain string
+  # (`"dashboard:#{user_id}"`), so we use the explicit Turbo::StreamsChannel
+  # API rather than `broadcast_replace_to(record)`.
   after_commit -> {
     broadcast_replace_to scheduled_job,
       target:  ActionView::RecordIdentifier.dom_id(self),
       partial: "scheduled_jobs/runs/run",
       locals:  { run: self }
+
+    Turbo::StreamsChannel.broadcast_replace_to(
+      "dashboard:#{scheduled_job.user_id}",
+      target:  "dashboard-recent-runs",
+      partial: "dashboard/recent_runs",
+      locals:  { runs: scheduled_job.user.job_runs.recent.limit(10) }
+    )
   }, on: %i[create update]
 end

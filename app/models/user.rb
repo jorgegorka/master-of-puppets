@@ -9,6 +9,7 @@ class User < ApplicationRecord
   has_many :terminal_sessions, dependent: :destroy
   has_many :mcp_servers, dependent: :destroy
   has_many :scheduled_jobs, dependent: :destroy
+  has_many :job_runs, through: :scheduled_jobs, source: :runs
 
   enum :role, member: 0, admin: 1
 

@@ -1,0 +1,5 @@
+<ul id="dashboard-mcp-status" class="card-list">
+  <% mcp_servers.each do |srv| %>
+    <li><%= srv.name %> — <span class="badge"><%= srv.status %></span></li>
+  <% end %>
+</ul>

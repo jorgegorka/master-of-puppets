@@ -15,4 +15,23 @@ class Message < ApplicationRecord
   scope :ordered,   -> { order(:created_at) }
 
   before_validation { self.content_blocks ||= [] }
+
+  # Refresh the dashboard rollups (tokens-by-day, cost-by-model) for the
+  # owning user whenever a message lands in `completed` — that's the only
+  # status Dashboard::Rollup counts. The kwarg form of
+  # `saved_change_to_status?` keeps this tight: it fires *only* on the
+  # save that flips the status TO completed, not on every subsequent edit
+  # of an already-completed row. We OR with `previously_new_record? && completed?`
+  # to cover the (rare) case where a message is created already-completed.
+  after_commit -> {
+    user_id = chat_session.user_id
+    Turbo::StreamsChannel.broadcast_replace_to(
+      "dashboard:#{user_id}",
+      target:  "dashboard-rollups",
+      partial: "dashboard/rollups",
+      locals:  { rollup: Dashboard::Rollup.new(
+        scope: Message.joins(:chat_session).where(chat_sessions: { user_id: user_id })
+      ) }
+    )
+  }, if: -> { previously_new_record? ? completed? : saved_change_to_status?(to: "completed") }
 end

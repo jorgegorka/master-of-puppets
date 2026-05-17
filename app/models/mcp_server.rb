@@ -56,6 +56,19 @@ class McpServer < ApplicationRecord
     false
   end
 
+  # Refresh the dashboard "MCP servers" panel for the owner whenever a
+  # server's reachability flips. Gated by `saved_change_to_status?` so
+  # routine updates (env_payload edits, last_checked_at touches, etc.)
+  # don't trigger a broadcast.
+  after_commit -> {
+    Turbo::StreamsChannel.broadcast_replace_to(
+      "dashboard:#{user_id}",
+      target:  "dashboard-mcp-status",
+      partial: "dashboard/mcp_status",
+      locals:  { mcp_servers: user.mcp_servers.order(:name) }
+    )
+  }, if: :saved_change_to_status?
+
   def transport_type_options
     self.class.transport_types.keys.map { |k| [ k, k ] }
   end
