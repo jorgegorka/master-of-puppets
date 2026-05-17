@@ -19,3 +19,6 @@ production:
   sweep_terminals:
     class: Terminal::SweepJob
     schedule: every 15 minutes
+  scheduler_tick:
+    class: SchedulerTickJob
+    schedule: every 1 minute

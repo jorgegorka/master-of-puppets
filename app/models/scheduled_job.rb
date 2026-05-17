@@ -11,6 +11,16 @@ class ScheduledJob < ApplicationRecord
 
   before_validation :default_skill_slugs
 
+  scope :due, ->(now = Time.current) { where.not(next_run_at: nil).where(next_run_at: ..now) }
+
+  class << self
+    def run_all_due(now: Time.current)
+      active.due(now).find_each do |job|
+        ScheduledJob::RunnerJob.perform_later(job)
+      end
+    end
+  end
+
   def cron_parser
     ScheduledJob::Cron.new(cron) if cron.present?
   rescue ScheduledJob::Cron::Invalid, ScheduledJob::Cron::TooFrequent
@@ -19,6 +29,10 @@ class ScheduledJob < ApplicationRecord
 
   def compute_next_run_at(from: Time.current)
     cron_parser&.next_run_at(from: from)
+  end
+
+  def run!
+    raise NotImplementedError, "implemented in Task 5.9"
   end
 
   private
