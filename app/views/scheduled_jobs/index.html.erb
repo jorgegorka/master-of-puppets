@@ -1,0 +1,14 @@
+<% content_for :title, "Jobs" %>
+
+<section class="pad max-width">
+  <h1>Jobs</h1>
+  <%= link_to "New job", new_scheduled_job_path, class: "btn" %>
+
+  <%= turbo_frame_tag "scheduled-jobs-list" do %>
+    <ul class="card-list">
+      <% @scheduled_jobs.each do |job| %>
+        <%= render "scheduled_job_row", job: job %>
+      <% end %>
+    </ul>
+  <% end %>
+</section>

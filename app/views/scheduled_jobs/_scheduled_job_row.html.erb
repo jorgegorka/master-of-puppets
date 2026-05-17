@@ -1,0 +1,6 @@
+<li id="<%= dom_id(job) %>" class="card">
+  <%= link_to job.name, job %>
+  <span class="txt-subtle"><%= job.cron %></span>
+  <span class="txt-subtle">next: <%= job.next_run_at&.iso8601 %></span>
+  <% if job.paused? %><span class="badge">paused</span><% end %>
+</li>

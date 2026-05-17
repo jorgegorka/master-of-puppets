@@ -1,0 +1,24 @@
+<% content_for :title, @scheduled_job.name %>
+
+<section class="pad max-width">
+  <h1><%= @scheduled_job.name %></h1>
+  <p class="txt-subtle"><code><%= @scheduled_job.cron %></code> — next: <%= @scheduled_job.next_run_at&.iso8601 %></p>
+
+  <%= link_to "Edit", edit_scheduled_job_path(@scheduled_job), class: "btn" %>
+  <% if @scheduled_job.paused? %>
+    <%= button_to "Resume", scheduled_job_pause_path(@scheduled_job), method: :delete, class: "btn" %>
+  <% else %>
+    <%= button_to "Pause", scheduled_job_pause_path(@scheduled_job), method: :post, class: "btn" %>
+  <% end %>
+  <%= button_to "Run now", scheduled_job_runs_path(@scheduled_job), method: :post, class: "btn" %>
+  <%= button_to "Delete", @scheduled_job, method: :delete, class: "btn btn-danger", data: { turbo_confirm: "Sure?" } %>
+
+  <h2>Recent runs</h2>
+  <%= turbo_frame_tag dom_id(@scheduled_job, :runs) do %>
+    <ul class="card-list">
+      <% @recent_runs.each do |run| %>
+        <%= render "scheduled_jobs/runs/run", run: run %>
+      <% end %>
+    </ul>
+  <% end %>
+</section>

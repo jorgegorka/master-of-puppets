@@ -52,6 +52,13 @@ Rails.application.routes.draw do
 
   resources :terminals, only: %i[index show new create destroy]
 
+  resources :scheduled_jobs, path: "jobs" do
+    scope module: :scheduled_jobs do
+      resource  :pause, only: %i[create destroy]
+      resources :runs,  only: %i[index show create]
+    end
+  end
+
   resources :mcp_servers do
     scope module: :mcp_servers do
       resource :test,      only: %i[create]

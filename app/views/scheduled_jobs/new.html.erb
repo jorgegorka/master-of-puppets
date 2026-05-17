@@ -1,0 +1,10 @@
+<% content_for :title, "New job" %>
+
+<section class="pad max-width">
+  <header class="flex justify-between align-center">
+    <h1>New job</h1>
+    <%= link_to "Cancel", scheduled_jobs_path, class: "btn btn-secondary" %>
+  </header>
+
+  <%= render "form", scheduled_job: @scheduled_job %>
+</section>

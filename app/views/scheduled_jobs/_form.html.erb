@@ -1,0 +1,31 @@
+<%= form_with model: scheduled_job, local: true, class: "flex flex-column gap" do |f| %>
+  <% if scheduled_job.errors.any? %>
+    <ul role="alert">
+      <% scheduled_job.errors.full_messages.each do |msg| %><li><%= msg %></li><% end %>
+    </ul>
+  <% end %>
+
+  <label class="flex flex-column gap-half">
+    <span>Name</span>
+    <%= f.text_field :name, required: true %>
+  </label>
+
+  <label class="flex flex-column gap-half">
+    <span>Cron</span>
+    <%= f.text_field :cron, required: true, placeholder: "0 9 * * *" %>
+  </label>
+
+  <label class="flex flex-column gap-half">
+    <span>Prompt</span>
+    <%= f.text_area :prompt, rows: 4, required: true %>
+  </label>
+
+  <label class="flex flex-column gap-half">
+    <span>Model</span>
+    <%= f.select :model, Llm::Pricing.models_for("anthropic") %>
+  </label>
+
+  <%= f.hidden_field :provider, value: "anthropic" %>
+
+  <%= f.submit class: "btn" %>
+<% end %>
