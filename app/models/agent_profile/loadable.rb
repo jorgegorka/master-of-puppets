@@ -13,19 +13,21 @@ module AgentProfile::Loadable
         profile = find_or_initialize_by(slug: slug)
         next if profile.persisted? && profile.body_digest == digest
 
-        profile.assign_attributes(
-          display_name: entry.fetch("display_name"),
-          role:         entry.fetch("role"),
-          model:        entry.fetch("model"),
-          provider:     entry.fetch("provider"),
-          specialties:  Array(entry["specialties"]),
-          avoid_tasks:  Array(entry["avoid_tasks"]),
-          cwd:          entry.fetch("cwd"),
-          enabled:      entry.fetch("enabled", true),
-          body_digest:  digest
-        )
-        profile.save!
-        profile.track_event(profile.previously_new_record? ? :created : :updated)
+        transaction do
+          profile.assign_attributes(
+            display_name: entry.fetch("display_name"),
+            role:         entry.fetch("role"),
+            model:        entry.fetch("model"),
+            provider:     entry.fetch("provider"),
+            specialties:  Array(entry["specialties"]),
+            avoid_tasks:  Array(entry["avoid_tasks"]),
+            cwd:          entry.fetch("cwd"),
+            enabled:      entry.fetch("enabled", true),
+            body_digest:  digest
+          )
+          profile.save!
+          profile.track_event(profile.previously_new_record? ? :created : :updated)
+        end
       end
     end
   end
