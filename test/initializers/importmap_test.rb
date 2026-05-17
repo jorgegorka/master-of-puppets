@@ -22,10 +22,12 @@ class ImportmapIntegrityTest < ActiveSupport::TestCase
 
   test "CSP allowlists ga.jspm.io for script-src only" do
     policy = Rails.application.config.content_security_policy
+    script_src = policy.directives["script-src"] || []
+    connect_src = policy.directives["connect-src"] || []
 
-    assert_includes policy.script_src, "https://ga.jspm.io",
+    assert_includes script_src, "https://ga.jspm.io",
                     "ga.jspm.io must be in script-src so chart.js can load"
-    assert_not_includes Array(policy.connect_src), "https://ga.jspm.io",
+    assert_not_includes connect_src, "https://ga.jspm.io",
                         "ga.jspm.io must NOT be in connect-src (static ESM uses script-src)"
   end
 end
