@@ -10,7 +10,17 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_17_152357) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_17_153127) do
+  create_table "agent_profile_skills", force: :cascade do |t|
+    t.integer "agent_profile_id", null: false
+    t.datetime "created_at", null: false
+    t.integer "skill_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["agent_profile_id", "skill_id"], name: "index_agent_profile_skills_on_agent_profile_id_and_skill_id", unique: true
+    t.index ["agent_profile_id"], name: "index_agent_profile_skills_on_agent_profile_id"
+    t.index ["skill_id"], name: "index_agent_profile_skills_on_skill_id"
+  end
+
   create_table "agent_profiles", force: :cascade do |t|
     t.json "avoid_tasks", default: [], null: false
     t.string "body_digest"
@@ -328,6 +338,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_152357) do
     t.index ["email"], name: "index_users_on_email", unique: true
   end
 
+  add_foreign_key "agent_profile_skills", "agent_profiles"
+  add_foreign_key "agent_profile_skills", "skills"
   add_foreign_key "api_tokens", "users"
   add_foreign_key "chat_session_archives", "chat_sessions"
   add_foreign_key "chat_session_archives", "users"

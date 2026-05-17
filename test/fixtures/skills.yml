@@ -9,3 +9,27 @@ filesystem:
   security_level: 0
   body_digest: <%= Digest::SHA256.hexdigest("# Filesystem\n\nRead and write files.\n") %>
   discovered_at: <%= 1.hour.ago.utc.iso8601 %>
+
+research:
+  slug: research
+  name: Research
+  category: knowledge
+  description: Look up references and summarize sources.
+  manifest: <%= { name: "research", description: "Look up references and summarize sources.", category: "knowledge", allowed_tools: %w[web_search read_file] }.to_json %>
+  source_path: <%= Rails.root.join("test/fixtures/files/skills/research/SKILL.md").to_s %>
+  origin: 0
+  security_level: 0
+  body_digest: <%= Digest::SHA256.hexdigest("# Research\n\nLook things up.\n") %>
+  discovered_at: <%= 1.hour.ago.utc.iso8601 %>
+
+builder:
+  slug: builder
+  name: Builder
+  category: build
+  description: Compile and assemble project artifacts.
+  manifest: <%= { name: "builder", description: "Compile and assemble project artifacts.", category: "build", allowed_tools: %w[run_command read_file] }.to_json %>
+  source_path: <%= Rails.root.join("test/fixtures/files/skills/builder/SKILL.md").to_s %>
+  origin: 0
+  security_level: 0
+  body_digest: <%= Digest::SHA256.hexdigest("# Builder\n\nBuild things.\n") %>
+  discovered_at: <%= 1.hour.ago.utc.iso8601 %>

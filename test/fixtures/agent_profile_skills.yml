@@ -1,0 +1,2 @@
+# Intentionally empty — agent_profile_skills are created per-test
+# so each scenario controls its own profile/skill graph.
