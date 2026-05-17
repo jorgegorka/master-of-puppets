@@ -21,6 +21,15 @@ class SkillsTest < ApplicationSystemTestCase
     assert_text "Enabled."
   end
 
+  test "a skill name change appears in /skills without reload" do
+    sign_in(@user)
+    visit skills_path
+    assert_text @skill.name
+
+    @skill.update!(name: "Filesystem Updated")
+    using_wait_time(3) { assert_text "Filesystem Updated" }
+  end
+
   test "typing a 2-char prefix narrows the skill list" do
     # Seed an FTS row for the fixture skill so the autocomplete query
     # (Skill.matching("fi")) actually hits a row. The standard fixture

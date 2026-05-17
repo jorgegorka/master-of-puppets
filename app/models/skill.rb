@@ -18,4 +18,18 @@ class Skill < ApplicationRecord
   # Associations live in Skill::Installable / Skill::Enableable (included above).
   scope :enabled_for,   ->(user) { joins(:enablements).where(skill_enablements: { user_id: user.id }) }
   scope :installed_for, ->(user) { joins(:installations).where(skill_installations: { user_id: user.id }) }
+
+  # Skills change either by user action (install/enable, reload from /skills/:id)
+  # or by the supervisor watcher firing Skill::ReloadJob. Turbo broadcasts
+  # surface both in /skills without a refresh.
+  after_commit -> {
+    broadcast_replace_to "skills",
+      target:  ActionView::RecordIdentifier.dom_id(self),
+      partial: "skills/skill",
+      locals:  { skill: self }
+  }, on: %i[create update]
+
+  after_commit -> {
+    broadcast_remove_to "skills", target: ActionView::RecordIdentifier.dom_id(self)
+  }, on: :destroy
 end

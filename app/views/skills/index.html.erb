@@ -1,5 +1,10 @@
 <% content_for :title, "Skills" %>
 
+<%# `turbo_stream_from "skills"` MUST live outside the autocomplete-driven
+    `skill-results` frame — every keystroke replaces that frame's contents,
+    which would tear down the cable subscription. Keep it at the top. %>
+<%= turbo_stream_from "skills" %>
+
 <section class="pad max-width center">
   <header class="flex justify-between align-center">
     <h1>Skills</h1>
@@ -28,13 +33,7 @@
         <section>
           <h2><%= category %></h2>
           <ul>
-            <% skills_in_cat.each do |skill| %>
-              <li>
-                <%= link_to skill.name, skill %>
-                <%= security_badge(skill) %>
-                — <%= skill.description.to_s.truncate(100) %>
-              </li>
-            <% end %>
+            <%= render skills_in_cat %>
           </ul>
         </section>
       <% end %>
