@@ -52,6 +52,47 @@ class SwarmCheckpointTest < ActiveSupport::TestCase
     assert_equal "good", parsed.first[:state_label]
   end
 
+  test ".parse extracts two valid stanzas preserving order" do
+    raw = <<~RAW
+      ===HERMES CHECKPOINT===
+      state_label: first
+      runtime_state: {}
+      files_changed: []
+      commands_run: []
+      result: "first done"
+      blocker: null
+      next_action: "go to second"
+      ===END CHECKPOINT===
+      ===HERMES CHECKPOINT===
+      state_label: second
+      runtime_state: {}
+      files_changed: []
+      commands_run: []
+      result: "second done"
+      blocker: null
+      next_action: null
+      ===END CHECKPOINT===
+    RAW
+    parsed = SwarmCheckpoint.parse(raw)
+    assert_equal %w[first second], parsed.map { |cp| cp[:state_label] }
+  end
+
+  test ".parse skips stanzas with YAML aliases (safe_load with aliases: false)" do
+    raw = <<~RAW
+      ===HERMES CHECKPOINT===
+      state_label: &anchor with-alias
+      runtime_state: *anchor
+      files_changed: []
+      commands_run: []
+      result: null
+      blocker: null
+      next_action: null
+      ===END CHECKPOINT===
+    RAW
+    assert_nothing_raised { SwarmCheckpoint.parse(raw) }
+    assert_equal [], SwarmCheckpoint.parse(raw)
+  end
+
   test ".parse detects blocker stanza" do
     raw = <<~RAW
       ===HERMES CHECKPOINT===

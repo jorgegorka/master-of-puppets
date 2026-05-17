@@ -22,7 +22,7 @@ class SwarmCheckpoint < ApplicationRecord
           next_action:   yaml["next_action"],
           raw:           "===HERMES CHECKPOINT===\n#{body}\n===END CHECKPOINT==="
         }
-      rescue Psych::SyntaxError => e
+      rescue Psych::Exception => e
         Rails.logger.warn("[SwarmCheckpoint] skipped malformed stanza: #{e.message}")
         nil
       end
