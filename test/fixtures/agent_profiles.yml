@@ -4,8 +4,9 @@ backend:
   role: backend-engineer
   model: claude-sonnet-4-5
   provider: anthropic
-  specialties: '["Rails"]'
-  avoid_tasks: '[]'
+  specialties:
+    - Rails
+  avoid_tasks: []
   cwd: agents/backend
   status: 2
   enabled: true
@@ -16,8 +17,9 @@ frontend:
   role: frontend-engineer
   model: claude-sonnet-4-5
   provider: anthropic
-  specialties: '["Stimulus"]'
-  avoid_tasks: '[]'
+  specialties:
+    - Stimulus
+  avoid_tasks: []
   cwd: agents/frontend
   status: 2
   enabled: true
