@@ -9,3 +9,15 @@ member:
   password_digest: <%= BCrypt::Password.create("supersecret123") %>
   role: 0
   single_user_bootstrap: false
+
+admin:
+  email: admin@example.test
+  password_digest: <%= BCrypt::Password.create("supersecret123") %>
+  role: 1
+  single_user_bootstrap: false
+
+two:
+  email: two@example.test
+  password_digest: <%= BCrypt::Password.create("supersecret123") %>
+  role: 0
+  single_user_bootstrap: false
