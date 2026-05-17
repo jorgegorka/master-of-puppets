@@ -2,6 +2,9 @@ class Event < ApplicationRecord
   belongs_to :creator, class_name: "User", optional: true
   belongs_to :eventable, polymorphic: true
 
+  INFO_RETENTION_DAYS    = 90
+  FAILURE_RETENTION_DAYS = 365
+
   INCIDENT_PATTERNS = %w[
     %_failed
     %_errored
@@ -35,6 +38,18 @@ class Event < ApplicationRecord
                           eventable_id: user.scheduled_jobs.select(:id)))
       .or(incidents.where(eventable_type: "McpServer",
                           eventable_id: user.mcp_servers.select(:id)))
+  end
+
+  # Recurring sweeper: drops :info events older than 90 days and failure
+  # events (action LIKE '%_failed') older than 365 days. Keeps the audit
+  # trail bounded without losing recent context or long-tail failures.
+  def self.prune!
+    info_cutoff    = INFO_RETENTION_DAYS.days.ago
+    failure_cutoff = FAILURE_RETENTION_DAYS.days.ago
+    transaction do
+      where("occurred_at < ? AND action NOT LIKE ?", info_cutoff, "%_failed").delete_all
+      where("occurred_at < ? AND action LIKE ?",     failure_cutoff, "%_failed").delete_all
+    end
   end
 
   private

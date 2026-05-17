@@ -28,3 +28,6 @@ production:
   swarm_orchestrator:
     class: Swarm::OrchestratorLoopJob
     schedule: every 30 seconds
+  event_prune:
+    class: Event::PruneJob
+    schedule: every day at 3am
