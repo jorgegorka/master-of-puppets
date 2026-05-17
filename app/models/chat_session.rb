@@ -9,6 +9,7 @@ class ChatSession < ApplicationRecord
 
   has_many :messages, -> { order(:created_at) }, dependent: :destroy
   has_many :forks, class_name: "ChatSession", foreign_key: :forked_from_id, dependent: :nullify
+  has_many :job_runs, dependent: :nullify
 
   validates :title, :model, :provider, presence: true
 

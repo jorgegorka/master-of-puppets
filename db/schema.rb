@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_17_093553) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_17_094103) do
   create_table "api_tokens", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "last_used_at"
@@ -72,6 +72,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_093553) do
     t.index ["creator_id"], name: "index_events_on_creator_id"
     t.index ["eventable_type", "eventable_id"], name: "index_events_on_eventable_type_and_eventable_id"
     t.index ["occurred_at"], name: "index_events_on_occurred_at"
+  end
+
+  create_table "job_runs", force: :cascade do |t|
+    t.integer "cache_creation_tokens"
+    t.integer "cache_read_tokens"
+    t.integer "chat_session_id"
+    t.integer "completion_tokens"
+    t.decimal "cost_usd", precision: 12, scale: 6
+    t.datetime "created_at", null: false
+    t.text "error_message"
+    t.integer "exit_code"
+    t.datetime "finished_at"
+    t.text "output"
+    t.integer "prompt_tokens"
+    t.integer "scheduled_job_id", null: false
+    t.datetime "started_at"
+    t.integer "status", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["chat_session_id"], name: "index_job_runs_on_chat_session_id"
+    t.index ["scheduled_job_id", "created_at"], name: "index_job_runs_on_scheduled_job_id_and_created_at"
+    t.index ["scheduled_job_id"], name: "index_job_runs_on_scheduled_job_id"
+    t.index ["status"], name: "index_job_runs_on_status"
   end
 
   create_table "mcp_servers", force: :cascade do |t|
@@ -294,6 +316,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_093553) do
   add_foreign_key "chat_sessions", "chat_sessions", column: "forked_from_id"
   add_foreign_key "chat_sessions", "users"
   add_foreign_key "events", "users", column: "creator_id"
+  add_foreign_key "job_runs", "chat_sessions"
+  add_foreign_key "job_runs", "scheduled_jobs"
   add_foreign_key "mcp_servers", "users"
   add_foreign_key "mcp_tools", "mcp_servers"
   add_foreign_key "messages", "chat_sessions"

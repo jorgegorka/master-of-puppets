@@ -1,0 +1,10 @@
+succeeded_one:
+  scheduled_job: daily_digest
+  chat_session: one
+  started_at: <%= 1.hour.ago.iso8601 %>
+  finished_at: <%= (1.hour.ago + 4.seconds).iso8601 %>
+  status: 2
+  output: "Done."
+  prompt_tokens: 200
+  completion_tokens: 80
+  cost_usd: "0.001500"
