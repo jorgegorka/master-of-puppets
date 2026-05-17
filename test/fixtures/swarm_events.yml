@@ -1,0 +1,6 @@
+alpha_start:
+  swarm_mission: alpha
+  kind: started
+  message: "Mission alpha started"
+  data: '{}'
+  occurred_at: <%= 1.hour.ago.utc.iso8601 %>

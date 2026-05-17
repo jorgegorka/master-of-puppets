@@ -8,11 +8,7 @@ class SwarmMission < ApplicationRecord
   has_many :assignments, class_name: "SwarmAssignment",
                          inverse_of: :swarm_mission,
                          dependent: :destroy
-  # Bridge: SwarmEvent model lands in Task 6.6. Without it, the destroy
-  # cascade from User → SwarmMission cannot resolve the `dependent:`
-  # target class. Declared without a cascade for now; Task 6.6 will
-  # re-add `dependent: :destroy` once SwarmEvent exists.
-  has_many :swarm_events
+  has_many :swarm_events, dependent: :destroy
 
   enum :state, { planning: 0, dispatching: 1, executing: 2, reviewing: 3,
                  blocked: 4, complete: 5, cancelled: 6 }
