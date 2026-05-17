@@ -1,7 +1,7 @@
 class JobRun < ApplicationRecord
   include Eventable
 
-  belongs_to :scheduled_job
+  belongs_to :scheduled_job, inverse_of: :runs
   belongs_to :chat_session, optional: true
 
   enum :status, { pending: 0, running: 1, succeeded: 2, failed: 3, cancelled: 4 }
@@ -13,5 +13,13 @@ class JobRun < ApplicationRecord
     return nil unless started_at && finished_at
 
     (finished_at - started_at).round(2)
+  end
+
+  def status_badge_modifier
+    case status
+    when "succeeded"           then "badge--ok"
+    when "failed", "cancelled" then "badge--danger"
+    when "pending", "running"  then "badge--warn"
+    end
   end
 end

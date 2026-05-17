@@ -4,7 +4,7 @@ class ScheduledJob < ApplicationRecord
   include ScheduledJob::Runnable
 
   belongs_to :user, default: -> { Current.user }
-  has_many :runs, class_name: "JobRun", dependent: :destroy
+  has_many :runs, class_name: "JobRun", inverse_of: :scheduled_job, dependent: :destroy
 
   validates :name, :cron, :prompt, :model, :provider, presence: true
   validates :name, uniqueness: { scope: :user_id }

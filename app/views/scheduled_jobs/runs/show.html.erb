@@ -2,7 +2,7 @@
 
 <section class="pad max-width">
   <h1>Run <%= @run.id %></h1>
-  <p>Status: <span class="badge badge-<%= @run.status %>"><%= @run.status %></span></p>
+  <p>Status: <span class="badge <%= @run.status_badge_modifier %>"><%= @run.status %></span></p>
   <p>Duration: <%= @run.duration_seconds %>s</p>
   <p>Cost: $<%= @run.cost_usd %> (<%= @run.prompt_tokens %> + <%= @run.completion_tokens %> tokens)</p>
 

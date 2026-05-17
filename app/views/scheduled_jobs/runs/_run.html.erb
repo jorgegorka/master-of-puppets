@@ -1,6 +1,6 @@
 <li id="<%= dom_id(run) %>" class="card">
   <%= link_to run.created_at.iso8601, scheduled_job_run_path(run.scheduled_job, run) %>
-  <span class="badge badge-<%= run.status %>"><%= run.status %></span>
+  <span class="badge <%= run.status_badge_modifier %>"><%= run.status %></span>
   <span class="txt-subtle"><%= run.duration_seconds %>s</span>
   <span class="txt-subtle">$<%= run.cost_usd %></span>
 </li>
