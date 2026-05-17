@@ -37,4 +37,25 @@ class ScheduledJobTest < ActiveSupport::TestCase
     assert sj.valid?
     assert_equal [], sj.skill_slugs
   end
+
+  test "validates cron syntax" do
+    sj = scheduled_jobs(:daily_digest)
+    sj.cron = "lol"
+    assert_not sj.valid?
+    assert_match(/not a valid cron/, sj.errors[:cron].first)
+  end
+
+  test "rejects sub-minute cron" do
+    sj = scheduled_jobs(:daily_digest)
+    sj.cron = "* * * * * *"
+    assert_not sj.valid?
+    assert_match(/sub-minute/, sj.errors[:cron].first)
+  end
+
+  test "compute_next_run_at returns a fugit-parsed time" do
+    sj = scheduled_jobs(:daily_digest)
+    sj.cron = "0 9 * * *"
+    next_at = sj.compute_next_run_at(from: Time.utc(2026, 5, 17, 8))
+    assert_equal 9, next_at.hour
+  end
 end
