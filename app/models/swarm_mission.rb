@@ -22,4 +22,15 @@ class SwarmMission < ApplicationRecord
   scope :active,    -> { where.not(state: %i[complete cancelled]) }
   scope :recent,    -> { order(created_at: :desc) }
   scope :for_user,  ->(u) { where(user: u) }
+
+  def dispatch!
+    return unless dispatching?
+
+    transaction do
+      update!(state: :executing)
+      SwarmAssignment.dispatch_ready(mission: self)
+      track_event :dispatched
+    end
+    SwarmEvent.log!(mission: self, kind: "executing", message: "Mission started", data: {})
+  end
 end
