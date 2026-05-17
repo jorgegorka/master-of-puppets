@@ -6,7 +6,7 @@
 Rails.application.config.content_security_policy do |policy|
   policy.default_src :self
   policy.style_src   :self, :unsafe_inline                  # xterm.js + monaco inline styles
-  policy.script_src  :self, "https://esm.sh"                # Monaco CDN (Phase 4.5)
+  policy.script_src  :self, "https://esm.sh", "https://ga.jspm.io" # Monaco + chart.js CDNs
   policy.worker_src  :self, :blob                           # Monaco workers
   policy.connect_src :self, "wss:", "ws:"                   # Action Cable
   policy.img_src     :self, :data, :blob

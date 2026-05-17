@@ -2,16 +2,16 @@ class Dashboard::Rollup
   DEFAULT_DAYS = 14
 
   def initialize(scope: Message.all, days: DEFAULT_DAYS)
-    @scope = scope.where(status: :completed).where(created_at: days.days.ago..)
+    @scope = scope.where(status: :completed).where(messages: { created_at: days.days.ago.. })
   end
 
   def tokens_by_day
     @scope
-      .group(Arel.sql("date(created_at)"))
+      .group(Arel.sql("date(messages.created_at)"))
       .pluck(
-        Arel.sql("date(created_at)"),
-        Arel.sql("COALESCE(SUM(prompt_tokens + completion_tokens), 0)"),
-        Arel.sql("COALESCE(SUM(cost_usd), 0)")
+        Arel.sql("date(messages.created_at)"),
+        Arel.sql("COALESCE(SUM(messages.prompt_tokens + messages.completion_tokens), 0)"),
+        Arel.sql("COALESCE(SUM(messages.cost_usd), 0)")
       )
       .map { |day, tokens, cost| { day: day, tokens: tokens.to_i, cost_usd: cost } }
   end
