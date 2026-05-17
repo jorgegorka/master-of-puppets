@@ -22,4 +22,15 @@ class JobRun < ApplicationRecord
     when "pending", "running"  then "badge--warn"
     end
   end
+
+  # Live-update the run row on the ScheduledJob#show page whenever status,
+  # timing, cost, or output changes. The view subscribes via
+  # `turbo_stream_from @scheduled_job`; the partial wraps the <li> in
+  # `dom_id(run)` so the replace target matches.
+  after_commit -> {
+    broadcast_replace_to scheduled_job,
+      target:  ActionView::RecordIdentifier.dom_id(self),
+      partial: "scheduled_jobs/runs/run",
+      locals:  { run: self }
+  }, on: %i[create update]
 end

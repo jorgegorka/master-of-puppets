@@ -1,6 +1,7 @@
 <% content_for :title, @scheduled_job.name %>
 
 <section class="pad max-width">
+  <%= turbo_stream_from @scheduled_job %>
   <h1><%= @scheduled_job.name %></h1>
   <p class="txt-subtle"><code><%= @scheduled_job.cron %></code> — next: <%= @scheduled_job.next_run_at&.iso8601 %></p>
 
