@@ -40,7 +40,7 @@
     <h2>Incidents</h2>
     <ul class="card-list">
       <% @incidents.each do |ev| %>
-        <li><%= ev.occurred_at.iso8601 %> — <code><%= ev.action %></code> — <%= ev.particulars.to_s.truncate(140) %></li>
+        <li><%= ev.occurred_at.iso8601 %> — <code><%= ev.action %></code> — <%= ev.particulars.to_json.truncate(140) %></li>
       <% end %>
     </ul>
   </section>

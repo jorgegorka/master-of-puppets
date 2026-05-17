@@ -8,7 +8,7 @@ class DashboardController < ApplicationController
     scope        = Message.joins(:chat_session).where(chat_sessions: { user_id: Current.user.id })
     @rollup      = Dashboard::Rollup.new(scope: scope)
     @incidents   = Event.incidents.where(creator: Current.user).limit(20)
-    @recent_runs = JobRun.joins(:scheduled_job)
+    @recent_runs = JobRun.eager_load(:scheduled_job)
                          .where(scheduled_jobs: { user_id: Current.user.id })
                          .recent
                          .limit(10)

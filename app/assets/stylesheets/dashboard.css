@@ -1,0 +1,22 @@
+@layer modules {
+  .charts {
+    display:               grid;
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    gap:                   var(--block-space);
+    margin-block:          var(--block-space) var(--block-space-double);
+  }
+
+  .charts > [data-controller="chart"] {
+    position:      relative;
+    block-size:    16rem;
+    padding:       var(--block-space-half) var(--inline-space-half);
+    background:    var(--color-canvas-raise);
+    border:        1px solid var(--color-rule);
+    border-radius: 0.5rem;
+  }
+
+  .charts > [data-controller="chart"] canvas {
+    inline-size: 100%;
+    block-size:  100%;
+  }
+}
