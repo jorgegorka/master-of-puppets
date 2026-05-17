@@ -2,6 +2,7 @@ class SwarmMission < ApplicationRecord
   include Eventable
   include Cancellable
   include Decomposable
+  include Advanceable
 
   belongs_to :user,       default: -> { Current.user }
   belongs_to :created_by, class_name: "User", default: -> { Current.user }

@@ -25,3 +25,6 @@ production:
   sweep_stale_job_runs:
     class: JobRun::SweepStaleJob
     schedule: every 15 minutes
+  swarm_orchestrator:
+    class: Swarm::OrchestratorLoopJob
+    schedule: every 30 seconds
