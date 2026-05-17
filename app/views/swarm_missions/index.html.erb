@@ -1,0 +1,12 @@
+<% content_for :title, "Missions" %>
+
+<section class="pad max-width">
+  <h1>Missions</h1>
+  <%= link_to "New mission", new_swarm_mission_path, class: "btn" %>
+
+  <ul class="card-list">
+    <% @missions.each do |m| -%>
+      <%= render "mission_row", mission: m %>
+    <% end -%>
+  </ul>
+</section>

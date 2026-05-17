@@ -1,0 +1,10 @@
+<% content_for :title, "New mission" %>
+
+<section class="pad max-width">
+  <header class="flex justify-between align-center">
+    <h1>New mission</h1>
+    <%= link_to "Cancel", swarm_missions_path, class: "btn btn-secondary" %>
+  </header>
+
+  <%= render "form", swarm_mission: @swarm_mission %>
+</section>

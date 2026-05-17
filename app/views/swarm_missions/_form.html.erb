@@ -1,0 +1,34 @@
+<%= form_with model: swarm_mission, url: (swarm_mission.persisted? ? swarm_mission_path(swarm_mission) : swarm_missions_path),
+              local: true, class: "flex flex-column gap" do |f| %>
+  <% if swarm_mission.errors.any? %>
+    <ul role="alert">
+      <% swarm_mission.errors.full_messages.each do |msg| -%>
+        <li><%= msg %></li>
+      <% end -%>
+    </ul>
+  <% end %>
+
+  <label class="flex flex-column gap-half">
+    <span>Title</span>
+    <%= f.text_field :title, required: true %>
+  </label>
+
+  <label class="flex flex-column gap-half">
+    <span>Goal</span>
+    <%= f.text_area :goal, rows: 4, required: true %>
+  </label>
+
+  <fieldset class="flex flex-column gap-half">
+    <legend>Mode</legend>
+    <label>
+      <%= f.radio_button :mode, "auto" %>
+      <span>Auto</span>
+    </label>
+    <label>
+      <%= f.radio_button :mode, "manual" %>
+      <span>Manual</span>
+    </label>
+  </fieldset>
+
+  <%= f.submit "Create", class: "btn" %>
+<% end %>

@@ -1,0 +1,5 @@
+<li id="<%= dom_id(mission) %>" class="card mission mission--<%= mission.state %>">
+  <%= link_to mission.title, swarm_mission_path(mission) %>
+  <span class="badge"><%= mission.state.humanize %></span>
+  <span class="txt-subtle"><%= mission.assignments.size %> assignments &middot; <%= time_ago_in_words(mission.created_at) %> ago</span>
+</li>

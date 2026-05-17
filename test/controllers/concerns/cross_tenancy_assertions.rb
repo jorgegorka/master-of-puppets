@@ -17,4 +17,14 @@ module CrossTenancyAssertions
     yield(foreign)
     assert_response :not_found
   end
+
+  # Asserts that GETting `path` as the currently signed-in user returns 404.
+  # Used by Phase 6+ controller tests where the setup already creates a
+  # resource owned by a foreign tenant and signs in as the local user — the
+  # scoped `before_action` (`Current.user.swarm_missions.find(...)`) raises
+  # ActiveRecord::RecordNotFound, which the test env renders as 404.
+  def assert_404_for_cross_tenant_show(path)
+    get path
+    assert_response :not_found
+  end
 end

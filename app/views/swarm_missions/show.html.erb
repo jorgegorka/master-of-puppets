@@ -1,0 +1,56 @@
+<% content_for :title, @swarm_mission.title %>
+
+<section class="pad max-width">
+  <%= turbo_stream_from @swarm_mission %>
+
+  <article id="<%= dom_id(@swarm_mission) %>">
+    <h1><%= @swarm_mission.title %></h1>
+    <p><%= @swarm_mission.goal %></p>
+    <p><span class="badge"><%= @swarm_mission.state.humanize %></span></p>
+
+    <% unless @swarm_mission.cancelled? -%>
+      <%= button_to "Cancel mission",
+                    swarm_mission_cancellation_path(@swarm_mission), method: :post,
+                    class: "btn btn-danger",
+                    data: { turbo_confirm: "Cancel and kill all workers?" } %>
+    <% end -%>
+
+    <section class="assignments">
+      <h2>Assignments</h2>
+      <ul class="card-list">
+        <% @assignments.each do |a| -%>
+          <li id="<%= dom_id(a) %>" class="card assignment assignment--<%= a.state %>">
+            <header class="flex justify-between align-center">
+              <strong><%= a.agent_profile.display_name %></strong>
+              <span class="badge"><%= a.state.humanize %></span>
+            </header>
+            <p><%= a.task %></p>
+            <% if a.respond_to?(:block_reason) && a.block_reason.present? -%>
+              <p class="txt-subtle">Blocked: <%= a.block_reason %></p>
+            <% end -%>
+            <% if a.blocked? -%>
+              <%= form_with url: swarm_mission_assignment_path(@swarm_mission, a), method: :patch,
+                            local: true, class: "flex gap" do |f| %>
+                <%= f.text_field :operator_input, placeholder: "Operator input to unblock" %>
+                <%= f.submit "Unblock", class: "btn" %>
+              <% end -%>
+            <% end -%>
+          </li>
+        <% end -%>
+      </ul>
+    </section>
+
+    <section class="event-feed">
+      <h2>Event log</h2>
+      <ol>
+        <% @feed.each do |e| -%>
+          <li>
+            <time><%= e.occurred_at.strftime("%H:%M:%S") %></time>
+            <strong><%= e.kind %></strong>
+            <%= e.message %>
+          </li>
+        <% end -%>
+      </ol>
+    </section>
+  </article>
+</section>
