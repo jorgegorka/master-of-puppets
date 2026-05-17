@@ -6,27 +6,38 @@
   </header>
 
   <%= form_with(url: skills_path, method: :get, local: true, class: "pad-block") do |f| %>
-    <%= f.label :q, "Search:" %>
-    <%= f.text_field :q, value: @query, placeholder: "skill name or body" %>
+    <%= f.label :q, "Search skills…", for: "skills_q" %>
+    <%= f.text_field :q,
+          id: "skills_q",
+          value: @query,
+          placeholder: "skill name or body",
+          data: {
+            controller: "autocomplete",
+            autocomplete_url_value: skills_path,
+            autocomplete_frame_value: "skill-results",
+            action: "input->autocomplete#update"
+          } %>
     <%= f.submit "Search" %>
   <% end %>
 
-  <% if @skills.empty? %>
-    <p class="txt-subtle">No skills <%= @query.present? ? "matched #{@query.inspect}" : "installed yet" %>.</p>
-  <% else %>
-    <% @skills.group_by(&:category).each do |category, skills_in_cat| %>
-      <section>
-        <h2><%= category %></h2>
-        <ul>
-          <% skills_in_cat.each do |skill| %>
-            <li>
-              <%= link_to skill.name, skill %>
-              <%= security_badge(skill) %>
-              — <%= skill.description.to_s.truncate(100) %>
-            </li>
-          <% end %>
-        </ul>
-      </section>
+  <%= turbo_frame_tag "skill-results", target: "_top" do %>
+    <% if @skills.empty? %>
+      <p class="txt-subtle">No skills <%= @query.present? ? "matched #{@query.inspect}" : "installed yet" %>.</p>
+    <% else %>
+      <% @skills.group_by(&:category).each do |category, skills_in_cat| %>
+        <section>
+          <h2><%= category %></h2>
+          <ul>
+            <% skills_in_cat.each do |skill| %>
+              <li>
+                <%= link_to skill.name, skill %>
+                <%= security_badge(skill) %>
+                — <%= skill.description.to_s.truncate(100) %>
+              </li>
+            <% end %>
+          </ul>
+        </section>
+      <% end %>
     <% end %>
   <% end %>
 </section>

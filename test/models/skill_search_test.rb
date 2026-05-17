@@ -47,6 +47,11 @@ class SkillSearchTest < ActiveSupport::TestCase
     assert_equal 0, count_val
   end
 
+  test "matching returns rows for a 2-char prefix" do
+    assert_includes Skill.matching("fi"), @fs, "2-char prefix should hit"
+    assert_includes Skill.matching("file"), @fs
+  end
+
   test "rollback of update! inside load_from_path! leaves no stale FTS row" do
     tmp = Dir.mktmpdir
     skills_root = Pathname.new(tmp).join("skills/io/rollback")

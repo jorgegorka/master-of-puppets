@@ -21,10 +21,19 @@ module Searchable
       return [] if query.blank?
       raise "searchable_via not declared on #{self.name}" unless fts_class
 
-      sanitized  = query.to_s.gsub('"', '""')
+      # `tok1 tok2…` → `"tok1" "tok2"*` so the user's last (partial) token
+      # is treated as a prefix. Each token is double-quoted to neutralise
+      # FTS5 operator characters (AND, OR, NEAR, parens, `-`).
+      tokens = query.to_s.scan(/[\p{Alnum}_]+/)
+      return [] if tokens.empty?
+      last   = tokens.pop
+      quoted = tokens.map { |t| %("#{t.gsub('"', '""')}") }
+      quoted << %("#{last.gsub('"', '""')}"*)
+      expr   = quoted.join(" ")
+
       table      = connection.quote_table_name(fts_class.table_name)
       ranked_ids = fts_class
-        .where("#{table} MATCH ?", "\"#{sanitized}\"")
+        .where("#{table} MATCH ?", expr)
         .order(Arel.sql("bm25(#{table})"))
         .limit(50)
         .pluck(fts_foreign_key)
