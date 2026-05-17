@@ -1,13 +1,3 @@
-alpha_t1:
-  swarm_mission: alpha
-  agent_profile: backend
-  task: "Do thing 1"
-  state: 0
-  depends_on: '[]'
-
-alpha_t2:
-  swarm_mission: alpha
-  agent_profile: frontend
-  task: "Do thing 2"
-  state: 0
-  depends_on: '[]'
+# SwarmAssignment fixtures are constructed inline per test — the alpha
+# mission starts in :planning state with no assignments until decompose!
+# creates them, so seeding fixtures here would model an invalid state.

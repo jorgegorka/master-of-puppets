@@ -2,6 +2,11 @@
 # without making real LLM API calls. Stubs Llm::Client.for to return an
 # in-memory adapter that yields a fixed event sequence.
 module LlmStubs
+  # Make every helper callable both as an instance method (when LlmStubs is
+  # included into ActiveSupport::TestCase) AND as a module method
+  # (e.g. `LlmStubs.with_decomposition(...)`).
+  extend self
+
   # Replace Llm::Client.for with a block that returns the given adapter.
   # Restores the original method via ensure.
   def with_stubbed_llm(adapter)
@@ -27,6 +32,17 @@ module LlmStubs
     original = @_original_llm_client_for
     Llm::Client.singleton_class.define_method(:for, &original)
     @_original_llm_client_for = nil
+  end
+
+  # Wraps a decomposition plan into a JSON-fenced assistant reply and stubs
+  # Llm::Client.for. If the caller passes a String, send it as-is (lets us
+  # test malformed input).
+  def with_decomposition(plan, &block)
+    text = case plan
+           when String then plan
+           else "```json\n#{plan.to_json}\n```"
+           end
+    with_stubbed_llm(StubAdapter.new(text: text), &block)
   end
 
   # Simple adapter that yields a "completed text response" event sequence.
