@@ -13,6 +13,14 @@ module Tool::Mcp
     end
   end
 
+  # Symmetric with Tool::Internal.allowed_for(user). MCP tools are already
+  # tenant-scoped via mcp_servers.user_id, so this is a thin alias — but
+  # keeping the same method name lets Message::Streamable compose both
+  # registries uniformly without special-casing kwargs.
+  def self.allowed_for(user)
+    all_definitions(user: user)
+  end
+
   def self.lookup(name, user:)
     McpTool.lookup(name, user: user)
   end

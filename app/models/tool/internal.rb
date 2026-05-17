@@ -23,6 +23,16 @@ class Tool::Internal
       registry.values.map(&:tool_definition)
     end
 
+    # Per-user filter on top of `all_definitions`. Admins see everything;
+    # non-admins lose `run_shell` so a runaway model can't shell out to the
+    # host. The per-user gate lives here (rather than in Message::Streamable)
+    # so any code path that lists the tool surface gets the same answer.
+    def allowed_for(user)
+      return all_definitions if user&.admin?
+
+      all_definitions.reject { |d| d[:name] == "run_shell" }
+    end
+
     def invoke(name:, input:, user:)
       klass = lookup(name) or return Tool::Result.failure("unknown tool: #{name}")
       sanitized = input.to_h.deep_stringify_keys

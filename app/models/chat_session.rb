@@ -6,6 +6,7 @@ class ChatSession < ApplicationRecord
 
   belongs_to :user, default: -> { Current.user }
   belongs_to :forked_from, class_name: "ChatSession", optional: true
+  belongs_to :swarm_assignment, optional: true
 
   has_many :messages, -> { order(:created_at) }, dependent: :destroy
   has_many :forks, class_name: "ChatSession", foreign_key: :forked_from_id, dependent: :nullify

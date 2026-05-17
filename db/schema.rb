@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_05_17_174134) do
+ActiveRecord::Schema[8.1].define(version: 2026_05_17_174135) do
   create_table "agent_profile_skills", force: :cascade do |t|
     t.integer "agent_profile_id", null: false
     t.datetime "created_at", null: false
@@ -77,11 +77,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_174134) do
     t.string "model", null: false
     t.string "provider", null: false
     t.string "share_token"
+    t.integer "swarm_assignment_id"
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
     t.index ["forked_from_id"], name: "index_chat_sessions_on_forked_from_id"
     t.index ["share_token"], name: "index_chat_sessions_on_share_token", unique: true, where: "share_token IS NOT NULL"
+    t.index ["swarm_assignment_id"], name: "index_chat_sessions_on_swarm_assignment_id"
     t.index ["user_id"], name: "index_chat_sessions_on_user_id"
   end
 
@@ -422,6 +424,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_05_17_174134) do
   add_foreign_key "chat_session_pins", "chat_sessions"
   add_foreign_key "chat_session_pins", "users"
   add_foreign_key "chat_sessions", "chat_sessions", column: "forked_from_id"
+  add_foreign_key "chat_sessions", "swarm_assignments"
   add_foreign_key "chat_sessions", "users"
   add_foreign_key "events", "users", column: "creator_id"
   add_foreign_key "job_runs", "chat_sessions"

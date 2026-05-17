@@ -46,6 +46,39 @@ module Message::Streamable
     Message::AdvanceJob.perform_later(self)
   end
 
+  # Tool surface offered to the LLM for this turn. Three additive sources:
+  #
+  #   1. `Tool::Internal.allowed_for(user)` — admin sees `run_shell`,
+  #      others don't.
+  #   2. `Tool::Mcp.allowed_for(user)`      — already user-scoped via
+  #      mcp_servers.user_id.
+  #   3. The enabled-skills' own tool defs (often empty for prompt-only
+  #      skills) — what `enabled_skills` resolves to depends on whether
+  #      the chat session is a swarm worker or a free-form chat.
+  def available_tools
+    defs  = Tool::Internal.allowed_for(chat_session.user)
+    defs += Tool::Mcp.allowed_for(chat_session.user)
+    defs + enabled_skills.flat_map(&:tool_definitions)
+  end
+
+  # Public so tests + the controller can introspect the effective surface.
+  # Memoized so a single `advance!` turn doesn't re-run the DB query inside
+  # the tool loop (see `enabled_skills is memoized across advance! iterations`).
+  def enabled_skills
+    @enabled_skills ||= if chat_session.swarm_assignment
+      # Swarm workers see the intersection of the agent profile's declared
+      # skills and the owning user's enablements — never the user's full
+      # personal kit, which would let a worker reach outside its mandate.
+      chat_session.swarm_assignment.agent_profile.skills_for(chat_session.user).to_a
+    else
+      Skill.enabled_for(chat_session.user).to_a
+    end
+  end
+
+  def system_prompt
+    build_system_prompt
+  end
+
   private
 
   def llm_adapter
@@ -130,10 +163,6 @@ module Message::Streamable
     end
   end
 
-  def system_prompt
-    build_system_prompt
-  end
-
   def build_system_prompt
     enabled_skills.map { |s| "## Skill: #{s.name}\n\n#{truncate_skill_body(s.body)}" }.join("\n\n")
   end
@@ -142,28 +171,6 @@ module Message::Streamable
     return body if body.to_s.bytesize <= MAX_SKILL_BODY_BYTES
 
     body.to_s.byteslice(0, MAX_SKILL_BODY_BYTES).to_s.scrub + "\n…[truncated]"
-  end
-
-  # Broader per-user / per-skill tool filtering lands with Phase 6 + the
-  # `agent_profile_skills` join. Until then `run_shell` is hidden from
-  # non-admins so it doesn't even appear as an option in the tool list.
-  def available_tools
-    defs = Tool::Internal.all_definitions
-    defs = defs.reject { |d| d[:name] == "run_shell" } unless chat_session.user&.admin?
-    defs += Tool::Mcp.all_definitions(user: chat_session.user)
-    defs + enabled_skills.flat_map { |s| skill_tool_definitions(s) }
-  end
-
-  def enabled_skills
-    @enabled_skills ||= Skill.enabled_for(chat_session.user).to_a
-  end
-
-  def skill_tool_definitions(_skill)
-    # Phase 3 wires Tool::Internal only. Skills inject prompt sections (see
-    # build_system_prompt above) but their per-skill tool-def arrays land in
-    # Phase 6 alongside the agent profile work. Return [] now to keep the
-    # surface area honest.
-    []
   end
 
   def needs_tool_loop?

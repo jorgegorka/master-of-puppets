@@ -27,6 +27,18 @@ class Skill < ApplicationRecord
   # is bounded by the on-disk skill count.
   after_commit :broadcast_skills_list, on: %i[create update destroy]
 
+  # Tool surface a skill contributes when its prompt section is loaded.
+  # Frontmatter declares names under `tools:`; each one is looked up against
+  # the Tool::Internal registry and converted to a provider tool definition.
+  # A skill with no `tools:` (or unknown names) injects prompt-only — no
+  # tools — which keeps low-trust skills additive but unable to widen the
+  # tool surface the chat session would otherwise have.
+  def tool_definitions
+    Array(manifest["tools"]).filter_map do |tool_name|
+      Tool::Internal.lookup(tool_name)&.tool_definition
+    end
+  end
+
   private
     def broadcast_skills_list
       broadcast_replace_to "skills",
