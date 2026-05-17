@@ -10,6 +10,13 @@
     <p><%= @swarm_mission.goal %></p>
     <p><span class="badge"><%= @swarm_mission.state.humanize %></span></p>
 
+    <%= form_with model: @swarm_mission, method: :patch, class: "mode-toggle" do |f| %>
+      Mode:
+      <%= f.radio_button :mode, "auto"    %> <%= f.label :mode_auto,   "Auto" %>
+      <%= f.radio_button :mode, "manual"  %> <%= f.label :mode_manual, "Manual" %>
+      <%= f.submit "Save" %>
+    <% end %>
+
     <% unless @swarm_mission.cancelled? -%>
       <%= button_to "Cancel mission",
                     swarm_mission_cancellation_path(@swarm_mission), method: :post,
