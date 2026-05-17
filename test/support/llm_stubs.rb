@@ -12,6 +12,23 @@ module LlmStubs
     Llm::Client.singleton_class.define_method(:for, &original)
   end
 
+  # Non-block variant for system tests, where wrapping the entire test body in
+  # a block is awkward. Patches Llm::Client.for for the lifetime of the test;
+  # ApplicationSystemTestCase calls restore_llm_adapter in teardown.
+  def stub_llm_adapter_with_completion(text)
+    adapter = StubAdapter.new(text: text)
+    @_original_llm_client_for = Llm::Client.method(:for)
+    Llm::Client.singleton_class.define_method(:for) { |provider:| adapter }
+  end
+
+  def restore_llm_adapter
+    return unless defined?(@_original_llm_client_for) && @_original_llm_client_for
+
+    original = @_original_llm_client_for
+    Llm::Client.singleton_class.define_method(:for, &original)
+    @_original_llm_client_for = nil
+  end
+
   # Simple adapter that yields a "completed text response" event sequence.
   class StubAdapter
     DEFAULT_USAGE = {
