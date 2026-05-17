@@ -1,0 +1,8 @@
+<h2>Event log</h2>
+<ol class="swarm-events">
+  <% events.each do |e| -%>
+    <li><time><%= e.occurred_at.strftime("%H:%M:%S") %></time>
+        <strong><%= e.kind %></strong>
+        <%= e.message %></li>
+  <% end -%>
+</ol>

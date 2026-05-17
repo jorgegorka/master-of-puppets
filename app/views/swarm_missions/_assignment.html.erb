@@ -1,0 +1,32 @@
+<article class="assignment assignment--<%= assignment.state %>"
+         id="<%= dom_id(assignment) %>"
+         data-assignment-id="<%= assignment.id %>">
+  <header>
+    <strong><%= assignment.agent_profile.display_name %></strong>
+    <span class="badge"><%= assignment.state.humanize %></span>
+  </header>
+  <p class="assignment__task"><%= assignment.task %></p>
+
+  <% if assignment.blocked? -%>
+    <%= form_with url: swarm_mission_assignment_path(assignment.swarm_mission, assignment),
+                  method: :patch do |f| %>
+      <p class="assignment__blocker">Blocker: <%= assignment.block_reason %></p>
+      <%= f.text_area :operator_input, placeholder: "Provide the info the worker needs…" %>
+      <%= f.submit "Unblock" %>
+    <% end %>
+  <% end -%>
+
+  <details>
+    <summary>Checkpoints (<%= assignment.checkpoints.size %>)</summary>
+    <ol>
+      <% assignment.checkpoints.order(:created_at).each do |cp| -%>
+        <li><strong><%= cp.state_label %></strong> — <%= cp.result %></li>
+      <% end -%>
+    </ol>
+  </details>
+
+  <details>
+    <summary>Live output</summary>
+    <pre class="worker-output" data-assignment-id="<%= assignment.id %>"></pre>
+  </details>
+</article>

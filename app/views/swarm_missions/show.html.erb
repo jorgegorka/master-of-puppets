@@ -3,7 +3,9 @@
 <section class="pad max-width">
   <%= turbo_stream_from @swarm_mission %>
 
-  <article id="<%= dom_id(@swarm_mission) %>">
+  <article id="<%= dom_id(@swarm_mission) %>"
+           data-controller="swarm-channel"
+           data-swarm-channel-mission-id-value="<%= @swarm_mission.id %>">
     <h1><%= @swarm_mission.title %></h1>
     <p><%= @swarm_mission.goal %></p>
     <p><span class="badge"><%= @swarm_mission.state.humanize %></span></p>
@@ -17,40 +19,11 @@
 
     <section class="assignments">
       <h2>Assignments</h2>
-      <ul class="card-list">
-        <% @assignments.each do |a| -%>
-          <li id="<%= dom_id(a) %>" class="card assignment assignment--<%= a.state %>">
-            <header class="flex justify-between align-center">
-              <strong><%= a.agent_profile.display_name %></strong>
-              <span class="badge"><%= a.state.humanize %></span>
-            </header>
-            <p><%= a.task %></p>
-            <% if a.respond_to?(:block_reason) && a.block_reason.present? -%>
-              <p class="txt-subtle">Blocked: <%= a.block_reason %></p>
-            <% end -%>
-            <% if a.blocked? -%>
-              <%= form_with url: swarm_mission_assignment_path(@swarm_mission, a), method: :patch,
-                            local: true, class: "flex gap" do |f| %>
-                <%= f.text_field :operator_input, placeholder: "Operator input to unblock" %>
-                <%= f.submit "Unblock", class: "btn" %>
-              <% end -%>
-            <% end -%>
-          </li>
-        <% end -%>
-      </ul>
+      <% @assignments.each do |a| -%>
+        <%= render "assignment", assignment: a %>
+      <% end -%>
     </section>
 
-    <section class="event-feed">
-      <h2>Event log</h2>
-      <ol>
-        <% @feed.each do |e| -%>
-          <li>
-            <time><%= e.occurred_at.strftime("%H:%M:%S") %></time>
-            <strong><%= e.kind %></strong>
-            <%= e.message %>
-          </li>
-        <% end -%>
-      </ol>
-    </section>
+    <%= render "event_feed", events: @feed %>
   </article>
 </section>
