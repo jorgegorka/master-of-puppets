@@ -27,3 +27,7 @@ pin "chart.js",
 pin "@kurkle/color",
   to: "https://ga.jspm.io/npm:@kurkle/color@0.3.2/dist/color.esm.js",
   integrity: "sha384-g4B9JuefAPyFwI3R+BMY5UJRbvurFGA4GsMzVPtOsNTL2uy3HIkYilc3OvUnNj/D"
+
+# sortablejs powers the swarm kanban drag-and-drop. Pinned to esm.sh per the
+# Phase 6 plan; if you bump versions, ensure the new URL is still ESM.
+pin "sortablejs", to: "https://esm.sh/sortablejs@1.15.0"

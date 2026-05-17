@@ -12,6 +12,11 @@ class SwarmAssignment < ApplicationRecord
   enum :state, { pending: 0, dispatched: 1, running: 2, completed: 3,
                  failed: 4, blocked: 5, cancelled: 6 }
 
+  # Column order rendered by the swarm kanban board. Subset of the state
+  # enum — failed/cancelled don't get columns; resolved-but-failed work
+  # surfaces via the mission detail page instead.
+  COLUMNS = %w[pending dispatched running blocked completed].freeze
+
   validates :task, presence: true
 
   scope :pending_state, -> { where(state: :pending) }

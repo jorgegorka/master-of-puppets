@@ -1,0 +1,23 @@
+<% content_for :title, "Kanban" %>
+
+<section class="pad max-width-wide">
+  <h1>Kanban</h1>
+
+  <div class="kanban" data-controller="kanban">
+    <% SwarmAssignment::COLUMNS.each do |col| -%>
+      <div class="kanban__column" data-kanban-state-param="<%= col %>">
+        <h2 class="kanban__column-title"><%= col.humanize %></h2>
+        <ul class="kanban__cards" data-kanban-target="column">
+          <% Array(@assignments_by_state[col]).each do |a| -%>
+            <li class="kanban__card"
+                data-assignment-id="<%= a.id %>"
+                data-mission-id="<%= a.swarm_mission_id %>">
+              <%= link_to a.task.truncate(60), swarm_mission_path(a.swarm_mission) %>
+              <small class="txt-subtle"><%= a.agent_profile.display_name %></small>
+            </li>
+          <% end -%>
+        </ul>
+      </div>
+    <% end -%>
+  </div>
+</section>
