@@ -61,4 +61,29 @@ class ScheduledJobs::RunsControllerTest < ActionDispatch::IntegrationTest
     get scheduled_job_run_path(scheduled_jobs(:daily_digest), job_runs(:succeeded_one))
     assert_response :not_found
   end
+
+  test "GET show of a failed run with empty output renders the error block, not an empty <pre>" do
+    sign_in_as users(:one)
+    run = job_runs(:succeeded_one)
+    run.update!(status: :failed, output: "", error_message: "provider 500")
+
+    get scheduled_job_run_path(run.scheduled_job, run)
+    assert_response :success
+
+    # Error block is rendered
+    assert_match(/provider 500/, response.body)
+    # The Output heading should still appear, but the <pre> should be the
+    # "no output captured" fallback, not an empty element.
+    assert_match(/no output captured/i, response.body)
+    assert_no_match(/<pre>\s*<\/pre>/, response.body)
+  end
+
+  test "GET show of a succeeded run with non-empty output renders the <pre> normally" do
+    sign_in_as users(:one)
+    run = job_runs(:succeeded_one)
+    assert_equal "Done.", run.output  # fixture
+    get scheduled_job_run_path(run.scheduled_job, run)
+    assert_response :success
+    assert_match(/<pre[^>]*>Done\.<\/pre>/, response.body)
+  end
 end

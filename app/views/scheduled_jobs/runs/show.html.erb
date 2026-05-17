@@ -14,7 +14,11 @@
       The full transcript is available on the underlying chat session.
     </p>
   <% end %>
-  <pre><%= @run.output %></pre>
+  <% if @run.output.to_s.strip.empty? %>
+    <p class="txt-subtle">No output captured.</p>
+  <% else %>
+    <pre><%= @run.output %></pre>
+  <% end %>
 
   <% if @run.failed? %>
     <h2>Error</h2>
