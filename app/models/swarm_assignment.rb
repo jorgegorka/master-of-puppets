@@ -1,5 +1,6 @@
 class SwarmAssignment < ApplicationRecord
   include Eventable
+  include Dispatchable
 
   belongs_to :swarm_mission, inverse_of: :assignments
   belongs_to :agent_profile
@@ -22,7 +23,4 @@ class SwarmAssignment < ApplicationRecord
   }
   scope :live, -> { where(state: %i[dispatched running blocked]) }
   scope :resolved, -> { where(state: %i[completed failed cancelled]) }
-
-  # No transition methods yet — Tasks 6.10, 6.14, 6.15 add dispatch!, advance!,
-  # block!, unblock!, complete!, fail!, cancel!.
 end
