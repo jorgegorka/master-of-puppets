@@ -80,7 +80,8 @@ module Skill::Loadable
     body = @pending_fts_body
     return unless body
     @pending_fts_body = nil
-    reindex_fts!(body)
+    reindex_fts_entry!(slug: slug, name: name, category: category,
+                       description: description.to_s, body: body)
   rescue ActiveRecord::StatementInvalid
     update_columns(body_digest: "")
     raise
@@ -93,25 +94,6 @@ module Skill::Loadable
     # The source file was deleted between reloads — render paths (Skill#show)
     # and FTS rebuilds must not 500. The next reload pass tombstones the row.
     @body = ""
-  end
-
-  def reindex_fts!(body = nil)
-    body ||= self.body
-    SkillFts.connection.execute(
-      ActiveRecord::Base.sanitize_sql([ "DELETE FROM skills_fts WHERE skill_id = ?", id ])
-    )
-    SkillFts.connection.execute(
-      ActiveRecord::Base.sanitize_sql([
-        "INSERT INTO skills_fts (skill_id, slug, name, category, description, body) VALUES (?, ?, ?, ?, ?, ?)",
-        id, slug, name, category, description.to_s, body
-      ])
-    )
-  end
-
-  def clear_fts_entry!
-    SkillFts.connection.execute(
-      ActiveRecord::Base.sanitize_sql([ "DELETE FROM skills_fts WHERE skill_id = ?", id ])
-    )
   end
 
   private

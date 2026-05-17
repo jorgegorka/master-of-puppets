@@ -1,7 +1,8 @@
 class MemoryFile < ApplicationRecord
   include Eventable
   include Searchable
-  searchable_via MemoryFileFts, foreign_key: :memory_file_id
+  searchable_via MemoryFileFts, foreign_key: :memory_file_id,
+                 columns: %i[path title tags body]
 
   include Reindexable
   include Writable

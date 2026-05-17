@@ -17,7 +17,8 @@ class SkillsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "index filters by search query" do
-    @skill.reindex_fts!
+    @skill.reindex_fts_entry!(slug: @skill.slug, name: @skill.name, category: @skill.category,
+                              description: @skill.description.to_s, body: @skill.body)
     get skills_path, params: { q: "Filesystem" }
     assert_response :success
     assert_match @skill.name, response.body

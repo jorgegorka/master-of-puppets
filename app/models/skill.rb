@@ -1,7 +1,8 @@
 class Skill < ApplicationRecord
   include Eventable
   include Searchable
-  searchable_via SkillFts, foreign_key: :skill_id
+  searchable_via SkillFts, foreign_key: :skill_id,
+                 columns: %i[slug name category description body]
 
   include Skill::Loadable
   include Skill::SecurityAnalyzable

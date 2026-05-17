@@ -14,7 +14,10 @@ class SkillSearchTest < ActiveSupport::TestCase
         source_path: Rails.root.join("test/fixtures/files/skills/debug/SKILL.md").to_s
       )
     )
-    [ @fs, @debug ].each(&:reindex_fts!)
+    [ @fs, @debug ].each do |s|
+      s.reindex_fts_entry!(slug: s.slug, name: s.name, category: s.category,
+                           description: s.description.to_s, body: s.body)
+    end
   end
 
   test "matching returns bm25-ordered skill results" do

@@ -76,32 +76,10 @@ module MemoryFile::Reindexable
     body = @pending_fts_body
     return unless body
     @pending_fts_body = nil
-    reindex_fts_row!(body)
+    reindex_fts_entry!(path: path, title: title.to_s, tags: Array(tags).join(" "), body: body)
   rescue ActiveRecord::StatementInvalid
     update_columns(content_digest: "")
     raise
-  end
-
-  def reindex_fts_row!(body)
-    MemoryFileFts.connection.execute(
-      ActiveRecord::Base.sanitize_sql([
-        "DELETE FROM memory_files_fts WHERE memory_file_id = ?", id
-      ])
-    )
-    MemoryFileFts.connection.execute(
-      ActiveRecord::Base.sanitize_sql([
-        "INSERT INTO memory_files_fts (memory_file_id, path, title, tags, body) VALUES (?, ?, ?, ?, ?)",
-        id, path, title, Array(tags).join(" "), body
-      ])
-    )
-  end
-
-  def clear_fts_entry!
-    MemoryFileFts.connection.execute(
-      ActiveRecord::Base.sanitize_sql([
-        "DELETE FROM memory_files_fts WHERE memory_file_id = ?", id
-      ])
-    )
   end
 
   private
