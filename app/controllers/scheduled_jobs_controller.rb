@@ -2,7 +2,7 @@ class ScheduledJobsController < ApplicationController
   before_action :set_scheduled_job, only: %i[show edit update destroy]
 
   def index
-    @scheduled_jobs = Current.user.scheduled_jobs.order(:name)
+    @scheduled_jobs = Current.user.scheduled_jobs.includes(:pause_record).order(:name)
   end
 
   def show
@@ -44,7 +44,7 @@ class ScheduledJobsController < ApplicationController
     end
 
     def scheduled_job_params
-      params.expect(scheduled_job: %i[name cron prompt model provider skill_slugs])
+      params.expect(scheduled_job: [ :name, :cron, :prompt, :model, :provider, { skill_slugs: [] } ])
     end
 
     def default_model
