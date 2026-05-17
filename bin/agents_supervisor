@@ -387,6 +387,84 @@ module AgentsSupervisor
         out
       end
   end
+
+  # Owns the tmux side of swarm workers — siblings of TmuxBridge but with a
+  # `mop-swarm-` session-name prefix so terminal sessions and swarm workers
+  # never collide in the tmux server. Same pipe-pane FIFO contract: the
+  # Rails-side Swarm::StreamPump tails `swarm-<id>.fifo` and rebroadcasts
+  # to SwarmChannel subscribers. Each public method coerces assignment_id
+  # to Integer at the chokepoint — same defense-in-depth as TmuxBridge —
+  # so any non-numeric value (and therefore any shell metachar) is
+  # rejected before reaching tmux's `pipe-pane` shell argument.
+  class SwarmTmuxBridge
+    FIFO_DIR = Rails.root.join("tmp/sockets")
+
+    def initialize
+      FileUtils.mkdir_p(FIFO_DIR)
+    end
+
+    def create(assignment_id:, profile_slug:, cwd:, cols: 120, rows: 40, **)
+      aid  = coerce_assignment_id(assignment_id)
+      cols = Integer(cols)
+      rows = Integer(rows)
+      name = name_for(aid)
+      run!("tmux", "new-session", "-d", "-s", name, "-x", cols.to_s, "-y", rows.to_s, "-c", cwd)
+      fifo = fifo_path(aid)
+      unless fifo.exist?
+        File.mkfifo(fifo.to_s)
+        File.chmod(0o600, fifo.to_s)
+      end
+      # pipe-pane shell argument is /bin/sh -c evaluated. The FIFO path is
+      # built from a coerced Integer assignment_id and Shellwords.escape'd,
+      # so a malicious JSON-RPC client can't smuggle shell metacharacters.
+      run!("tmux", "pipe-pane", "-t", name, "-o", "cat >> #{Shellwords.escape(fifo.to_s)}")
+      { tmux_session_name: name, fifo: fifo.to_s, profile_slug: profile_slug.to_s }
+    end
+
+    def send_keys(assignment_id:, data:, **)
+      aid = coerce_assignment_id(assignment_id)
+      run!("tmux", "send-keys", "-t", name_for(aid), "-l", data.to_s)
+      { ok: true }
+    end
+
+    def close(assignment_id:, **)
+      aid = coerce_assignment_id(assignment_id)
+      out, status = Open3.capture2e("tmux", "kill-session", "-t", name_for(aid))
+      fifo = fifo_path(aid)
+      File.unlink(fifo.to_s) if fifo.exist?
+      # kill-session failing usually means "no such session" — already gone,
+      # so the desired end state is satisfied. Bubble other failures up.
+      if status.success?
+        { ok: true }
+      elsif out.include?("can't find session") || out.include?("no server")
+        { ok: true, already_gone: true }
+      else
+        raise "tmux kill-session failed: #{out}"
+      end
+    end
+
+    def fifo_path(assignment_id)
+      FIFO_DIR.join("swarm-#{coerce_assignment_id(assignment_id)}.fifo")
+    end
+
+    private
+      def name_for(assignment_id)
+        "mop-swarm-#{assignment_id}"
+      end
+
+      # Single chokepoint for shell-metachar defense — see TmuxBridge for the
+      # full rationale. Every public SwarmTmuxBridge method funnels through
+      # here before any value reaches tmux argv or a pipe-pane shell string.
+      def coerce_assignment_id(value)
+        Integer(value)
+      end
+
+      def run!(*argv)
+        out, status = Open3.capture2e(*argv)
+        raise "tmux command failed: #{argv.inspect}\n#{out}" unless status.success?
+        out
+      end
+  end
 end
 
 # ---- Boot ------------------------------------------------------------------
@@ -439,6 +517,7 @@ end
 skills_listener.start
 
 tmux  = AgentsSupervisor::TmuxBridge.new
+swarm = AgentsSupervisor::SwarmTmuxBridge.new
 shell = AgentsSupervisor::ShellBridge.new
 
 handle_request = lambda do |request|
@@ -446,13 +525,16 @@ handle_request = lambda do |request|
   params = (request["params"] || {}).transform_keys(&:to_sym)
   result =
     case method
-    when "health.ping"      then { pong: true, pid: Process.pid }
-    when "terminal.create"  then tmux.create(**params)
-    when "terminal.input"   then tmux.input(**params)
-    when "terminal.resize"  then tmux.resize(**params)
-    when "terminal.close"   then tmux.close(**params)
-    when "terminal.capture" then tmux.capture(**params)
-    when "shell.run"        then shell.run(**params)
+    when "health.ping"         then { pong: true, pid: Process.pid }
+    when "terminal.create"     then tmux.create(**params)
+    when "terminal.input"      then tmux.input(**params)
+    when "terminal.resize"     then tmux.resize(**params)
+    when "terminal.close"      then tmux.close(**params)
+    when "terminal.capture"    then tmux.capture(**params)
+    when "swarm.spawn_worker"  then swarm.create(**params)
+    when "swarm.send_keys"     then swarm.send_keys(**params)
+    when "swarm.close_worker"  then swarm.close(**params)
+    when "shell.run"           then shell.run(**params)
     else
       return { jsonrpc: "2.0", id: request["id"], error: { code: -32601, message: "method not found: #{method}" } }
     end
