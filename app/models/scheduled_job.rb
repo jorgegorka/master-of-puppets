@@ -1,6 +1,7 @@
 class ScheduledJob < ApplicationRecord
   include Eventable
   include ScheduledJob::Pausable
+  include ScheduledJob::Runnable
 
   belongs_to :user, default: -> { Current.user }
   has_many :runs, class_name: "JobRun", dependent: :destroy
@@ -10,6 +11,7 @@ class ScheduledJob < ApplicationRecord
   validate :cron_expression_parses
 
   before_validation :default_skill_slugs
+  before_validation :default_next_run_at, on: :create
 
   scope :due, ->(now = Time.current) { where.not(next_run_at: nil).where(next_run_at: ..now) }
 
@@ -31,13 +33,15 @@ class ScheduledJob < ApplicationRecord
     cron_parser&.next_run_at(from: from)
   end
 
-  def run!
-    raise NotImplementedError, "implemented in Task 5.9"
-  end
-
   private
     def default_skill_slugs
       self.skill_slugs ||= []
+    end
+
+    def default_next_run_at
+      return if next_run_at.present?
+
+      self.next_run_at = compute_next_run_at
     end
 
     def cron_expression_parses

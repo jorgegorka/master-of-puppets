@@ -4,6 +4,7 @@ require "rails/test_help"
 
 require "webmock/minitest"
 require_relative "support/method_stub"
+require_relative "support/llm_stubs"
 
 # Allow Capybara/Selenium loopback traffic through WebMock.
 # Selenium talks to chromedriver on 127.0.0.1 / ::1 which `allow_localhost: true`

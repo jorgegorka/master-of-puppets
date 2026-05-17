@@ -58,4 +58,13 @@ class ScheduledJobTest < ActiveSupport::TestCase
     next_at = sj.compute_next_run_at(from: Time.utc(2026, 5, 17, 8))
     assert_equal 9, next_at.hour
   end
+
+  test "on create, next_run_at defaults from cron" do
+    sj = users(:one).scheduled_jobs.create!(
+      name: "Test", cron: "0 0 * * *",
+      prompt: "x", model: "claude-haiku-4-5", provider: "anthropic"
+    )
+    assert_not_nil sj.next_run_at
+    assert sj.next_run_at > Time.current
+  end
 end
