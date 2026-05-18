@@ -34,4 +34,7 @@ class SwarmMission < ApplicationRecord
     SwarmEvent.log!(mission: self, kind: "executing", message: "Mission started", data: {})
   end
 
+  def decomposition_prompt(profiles:, user: self.user)
+    DecompositionPrompt.new(mission: self, profiles: profiles, user: user)
+  end
 end

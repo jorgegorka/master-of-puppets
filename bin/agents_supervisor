@@ -343,15 +343,19 @@ module AgentsSupervisor
     end
 
     def close(session_id:, **)
-      sid = coerce_session_id(session_id)
-      out, status = Open3.capture2e("tmux", "kill-session", "-t", name_for(sid))
-      fifo = fifo_path(sid)
-      File.unlink(fifo.to_s) if fifo.exist?
-      # kill-session failing usually means "no such session" — already gone,
-      # so the desired end state is satisfied. Bubble other failures up.
-      unless status.success?
-        return { ok: true, note: "session not found" } if out.include?("can't find session") || out.include?("no server")
-        raise "tmux kill-session failed: #{out}"
+      sid  = coerce_session_id(session_id)
+      name = name_for(sid)
+      out, _status = Open3.capture2e("tmux", "kill-session", "-t", name)
+      FileUtils.rm_f(fifo_path(sid).to_s)
+      # End-state, not error-string: tmux has at least four idioms for
+      # "session/server is gone" ("can't find session", "no server running",
+      # "no current target", "error connecting to ... (No such file or
+      # directory)"), and the set drifts across versions and platforms.
+      # Probe `has-session` instead — if the session is no longer there,
+      # the close is idempotently successful regardless of what kill-session
+      # complained about.
+      if session_alive?(name)
+        raise "tmux kill-session left session #{name} alive: #{out}"
       end
       { ok: true }
     end
@@ -379,6 +383,11 @@ module AgentsSupervisor
       # thus any shell metacharacter) from reaching tmux.
       def coerce_session_id(value)
         Integer(value)
+      end
+
+      def session_alive?(name)
+        _out, status = Open3.capture2e("tmux", "has-session", "-t", name)
+        status.success?
       end
 
       def run!(*argv)
@@ -428,19 +437,15 @@ module AgentsSupervisor
     end
 
     def close(assignment_id:, **)
-      aid = coerce_assignment_id(assignment_id)
-      out, status = Open3.capture2e("tmux", "kill-session", "-t", name_for(aid))
-      fifo = fifo_path(aid)
-      File.unlink(fifo.to_s) if fifo.exist?
-      # kill-session failing usually means "no such session" — already gone,
-      # so the desired end state is satisfied. Bubble other failures up.
-      if status.success?
-        { ok: true }
-      elsif out.include?("can't find session") || out.include?("no server")
-        { ok: true, already_gone: true }
-      else
-        raise "tmux kill-session failed: #{out}"
+      aid  = coerce_assignment_id(assignment_id)
+      name = name_for(aid)
+      out, status = Open3.capture2e("tmux", "kill-session", "-t", name)
+      FileUtils.rm_f(fifo_path(aid).to_s)
+      # End-state, not error-string: see TmuxBridge#close for rationale.
+      if session_alive?(name)
+        raise "tmux kill-session left session #{name} alive: #{out}"
       end
+      status.success? ? { ok: true } : { ok: true, already_gone: true }
     end
 
     def fifo_path(assignment_id)
@@ -457,6 +462,11 @@ module AgentsSupervisor
       # here before any value reaches tmux argv or a pipe-pane shell string.
       def coerce_assignment_id(value)
         Integer(value)
+      end
+
+      def session_alive?(name)
+        _out, status = Open3.capture2e("tmux", "has-session", "-t", name)
+        status.success?
       end
 
       def run!(*argv)

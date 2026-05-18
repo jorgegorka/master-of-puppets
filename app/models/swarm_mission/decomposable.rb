@@ -49,11 +49,7 @@ module SwarmMission::Decomposable
         provider:       AgentProfile.first&.provider || "anthropic",
         last_active_at: Time.current
       )
-      prompt = Conductor::Prompts.decomposition(
-        mission:  self,
-        profiles: AgentProfile.rostered.to_a,
-        user:     user
-      )
+      prompt = decomposition_prompt(profiles: AgentProfile.rostered.to_a, user: user).to_s
       chat.messages.create!(
         role:           :user,
         status:         :completed,

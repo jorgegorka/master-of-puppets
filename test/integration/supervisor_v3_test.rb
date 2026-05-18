@@ -72,6 +72,29 @@ class SupervisorV3Test < ActiveSupport::TestCase
     assert second.dig("result", "ok"), "second close should still report ok (idempotent), got #{second.inspect}"
   end
 
+  # Under parallel-test load, the host tmux server can shut down (or its
+  # socket can vanish) between two close calls because some *other* test
+  # finished cleanup at the same time. tmux then emits "no current target"
+  # or "error connecting to .../default (No such file or directory)" — both
+  # outside the close handler's earlier idiom list. Reproduce the scenario
+  # deterministically by killing the host server between calls.
+  test "swarm.close_worker tolerates tmux server vanishing between calls" do
+    id = unique_assignment_id
+    rpc(method: "swarm.spawn_worker",
+        params: { assignment_id: id, profile_slug: "test", cwd: @mop_home.to_s, cols: 80, rows: 24 },
+        timeout: 5)
+
+    system("tmux kill-server 2>/dev/null")
+    # Also remove tmux's socket file — under heavy parallel load this gets
+    # cleaned up before the next close call lands. Without rm-ing it here
+    # the test only hits the "no server running" idiom (which the old code
+    # happened to match) and misses "error connecting to .../default".
+    Dir["/tmp/tmux-*/default", "/private/tmp/tmux-*/default"].each { |p| File.unlink(p) rescue nil }
+
+    response = rpc(method: "swarm.close_worker", params: { assignment_id: id }, timeout: 5)
+    assert response.dig("result", "ok"), "close_worker should be idempotent when the tmux server has vanished, got #{response.inspect}"
+  end
+
   test "swarm.send_keys delivers input to the worker session" do
     id = unique_assignment_id
     rpc(method: "swarm.spawn_worker",
