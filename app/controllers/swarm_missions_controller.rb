@@ -16,11 +16,10 @@ class SwarmMissionsController < ApplicationController
   end
 
   def create
-    @swarm_mission = SwarmMission.new(swarm_mission_params.merge(user: Current.user, created_by: Current.user))
+    @swarm_mission = SwarmMission.new(swarm_mission_params)
     if @swarm_mission.save
       @swarm_mission.track_event :created
       @swarm_mission.decompose_later
-      @swarm_mission.dispatch_later if @swarm_mission.auto?
       redirect_to swarm_mission_path(@swarm_mission)
     else
       render :new, status: :unprocessable_entity

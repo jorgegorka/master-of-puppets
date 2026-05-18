@@ -7,21 +7,17 @@ class SwarmMissionsDispatchTest < ActionDispatch::IntegrationTest
     AgentProfile.refresh_from_yaml!
   end
 
-  test "auto-mode mission enqueues DecompositionJob and DispatchJob on create" do
+  test "auto-mode mission enqueues only DecompositionJob on create" do
     assert_enqueued_with(job: Swarm::DecompositionJob) do
-      assert_enqueued_with(job: Swarm::DispatchJob) do
-        post swarm_missions_path,
-             params: { swarm_mission: { title: "Auto", goal: "G", mode: "auto" } }
-      end
+      post swarm_missions_path,
+           params: { swarm_mission: { title: "Auto", goal: "G", mode: "auto" } }
     end
   end
 
-  test "manual-mode mission enqueues decompose but not dispatch" do
+  test "manual-mode mission enqueues only DecompositionJob on create" do
     assert_enqueued_with(job: Swarm::DecompositionJob) do
-      assert_no_enqueued_jobs only: Swarm::DispatchJob do
-        post swarm_missions_path,
-             params: { swarm_mission: { title: "Manual", goal: "G", mode: "manual" } }
-      end
+      post swarm_missions_path,
+           params: { swarm_mission: { title: "Manual", goal: "G", mode: "manual" } }
     end
   end
 end

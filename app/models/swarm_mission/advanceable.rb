@@ -32,6 +32,8 @@ module SwarmMission::Advanceable
     end
 
     def apply_stanza(asg, stanza)
+      return if asg.resolved?
+
       asg.checkpoints.create!(
         state_label:   stanza[:state_label],
         runtime_state: stanza[:runtime_state],
@@ -56,7 +58,7 @@ module SwarmMission::Advanceable
       if assignments.where(state: %i[pending dispatched running blocked]).empty?
         if assignments.where(state: :failed).any?
           update!(state: :complete) # All-resolved-with-some-failures still terminal; UI surfaces failures
-          track_event :completed_with_failures, count: assignments.where(state: :failed).count
+          track_event :completion_failed, count: assignments.where(state: :failed).count
         else
           update!(state: :complete)
           track_event :completed

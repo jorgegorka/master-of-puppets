@@ -13,13 +13,13 @@ class SwarmMission < ApplicationRecord
   has_many :swarm_events, dependent: :destroy
 
   enum :state, { planning: 0, dispatching: 1, executing: 2, reviewing: 3,
-                 blocked: 4, complete: 5, cancelled: 6 }
+                 blocked: 4, complete: 5, cancelled: 6, planning_failed: 7 }
   enum :mode,  { auto: 0, manual: 1 }
 
   validates :title, presence: true
   validates :goal,  presence: true
 
-  scope :active,    -> { where.not(state: %i[complete cancelled]) }
+  scope :active,    -> { where.not(state: %i[complete cancelled planning_failed]) }
   scope :recent,    -> { order(created_at: :desc) }
   scope :for_user,  ->(u) { where(user: u) }
 
@@ -34,10 +34,4 @@ class SwarmMission < ApplicationRecord
     SwarmEvent.log!(mission: self, kind: "executing", message: "Mission started", data: {})
   end
 
-  # Schedules `dispatch!` with a short delay so the synchronous `decompose_later`
-  # job has time to land first and flip the mission to :dispatching. Auto-mode
-  # missions call this from the controller right after `decompose_later`.
-  def dispatch_later
-    Swarm::DispatchJob.set(wait: 5.seconds).perform_later(self)
-  end
 end

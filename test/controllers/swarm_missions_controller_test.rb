@@ -17,6 +17,8 @@ class SwarmMissionsControllerTest < ActionDispatch::IntegrationTest
     end
     mission = SwarmMission.order(:id).last
     assert_redirected_to swarm_mission_path(mission)
+    assert_equal users(:one), mission.user,       "user default should fire from Current.user"
+    assert_equal users(:one), mission.created_by, "created_by default should fire from Current.user"
   end
 
   test "show returns 404 for missions owned by another user" do

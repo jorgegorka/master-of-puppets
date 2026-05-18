@@ -18,4 +18,14 @@ class EventPruneTest < ActiveSupport::TestCase
     assert Event.exists?(id: keep_info.id)
     assert Event.exists?(id: keep_fail.id)
   end
+
+  test "prune! retains swarm_mission_completion_failed events within 365 days" do
+    msg = messages(:hello)
+    event = msg.events.create!(action: "swarm_mission_completion_failed", creator: users(:one), occurred_at: 100.days.ago)
+
+    assert_no_difference -> { Event.count } do
+      Event.prune!
+    end
+    assert Event.exists?(id: event.id)
+  end
 end

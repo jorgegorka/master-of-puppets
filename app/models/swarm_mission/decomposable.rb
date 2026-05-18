@@ -31,6 +31,7 @@ module SwarmMission::Decomposable
                     data: { count: plan["assignments"].size })
   rescue => e
     Rails.logger.warn("[SwarmMission#decompose!] #{e.class}: #{e.message}")
+    update!(state: :planning_failed)
     track_event :decomposition_failed, error: e.message.to_s.first(255)
     SwarmEvent.log!(mission: self, kind: "decomposition_failed", message: e.message, data: {})
   end

@@ -81,6 +81,58 @@ class SwarmMission::AdvanceableTest < ActiveSupport::TestCase
     assert_predicate mission.reload, :complete?
   end
 
+  test "advance! with all assignments failed emits swarm_mission_completion_failed event" do
+    mission = swarm_missions(:alpha); mission.update!(state: :executing)
+    asg = SwarmAssignment.create!(swarm_mission: mission,
+                                  agent_profile: AgentProfile.find_by!(slug: "backend"),
+                                  task: "T", state: :failed)
+
+    with_singleton_method(Swarm::TmuxBridge, :close_worker, ->(_a) { nil }) do
+      mission.advance!
+    end
+
+    assert_predicate mission.reload, :complete?
+    assert_equal "swarm_mission_completion_failed", mission.events.last.action
+  end
+
+  test "apply_stanza skips post-completion stanzas when buffer contains two checkpoints and first is done" do
+    mission = swarm_missions(:alpha); mission.update!(state: :executing)
+    asg = SwarmAssignment.create!(swarm_mission: mission,
+                                  agent_profile: AgentProfile.find_by!(slug: "backend"),
+                                  task: "T", state: :running)
+    push_output(asg, <<~OUT)
+      ===HERMES CHECKPOINT===
+      state_label: done
+      runtime_state: {}
+      files_changed: []
+      commands_run: []
+      result: "Finished first"
+      blocker: null
+      next_action: null
+      ===END CHECKPOINT===
+      Some trailing worker output between stanzas.
+      ===HERMES CHECKPOINT===
+      state_label: stale_followup
+      runtime_state: {}
+      files_changed: []
+      commands_run: []
+      result: "Should be ignored"
+      blocker: null
+      next_action: null
+      ===END CHECKPOINT===
+    OUT
+
+    with_singleton_method(Swarm::TmuxBridge, :close_worker, ->(_a) { nil }) do
+      mission.advance!
+    end
+
+    assert_equal 1, asg.checkpoints.count,
+                 "expected only one checkpoint (pre-completion), got #{asg.checkpoints.count}"
+    assert_equal 1, SwarmEvent.where(kind: "checkpoint", swarm_assignment: asg).count,
+                 "expected only one checkpoint SwarmEvent, got #{SwarmEvent.where(kind: "checkpoint", swarm_assignment: asg).count}"
+    assert_predicate asg.reload, :completed?
+  end
+
   test ".advance_all_active processes every non-terminal mission" do
     m1 = swarm_missions(:alpha);     m1.update!(state: :executing)
     swarm_missions(:alpha_cancelled)  # already cancelled, will be filtered by .active

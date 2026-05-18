@@ -11,13 +11,13 @@ module SwarmMission::Cancellable
     cancel_record.present?
   end
 
-  def cancel(reason: nil, user: Current.user)
+  def cancel!(reason: nil, user: Current.user)
     return if cancelled?
 
     transaction do
       create_cancel_record!(user: user, reason: reason)
       update!(state: :cancelled)
-      assignments.live.find_each { |a| a.update!(state: :cancelled) }
+      assignments.unresolved.find_each(&:cancel!)
       track_event :cancelled, creator: user, reason: reason
     end
   end

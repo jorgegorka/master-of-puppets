@@ -33,8 +33,15 @@ class Skill < ApplicationRecord
   # A skill with no `tools:` (or unknown names) injects prompt-only — no
   # tools — which keeps low-trust skills additive but unable to widen the
   # tool surface the chat session would otherwise have.
-  def tool_definitions
+  # Tool surface this skill contributes for a given user. The user gate is
+  # enforced here (via Tool::Internal.allowed_for) so that a skill whose
+  # frontmatter declares an admin-only tool (e.g. `run_shell`) cannot smuggle
+  # it back to a non-admin through the skills path. Allowed names are the
+  # intersection of what the skill declares and what the user may use.
+  def tool_definitions(user:)
+    allowed_names = Tool::Internal.allowed_for(user).map { |d| d[:name] }.to_set
     Array(manifest["tools"]).filter_map do |tool_name|
+      next unless allowed_names.include?(tool_name)
       Tool::Internal.lookup(tool_name)&.tool_definition
     end
   end

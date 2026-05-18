@@ -28,4 +28,5 @@ class SwarmAssignment < ApplicationRecord
   }
   scope :live, -> { where(state: %i[dispatched running blocked]) }
   scope :resolved, -> { where(state: %i[completed failed cancelled]) }
+  scope :unresolved, -> { where.not(state: %i[completed failed cancelled]) }
 end

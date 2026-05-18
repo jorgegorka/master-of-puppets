@@ -30,7 +30,7 @@ class SwarmMission::DecomposableTest < ActiveSupport::TestCase
     assert_equal [ first.id ], second.depends_on
   end
 
-  test "decompose! on bad JSON records failure event + keeps state :planning" do
+  test "decompose! on bad JSON transitions to :planning_failed and records failure event" do
     mission = swarm_missions(:alpha)
     LlmStubs.with_decomposition("not json at all") do
       assert_difference -> { mission.events.where(action: "swarm_mission_decomposition_failed").count }, 1 do
@@ -39,7 +39,7 @@ class SwarmMission::DecomposableTest < ActiveSupport::TestCase
         end
       end
     end
-    assert_predicate mission.reload, :planning?
+    assert_predicate mission.reload, :planning_failed?
   end
 
   test "decompose! rejects unknown agent_slug with a clear error event" do
@@ -52,7 +52,7 @@ class SwarmMission::DecomposableTest < ActiveSupport::TestCase
     }) do
       mission.decompose!
     end
-    assert_predicate mission.reload, :planning?
+    assert_predicate mission.reload, :planning_failed?
     ev = mission.events.where(action: "swarm_mission_decomposition_failed").last
     assert_match(/unknown agent_slug.*nonexistent/, ev.particulars["error"])
   end
@@ -69,6 +69,6 @@ class SwarmMission::DecomposableTest < ActiveSupport::TestCase
     }) do
       mission.decompose!
     end
-    assert_predicate mission.reload, :planning?
+    assert_predicate mission.reload, :planning_failed?
   end
 end

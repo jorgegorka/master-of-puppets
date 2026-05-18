@@ -69,7 +69,7 @@ Rails.application.routes.draw do
       resource  :start,        only: %i[create]
     end
   end
-  get "/swarm/kanban", to: "swarm_kanbans#show", as: :swarm_kanban
+  resource :swarm_kanban, only: :show, path: "swarm/kanban", controller: "swarm_kanbans"
 
   resources :agent_profiles, path: "swarm/agents" do
     collection do

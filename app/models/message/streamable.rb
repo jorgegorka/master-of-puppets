@@ -58,7 +58,7 @@ module Message::Streamable
   def available_tools
     defs  = Tool::Internal.allowed_for(chat_session.user)
     defs += Tool::Mcp.allowed_for(chat_session.user)
-    defs + enabled_skills.flat_map(&:tool_definitions)
+    defs + enabled_skills.flat_map { |s| s.tool_definitions(user: chat_session.user) }
   end
 
   # Public so tests + the controller can introspect the effective surface.
